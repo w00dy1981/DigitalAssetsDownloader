@@ -1,0 +1,396 @@
+import React, { useState, useEffect, useCallback } from 'react';
+import { SpreadsheetData, DownloadConfig } from '@/shared/types';
+
+interface ColumnSelectionTabProps {
+  data: SpreadsheetData;
+  onConfigurationComplete: (config: DownloadConfig) => void;
+  initialConfig: DownloadConfig | null;
+}
+
+const ColumnSelectionTab: React.FC<ColumnSelectionTabProps> = ({ 
+  data, 
+  onConfigurationComplete, 
+  initialConfig 
+}) => {
+  const [partNoColumn, setPartNoColumn] = useState<string>('');
+  const [imageColumns, setImageColumns] = useState<string[]>([]);
+  const [pdfColumn, setPdfColumn] = useState<string>('');
+  const [filenameColumn, setFilenameColumn] = useState<string>('');
+  const [imageFolder, setImageFolder] = useState<string>('');
+  const [pdfFolder, setPdfFolder] = useState<string>('');
+  const [sourceImageFolder, setSourceImageFolder] = useState<string>('');
+  const [imageFilePath, setImageFilePath] = useState<string>('');
+  const [pdfFilePath, setPdfFilePath] = useState<string>('');
+  const [maxWorkers, setMaxWorkers] = useState<number>(5);
+  const [error, setError] = useState<string>('');
+
+  // Background processing settings
+  const [backgroundProcessingEnabled, setBackgroundProcessingEnabled] = useState<boolean>(false);
+  const [backgroundMethod, setBackgroundMethod] = useState<'smart_detect' | 'ai_removal' | 'color_replace' | 'edge_detection'>('smart_detect');
+  const [quality, setQuality] = useState<number>(95);
+  const [edgeThreshold, setEdgeThreshold] = useState<number>(30);
+
+  // Load initial configuration
+  useEffect(() => {
+    if (initialConfig) {
+      setPartNoColumn(initialConfig.partNoColumn || '');
+      setImageColumns(initialConfig.imageColumns || []);
+      setPdfColumn(initialConfig.pdfColumn || '');
+      setFilenameColumn(initialConfig.filenameColumn || '');
+      setImageFolder(initialConfig.imageFolder || '');
+      setPdfFolder(initialConfig.pdfFolder || '');
+      setSourceImageFolder(initialConfig.sourceImageFolder || '');
+      setImageFilePath(initialConfig.imageFilePath || '');
+      setPdfFilePath(initialConfig.pdfFilePath || '');
+      setMaxWorkers(initialConfig.maxWorkers || 5);
+      setBackgroundProcessingEnabled(initialConfig.backgroundProcessing?.enabled || false);
+      setBackgroundMethod(initialConfig.backgroundProcessing?.method || 'smart_detect');
+      setQuality(initialConfig.backgroundProcessing?.quality || 95);
+      setEdgeThreshold(initialConfig.backgroundProcessing?.edgeThreshold || 30);
+    }
+  }, [initialConfig]);
+
+  const handleImageColumnToggle = useCallback((column: string) => {
+    setImageColumns(prev => 
+      prev.includes(column) 
+        ? prev.filter(col => col !== column)
+        : [...prev, column]
+    );
+  }, []);
+
+  const handleFolderSelect = useCallback(async (setter: (value: string) => void) => {
+    try {
+      const result = await window.electronAPI.openFolderDialog({
+        title: 'Select Folder'
+      });
+      
+      if (!result.canceled && result.filePaths.length > 0) {
+        setter(result.filePaths[0]);
+      }
+    } catch (err) {
+      setError('Failed to open folder dialog.');
+      console.error('Error opening folder dialog:', err);
+    }
+  }, []);
+
+  const validateConfiguration = useCallback((): boolean => {
+    setError('');
+    
+    if (!partNoColumn) {
+      setError('Please select a Part Number column.');
+      return false;
+    }
+    
+    if (imageColumns.length === 0 && !pdfColumn) {
+      setError('Please select at least one image column or PDF column.');
+      return false;
+    }
+    
+    if (imageColumns.length > 0 && !imageFolder) {
+      setError('Please select an image download folder.');
+      return false;
+    }
+    
+    if (pdfColumn && !pdfFolder) {
+      setError('Please select a PDF download folder.');
+      return false;
+    }
+    
+    return true;
+  }, [partNoColumn, imageColumns, pdfColumn, imageFolder, pdfFolder]);
+
+  const handleNext = useCallback(() => {
+    if (!validateConfiguration()) {
+      return;
+    }
+    
+    const config: DownloadConfig = {
+      excelFile: data.filePath,
+      sheetName: data.sheetName,
+      partNoColumn,
+      imageColumns,
+      pdfColumn,
+      filenameColumn,
+      imageFolder,
+      pdfFolder,
+      sourceImageFolder,
+      imageFilePath,
+      pdfFilePath,
+      maxWorkers,
+      backgroundProcessing: {
+        enabled: backgroundProcessingEnabled,
+        method: backgroundMethod,
+        quality,
+        edgeThreshold
+      }
+    };
+    
+    onConfigurationComplete(config);
+  }, [
+    data, partNoColumn, imageColumns, pdfColumn, filenameColumn,
+    imageFolder, pdfFolder, sourceImageFolder, imageFilePath, pdfFilePath,
+    maxWorkers, backgroundProcessingEnabled, backgroundMethod, quality, edgeThreshold,
+    onConfigurationComplete, validateConfiguration
+  ]);
+
+  return (
+    <div className="tab-panel">
+      <h2>Column Selection & Configuration</h2>
+      <p>Map your Excel columns to the appropriate data types and configure download settings.</p>
+      
+      {error && (
+        <div className="alert alert-danger mb-3">
+          {error}
+        </div>
+      )}
+      
+      <div className="configuration-sections">
+        {/* Column Mapping Section */}
+        <div className="config-section">
+          <h3>Column Mapping</h3>
+          
+          {/* Part Number Column (Required) */}
+          <div className="form-group">
+            <label htmlFor="part-column">Part Number Column *</label>
+            <select
+              id="part-column"
+              value={partNoColumn}
+              onChange={(e) => setPartNoColumn(e.target.value)}
+              className="form-control"
+            >
+              <option value="">Choose a column...</option>
+              {data.columns.map(column => (
+                <option key={column} value={column}>
+                  {column}
+                </option>
+              ))}
+            </select>
+          </div>
+          
+          {/* Image URL Columns */}
+          <div className="form-group">
+            <label>Image URL Columns</label>
+            <div className="checkbox-group">
+              {data.columns.map(column => (
+                <label key={column} className="checkbox-label">
+                  <input
+                    type="checkbox"
+                    checked={imageColumns.includes(column)}
+                    onChange={() => handleImageColumnToggle(column)}
+                  />
+                  {column}
+                </label>
+              ))}
+            </div>
+          </div>
+          
+          {/* PDF Column */}
+          <div className="form-group">
+            <label htmlFor="pdf-column">PDF URL Column</label>
+            <select
+              id="pdf-column"
+              value={pdfColumn}
+              onChange={(e) => setPdfColumn(e.target.value)}
+              className="form-control"
+            >
+              <option value="">Choose a column...</option>
+              {data.columns.map(column => (
+                <option key={column} value={column}>
+                  {column}
+                </option>
+              ))}
+            </select>
+          </div>
+          
+          {/* Filename Column */}
+          <div className="form-group">
+            <label htmlFor="filename-column">Custom Filename Column (Optional)</label>
+            <select
+              id="filename-column"
+              value={filenameColumn}
+              onChange={(e) => setFilenameColumn(e.target.value)}
+              className="form-control"
+            >
+              <option value="">Choose a column...</option>
+              {data.columns.map(column => (
+                <option key={column} value={column}>
+                  {column}
+                </option>
+              ))}
+            </select>
+            <small className="text-muted">
+              Used for filename matching when searching source folders
+            </small>
+          </div>
+        </div>
+        
+        {/* Download Folders Section */}
+        <div className="config-section">
+          <h3>Download Folders</h3>
+          
+          {/* Image Download Folder */}
+          <div className="form-group">
+            <label htmlFor="image-folder">Image Download Folder</label>
+            <div className="folder-input-group">
+              <input
+                id="image-folder"
+                type="text"
+                value={imageFolder}
+                onChange={(e) => setImageFolder(e.target.value)}
+                placeholder="Select folder for downloaded images"
+                className="form-control"
+              />
+              <button
+                type="button"
+                className="btn btn-secondary"
+                onClick={() => handleFolderSelect(setImageFolder)}
+              >
+                Browse
+              </button>
+            </div>
+          </div>
+          
+          {/* PDF Download Folder */}
+          <div className="form-group">
+            <label htmlFor="pdf-folder">PDF Download Folder</label>
+            <div className="folder-input-group">
+              <input
+                id="pdf-folder"
+                type="text"
+                value={pdfFolder}
+                onChange={(e) => setPdfFolder(e.target.value)}
+                placeholder="Select folder for downloaded PDFs"
+                className="form-control"
+              />
+              <button
+                type="button"
+                className="btn btn-secondary"
+                onClick={() => handleFolderSelect(setPdfFolder)}
+              >
+                Browse
+              </button>
+            </div>
+          </div>
+          
+          {/* Source Image Folder */}
+          <div className="form-group">
+            <label htmlFor="source-folder">Source Image Folder (Optional)</label>
+            <div className="folder-input-group">
+              <input
+                id="source-folder"
+                type="text"
+                value={sourceImageFolder}
+                onChange={(e) => setSourceImageFolder(e.target.value)}
+                placeholder="Folder to search for existing images"
+                className="form-control"
+              />
+              <button
+                type="button"
+                className="btn btn-secondary"
+                onClick={() => handleFolderSelect(setSourceImageFolder)}
+              >
+                Browse
+              </button>
+            </div>
+            <small className="text-muted">
+              If specified, the system will search this folder for images matching part numbers
+            </small>
+          </div>
+        </div>
+        
+        {/* Advanced Settings Section */}
+        <div className="config-section">
+          <h3>Advanced Settings</h3>
+          
+          {/* Concurrent Downloads */}
+          <div className="form-group">
+            <label htmlFor="max-workers">Concurrent Downloads: {maxWorkers}</label>
+            <input
+              id="max-workers"
+              type="range"
+              min="1"
+              max="20"
+              value={maxWorkers}
+              onChange={(e) => setMaxWorkers(parseInt(e.target.value))}
+              className="form-control"
+            />
+            <small className="text-muted">
+              Number of simultaneous downloads (1-20)
+            </small>
+          </div>
+          
+          {/* Background Processing */}
+          <div className="form-group">
+            <label className="checkbox-label">
+              <input
+                type="checkbox"
+                checked={backgroundProcessingEnabled}
+                onChange={(e) => setBackgroundProcessingEnabled(e.target.checked)}
+              />
+              Enable Background Processing
+            </label>
+          </div>
+          
+          {backgroundProcessingEnabled && (
+            <div className="bg-processing-options">
+              <div className="form-group">
+                <label htmlFor="bg-method">Processing Method</label>
+                <select
+                  id="bg-method"
+                  value={backgroundMethod}
+                  onChange={(e) => setBackgroundMethod(e.target.value as any)}
+                  className="form-control"
+                >
+                  <option value="smart_detect">Smart Detection</option>
+                  <option value="ai_removal">AI Removal</option>
+                  <option value="color_replace">Color Range Replacement</option>
+                  <option value="edge_detection">Edge Detection</option>
+                </select>
+              </div>
+              
+              <div className="form-group">
+                <label htmlFor="quality">JPEG Quality: {quality}%</label>
+                <input
+                  id="quality"
+                  type="range"
+                  min="60"
+                  max="100"
+                  value={quality}
+                  onChange={(e) => setQuality(parseInt(e.target.value))}
+                  className="form-control"
+                />
+              </div>
+              
+              {backgroundMethod === 'edge_detection' && (
+                <div className="form-group">
+                  <label htmlFor="edge-threshold">Edge Threshold: {edgeThreshold}</label>
+                  <input
+                    id="edge-threshold"
+                    type="range"
+                    min="10"
+                    max="100"
+                    value={edgeThreshold}
+                    onChange={(e) => setEdgeThreshold(parseInt(e.target.value))}
+                    className="form-control"
+                  />
+                </div>
+              )}
+            </div>
+          )}
+        </div>
+      </div>
+      
+      <div className="btn-group mt-4">
+        <button
+          type="button"
+          className="btn btn-success"
+          onClick={handleNext}
+        >
+          Next: Process & Download
+        </button>
+      </div>
+    </div>
+  );
+};
+
+export default ColumnSelectionTab;
