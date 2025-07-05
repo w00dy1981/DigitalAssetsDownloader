@@ -25,10 +25,12 @@ const App: React.FC = () => {
         }
       } catch (error) {
         console.error('Error loading configuration:', error);
+        // Don't show error to user, just continue without loading config
       }
     };
 
-    loadConfig();
+    // Add a small delay to ensure the main process is ready
+    setTimeout(loadConfig, 1000);
 
     // Listen for menu events
     const handleMenuOpenFile = () => {

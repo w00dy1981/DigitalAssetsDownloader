@@ -49,7 +49,7 @@ class DigitalAssetDownloaderApp {
     const isDev = process.env.NODE_ENV === 'development';
     if (isDev) {
       await this.mainWindow.loadFile(path.join(__dirname, '../renderer/index.html'));
-      this.mainWindow.webContents.openDevTools();
+      // this.mainWindow.webContents.openDevTools(); // Uncomment to open DevTools
     } else {
       await this.mainWindow.loadFile(path.join(__dirname, '../renderer/index.html'));
     }
@@ -57,7 +57,16 @@ class DigitalAssetDownloaderApp {
     // Show window when ready
     this.mainWindow.once('ready-to-show', () => {
       this.mainWindow?.show();
+      this.mainWindow?.focus(); // Ensure window gets focus
     });
+
+    // Force show window after a delay if it doesn't show automatically
+    setTimeout(() => {
+      if (this.mainWindow && !this.mainWindow.isVisible()) {
+        this.mainWindow.show();
+        this.mainWindow.focus();
+      }
+    }, 2000);
 
     // Handle window state changes
     this.mainWindow.on('close', () => {
@@ -177,6 +186,39 @@ class DigitalAssetDownloaderApp {
     ipcMain.handle(IPC_CHANNELS.LOAD_CONFIG, async () => {
       const config = this.store.get('lastConfiguration');
       return config || null;
+    });
+
+    // Excel/CSV handlers (placeholder for Phase 2)
+    ipcMain.handle(IPC_CHANNELS.LOAD_EXCEL_FILE, async (_, filePath) => {
+      // TODO: Implement in Phase 2
+      return { error: 'Excel loading not implemented yet' };
+    });
+
+    ipcMain.handle(IPC_CHANNELS.GET_SHEET_NAMES, async (_, filePath) => {
+      // TODO: Implement in Phase 2  
+      return ['Sheet1'];
+    });
+
+    ipcMain.handle(IPC_CHANNELS.LOAD_SHEET_DATA, async (_, filePath, sheetName) => {
+      // TODO: Implement in Phase 2
+      return {
+        columns: ['PartNumber', 'ImageURL', 'Description'],
+        rows: [
+          { PartNumber: 'TEST001', ImageURL: 'https://example.com/image1.jpg', Description: 'Test Item 1' },
+          { PartNumber: 'TEST002', ImageURL: 'https://example.com/image2.jpg', Description: 'Test Item 2' }
+        ]
+      };
+    });
+
+    // Download handlers (placeholder for Phase 4)
+    ipcMain.handle(IPC_CHANNELS.START_DOWNLOADS, async (_, config) => {
+      // TODO: Implement in Phase 4
+      return { message: 'Downloads not implemented yet' };
+    });
+
+    ipcMain.handle(IPC_CHANNELS.CANCEL_DOWNLOADS, async () => {
+      // TODO: Implement in Phase 4
+      return { success: true };
     });
 
     // Window control handlers
