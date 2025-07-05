@@ -262,6 +262,193 @@
   text-align: right;
 }
 
+/* Alert Styles */
+.alert {
+  padding: 0.75rem 1rem;
+  border: 1px solid;
+  border-radius: 4px;
+  margin-bottom: 1rem;
+  font-size: 0.9rem;
+}
+
+.alert-danger {
+  color: #721c24;
+  background-color: #f8d7da;
+  border-color: #f5c6cb;
+}
+
+.alert-success {
+  color: #155724;
+  background-color: #d4edda;
+  border-color: #c3e6cb;
+}
+
+.alert-warning {
+  color: #856404;
+  background-color: #fff3cd;
+  border-color: #ffeaa7;
+}
+
+.alert-info {
+  color: #0c5460;
+  background-color: #d1ecf1;
+  border-color: #bee5eb;
+}
+
+/* File Drop Zone */
+.file-drop-zone {
+  position: relative;
+  border: 2px dashed #bdc3c7;
+  border-radius: 8px;
+  padding: 1rem;
+  background-color: #fdfdfe;
+  transition: all 0.2s;
+}
+
+.file-drop-zone:hover {
+  border-color: #3498db;
+  background-color: #f8fafe;
+}
+
+.file-drop-zone.drag-over {
+  border-color: #3498db;
+  background-color: #e8f4f8;
+  transform: scale(1.02);
+}
+
+.file-drop-zone input {
+  margin-bottom: 0.5rem;
+}
+
+/* Data Summary Card */
+.data-summary {
+  border: 1px solid #ecf0f1;
+  border-radius: 8px;
+  padding: 1.5rem;
+  background-color: #f8f9fa;
+}
+
+.summary-card {
+  background-color: white;
+  border-radius: 4px;
+  padding: 1rem;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+}
+
+.summary-card p {
+  margin: 0.5rem 0;
+  color: #2c3e50;
+}
+
+.summary-card p strong {
+  color: #34495e;
+  font-weight: 600;
+}
+
+/* Column Selection Layout */
+.configuration-sections {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 2rem;
+  margin-top: 1.5rem;
+}
+
+.config-section {
+  background-color: #f8f9fa;
+  border: 1px solid #e9ecef;
+  border-radius: 8px;
+  padding: 1.5rem;
+}
+
+.config-section h3 {
+  color: #2c3e50;
+  margin-bottom: 1rem;
+  font-size: 1.25rem;
+  font-weight: 600;
+  border-bottom: 2px solid #3498db;
+  padding-bottom: 0.5rem;
+}
+
+/* Folder Input Groups */
+.folder-input-group {
+  display: flex;
+  gap: 0.5rem;
+  align-items: center;
+}
+
+.folder-input-group input {
+  flex: 1;
+}
+
+.folder-input-group button {
+  flex-shrink: 0;
+  min-width: 80px;
+}
+
+/* Checkbox Labels for Background Processing */
+.checkbox-label {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.25rem 0;
+  cursor: pointer;
+  font-weight: normal;
+  margin-bottom: 0;
+}
+
+.checkbox-label input[type="checkbox"] {
+  width: auto;
+  margin: 0;
+}
+
+/* Background Processing Options */
+.bg-processing-options {
+  background-color: white;
+  border: 1px solid #ddd;
+  border-radius: 4px;
+  padding: 1rem;
+  margin-top: 0.5rem;
+}
+
+/* Range Input Styling */
+input[type="range"] {
+  width: 100%;
+  height: 6px;
+  border-radius: 3px;
+  background: #ddd;
+  outline: none;
+  padding: 0;
+}
+
+input[type="range"]::-webkit-slider-thumb {
+  appearance: none;
+  width: 20px;
+  height: 20px;
+  border-radius: 50%;
+  background: #3498db;
+  cursor: pointer;
+}
+
+input[type="range"]::-moz-range-thumb {
+  width: 20px;
+  height: 20px;
+  border-radius: 50%;
+  background: #3498db;
+  cursor: pointer;
+  border: none;
+}
+
+/* Responsive Layout */
+@media (min-width: 1200px) {
+  .configuration-sections {
+    grid-template-columns: 1fr 1fr;
+  }
+  
+  .config-section:last-child {
+    grid-column: 1 / -1;
+  }
+}
+
 .mt-1 { margin-top: 0.5rem; }
 .mt-2 { margin-top: 1rem; }
 .mt-3 { margin-top: 1.5rem; }

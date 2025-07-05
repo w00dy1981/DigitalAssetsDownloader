@@ -2,10 +2,12 @@ import { app, BrowserWindow, ipcMain, dialog, Menu } from 'electron';
 import * as path from 'path';
 import Store from 'electron-store';
 import { IPC_CHANNELS, WindowState, AppConfig } from '@/shared/types';
+import { ExcelService } from '@/services/excelService';
 
 class DigitalAssetDownloaderApp {
   private mainWindow: BrowserWindow | null = null;
   private store: Store<AppConfig>;
+  private excelService: ExcelService;
 
   constructor() {
     this.store = new Store<AppConfig>({
@@ -18,6 +20,7 @@ class DigitalAssetDownloaderApp {
         recentFiles: [],
       },
     });
+    this.excelService = new ExcelService();
   }
 
   async createWindow(): Promise<void> {
@@ -149,6 +152,7 @@ class DigitalAssetDownloaderApp {
       const result = await dialog.showOpenDialog(this.mainWindow!, {
         properties: ['openFile'],
         filters: [
+          { name: 'All Supported Files', extensions: ['xlsx', 'xls', 'xlsm', 'csv'] },
           { name: 'Excel Files', extensions: ['xlsx', 'xls', 'xlsm'] },
           { name: 'CSV Files', extensions: ['csv'] },
           { name: 'All Files', extensions: ['*'] },
@@ -188,26 +192,33 @@ class DigitalAssetDownloaderApp {
       return config || null;
     });
 
-    // Excel/CSV handlers (placeholder for Phase 2)
-    ipcMain.handle(IPC_CHANNELS.LOAD_EXCEL_FILE, async (_, filePath) => {
-      // TODO: Implement in Phase 2
-      return { error: 'Excel loading not implemented yet' };
+    // Excel/CSV handlers - Implemented with ExcelService
+    ipcMain.handle(IPC_CHANNELS.GET_SHEET_NAMES, async (_, filePath: string) => {
+      try {
+        const sheets = await this.excelService.getSheetNames(filePath);
+        return sheets;
+      } catch (error) {
+        console.error('Error getting sheet names:', error);
+        const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+        throw new Error(errorMessage);
+      }
     });
 
-    ipcMain.handle(IPC_CHANNELS.GET_SHEET_NAMES, async (_, filePath) => {
-      // TODO: Implement in Phase 2  
-      return ['Sheet1'];
-    });
-
-    ipcMain.handle(IPC_CHANNELS.LOAD_SHEET_DATA, async (_, filePath, sheetName) => {
-      // TODO: Implement in Phase 2
-      return {
-        columns: ['PartNumber', 'ImageURL', 'Description'],
-        rows: [
-          { PartNumber: 'TEST001', ImageURL: 'https://example.com/image1.jpg', Description: 'Test Item 1' },
-          { PartNumber: 'TEST002', ImageURL: 'https://example.com/image2.jpg', Description: 'Test Item 2' }
-        ]
-      };
+    ipcMain.handle(IPC_CHANNELS.LOAD_SHEET_DATA, async (_, filePath: string, sheetName: string) => {
+      try {
+        const data = await this.excelService.loadSheetData(filePath, sheetName);
+        
+        // Add file to recent files list
+        const recentFiles = this.store.get('recentFiles', []);
+        const updatedRecentFiles = [filePath, ...recentFiles.filter(f => f !== filePath)].slice(0, 10);
+        this.store.set('recentFiles', updatedRecentFiles);
+        
+        return data;
+      } catch (error) {
+        console.error('Error loading sheet data:', error);
+        const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+        throw new Error(errorMessage);
+      }
     });
 
     // Download handlers (placeholder for Phase 4)

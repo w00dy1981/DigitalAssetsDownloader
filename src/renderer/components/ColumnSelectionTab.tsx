@@ -50,14 +50,6 @@ const ColumnSelectionTab: React.FC<ColumnSelectionTabProps> = ({
     }
   }, [initialConfig]);
 
-  const handleImageColumnToggle = useCallback((column: string) => {
-    setImageColumns(prev => 
-      prev.includes(column) 
-        ? prev.filter(col => col !== column)
-        : [...prev, column]
-    );
-  }, []);
-
   const handleFolderSelect = useCallback(async (setter: (value: string) => void) => {
     try {
       const result = await window.electronAPI.openFolderDialog({
@@ -82,7 +74,7 @@ const ColumnSelectionTab: React.FC<ColumnSelectionTabProps> = ({
     }
     
     if (imageColumns.length === 0 && !pdfColumn) {
-      setError('Please select at least one image column or PDF column.');
+      setError('Please select at least one Image URL column or PDF column.');
       return false;
     }
     
@@ -169,19 +161,20 @@ const ColumnSelectionTab: React.FC<ColumnSelectionTabProps> = ({
           
           {/* Image URL Columns */}
           <div className="form-group">
-            <label>Image URL Columns</label>
-            <div className="checkbox-group">
+            <label htmlFor="image-column">Image URL Column</label>
+            <select
+              id="image-column"
+              value={imageColumns[0] || ''}
+              onChange={(e) => setImageColumns(e.target.value ? [e.target.value] : [])}
+              className="form-control"
+            >
+              <option value="">Choose a column...</option>
               {data.columns.map(column => (
-                <label key={column} className="checkbox-label">
-                  <input
-                    type="checkbox"
-                    checked={imageColumns.includes(column)}
-                    onChange={() => handleImageColumnToggle(column)}
-                  />
+                <option key={column} value={column}>
                   {column}
-                </label>
+                </option>
               ))}
-            </div>
+            </select>
           </div>
           
           {/* PDF Column */}

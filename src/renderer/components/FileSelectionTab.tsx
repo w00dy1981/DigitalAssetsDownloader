@@ -12,15 +12,16 @@ const FileSelectionTab: React.FC<FileSelectionTabProps> = ({ onDataLoaded, curre
   const [selectedSheet, setSelectedSheet] = useState<string>('');
   const [isLoading, setIsLoading] = useState<boolean>(false);
   const [error, setError] = useState<string>('');
+  const [isDragOver, setIsDragOver] = useState<boolean>(false);
 
   const handleFileSelect = useCallback(async () => {
     try {
       setError('');
       const result = await window.electronAPI.openFileDialog({
         title: 'Select Excel or CSV File',
+        properties: ['openFile'],
         filters: [
-          { name: 'Excel Files', extensions: ['xlsx', 'xls', 'xlsm'] },
-          { name: 'CSV Files', extensions: ['csv'] },
+          { name: 'All Supported Files', extensions: ['xlsx', 'xls', 'xlsm', 'csv'] },
           { name: 'All Files', extensions: ['*'] }
         ]
       });
@@ -30,23 +31,7 @@ const FileSelectionTab: React.FC<FileSelectionTabProps> = ({ onDataLoaded, curre
         setSelectedFile(filePath);
         
         // Load sheet names for Excel files
-        if (filePath.toLowerCase().endsWith('.csv')) {
-          // CSV files have only one "sheet"
-          setAvailableSheets(['Sheet1']);
-          setSelectedSheet('Sheet1');
-        } else {
-          setIsLoading(true);
-          try {
-            const sheets = await window.electronAPI.getSheetNames(filePath);
-            setAvailableSheets(sheets);
-            setSelectedSheet(sheets[0] || '');
-          } catch (err) {
-            setError('Failed to load sheet names from the Excel file.');
-            console.error('Error loading sheet names:', err);
-          } finally {
-            setIsLoading(false);
-          }
-        }
+        await loadSheetNamesForFile(filePath);
       }
     } catch (err) {
       setError('Failed to open file dialog.');
@@ -94,11 +79,19 @@ const FileSelectionTab: React.FC<FileSelectionTabProps> = ({ onDataLoaded, curre
   const handleDragOver = useCallback((e: React.DragEvent) => {
     e.preventDefault();
     e.stopPropagation();
+    setIsDragOver(true);
+  }, []);
+
+  const handleDragLeave = useCallback((e: React.DragEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    setIsDragOver(false);
   }, []);
 
   const handleDrop = useCallback(async (e: React.DragEvent) => {
     e.preventDefault();
     e.stopPropagation();
+    setIsDragOver(false);
     
     const files = Array.from(e.dataTransfer.files);
     const file = files[0];
@@ -127,6 +120,10 @@ const FileSelectionTab: React.FC<FileSelectionTabProps> = ({ onDataLoaded, curre
     setError('');
     
     // Load sheet names
+    await loadSheetNamesForFile(filePath);
+  }, []);
+
+  const loadSheetNamesForFile = async (filePath: string) => {
     if (filePath.toLowerCase().endsWith('.csv')) {
       setAvailableSheets(['Sheet1']);
       setSelectedSheet('Sheet1');
@@ -143,7 +140,7 @@ const FileSelectionTab: React.FC<FileSelectionTabProps> = ({ onDataLoaded, curre
         setIsLoading(false);
       }
     }
-  }, []);
+  };
 
   return (
     <div className="tab-panel">
@@ -160,8 +157,9 @@ const FileSelectionTab: React.FC<FileSelectionTabProps> = ({ onDataLoaded, curre
       <div className="form-group">
         <label htmlFor="file-input">Excel or CSV File</label>
         <div 
-          className="file-drop-zone"
+          className={`file-drop-zone ${isDragOver ? 'drag-over' : ''}`}
           onDragOver={handleDragOver}
+          onDragLeave={handleDragLeave}
           onDrop={handleDrop}
         >
           <input
@@ -172,17 +170,25 @@ const FileSelectionTab: React.FC<FileSelectionTabProps> = ({ onDataLoaded, curre
             placeholder="Click 'Browse' to select a file or drag & drop here"
             className="form-control"
           />
-          <button 
-            type="button" 
-            className="btn btn-primary ml-2"
-            onClick={handleFileSelect}
-            disabled={isLoading}
-          >
-            Browse...
-          </button>
+          <div className="d-flex align-items-center mt-2">
+            <button 
+              type="button" 
+              className="btn btn-primary"
+              onClick={handleFileSelect}
+              disabled={isLoading}
+            >
+              {isLoading ? 'Loading...' : 'Browse...'}
+            </button>
+            {selectedFile && (
+              <span className="text-success ml-2">
+                ✓ File selected
+              </span>
+            )}
+          </div>
         </div>
         <small className="text-muted">
-          Supported formats: .xlsx, .xls, .xlsm, .csv
+          Supported formats: Excel (.xlsx, .xls, .xlsm) and CSV (.csv) files<br />
+          💡 <strong>Tip:</strong> You can also drag and drop files directly into the area above
         </small>
       </div>
       
@@ -224,13 +230,21 @@ const FileSelectionTab: React.FC<FileSelectionTabProps> = ({ onDataLoaded, curre
       {/* Current Data Summary */}
       {currentData && (
         <div className="data-summary mt-4">
-          <h3>Current Data</h3>
+          <h3>✅ Loaded Data Summary</h3>
           <div className="summary-card">
             <p><strong>File:</strong> {currentData.filePath}</p>
             <p><strong>Sheet:</strong> {currentData.sheetName}</p>
-            <p><strong>Columns:</strong> {currentData.columns.length}</p>
-            <p><strong>Rows:</strong> {currentData.rows.length}</p>
+            <p><strong>Columns:</strong> {currentData.columns.length} ({currentData.columns.slice(0, 3).join(', ')}{currentData.columns.length > 3 ? '...' : ''})</p>
+            <p><strong>Rows:</strong> {currentData.rows.length} data rows</p>
+            <p className="text-success"><strong>Status:</strong> Ready for column mapping</p>
           </div>
+        </div>
+      )}
+      
+      {/* Loading Indicator */}
+      {isLoading && (
+        <div className="text-center mt-3">
+          <p className="text-info">⏳ Loading file data...</p>
         </div>
       )}
     </div>
