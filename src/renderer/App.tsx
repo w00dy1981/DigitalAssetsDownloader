@@ -11,27 +11,6 @@ const App: React.FC = () => {
   const [downloadConfig, setDownloadConfig] = useState<DownloadConfig | null>(null);
 
   useEffect(() => {
-    // Load previous configuration on startup
-    const loadConfig = async () => {
-      try {
-        const savedConfig = await window.electronAPI.loadConfig();
-        if (savedConfig) {
-          const shouldLoad = window.confirm(
-            'A previous configuration was found. Would you like to load it?'
-          );
-          if (shouldLoad) {
-            setDownloadConfig(savedConfig);
-          }
-        }
-      } catch (error) {
-        console.error('Error loading configuration:', error);
-        // Don't show error to user, just continue without loading config
-      }
-    };
-
-    // Add a small delay to ensure the main process is ready
-    setTimeout(loadConfig, 1000);
-
     // Listen for menu events
     const handleMenuOpenFile = () => {
       setActiveTab(0); // Switch to file selection tab

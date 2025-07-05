@@ -129,6 +129,9 @@ const ColumnSelectionTab: React.FC<ColumnSelectionTabProps> = ({
     <div className="tab-panel">
       <h2>Column Selection & Configuration</h2>
       <p>Map your Excel columns to the appropriate data types and configure download settings.</p>
+      <p className="data-info">
+        <strong>Loaded Data:</strong> {data.sheetName} ({data.rows.length} rows, {data.columns.length} columns)
+      </p>
       
       {error && (
         <div className="alert alert-danger mb-3">
@@ -175,6 +178,9 @@ const ColumnSelectionTab: React.FC<ColumnSelectionTabProps> = ({
                 </option>
               ))}
             </select>
+            <small className="text-muted">
+              Select the column containing image URLs
+            </small>
           </div>
           
           {/* PDF Column */}
@@ -220,6 +226,9 @@ const ColumnSelectionTab: React.FC<ColumnSelectionTabProps> = ({
         {/* Download Folders Section */}
         <div className="config-section">
           <h3>Download Folders</h3>
+          <p className="section-description">
+            Configure where downloaded files will be saved and network paths for CSV logging
+          </p>
           
           {/* Image Download Folder */}
           <div className="form-group">
@@ -289,23 +298,58 @@ const ColumnSelectionTab: React.FC<ColumnSelectionTabProps> = ({
               If specified, the system will search this folder for images matching part numbers
             </small>
           </div>
+          
+          {/* Network Path Configuration */}
+          <div className="form-group">
+            <label htmlFor="image-network-path">Image Network Path (for CSV logging)</label>
+            <input
+              id="image-network-path"
+              type="text"
+              value={imageFilePath}
+              onChange={(e) => setImageFilePath(e.target.value)}
+              placeholder="Network path for image files in CSV log (e.g., \\server\images\)"
+              className="form-control"
+            />
+            <small className="text-muted">
+              Network path that will be logged in CSV reports (separate from local download path)
+            </small>
+          </div>
+          
+          <div className="form-group">
+            <label htmlFor="pdf-network-path">PDF Network Path (for CSV logging)</label>
+            <input
+              id="pdf-network-path"
+              type="text"
+              value={pdfFilePath}
+              onChange={(e) => setPdfFilePath(e.target.value)}
+              placeholder="Network path for PDF files in CSV log (e.g., \\server\pdfs\)"
+              className="form-control"
+            />
+            <small className="text-muted">
+              Network path that will be logged in CSV reports (separate from local download path)
+            </small>
+          </div>
         </div>
         
         {/* Advanced Settings Section */}
         <div className="config-section">
           <h3>Advanced Settings</h3>
+          <p className="section-description">
+            Configure download performance and image processing options
+          </p>
           
           {/* Concurrent Downloads */}
           <div className="form-group">
-            <label htmlFor="max-workers">Concurrent Downloads: {maxWorkers}</label>
+            <label htmlFor="max-workers">Concurrent Downloads</label>
             <input
               id="max-workers"
-              type="range"
+              type="number"
               min="1"
               max="20"
               value={maxWorkers}
-              onChange={(e) => setMaxWorkers(parseInt(e.target.value))}
-              className="form-control"
+              onChange={(e) => setMaxWorkers(parseInt(e.target.value) || 1)}
+              className="form-control number-input"
+              style={{ maxWidth: '120px' }}
             />
             <small className="text-muted">
               Number of simultaneous downloads (1-20)
@@ -322,6 +366,9 @@ const ColumnSelectionTab: React.FC<ColumnSelectionTabProps> = ({
               />
               Enable Background Processing
             </label>
+            <small className="text-muted">
+              Process downloaded images to remove backgrounds and convert to JPEG
+            </small>
           </div>
           
           {backgroundProcessingEnabled && (
@@ -334,38 +381,49 @@ const ColumnSelectionTab: React.FC<ColumnSelectionTabProps> = ({
                   onChange={(e) => setBackgroundMethod(e.target.value as any)}
                   className="form-control"
                 >
-                  <option value="smart_detect">Smart Detection</option>
-                  <option value="ai_removal">AI Removal</option>
-                  <option value="color_replace">Color Range Replacement</option>
-                  <option value="edge_detection">Edge Detection</option>
+                  <option value="smart_detect">Smart Detection (samples edges and corners)</option>
+                  <option value="ai_removal">AI Removal (requires AI model)</option>
+                  <option value="color_replace">Color Range Replacement (removes specific colors)</option>
+                  <option value="edge_detection">Edge Detection (uses Canny edge detection)</option>
                 </select>
+                <small className="text-muted">
+                  Choose the background removal method that works best for your images
+                </small>
               </div>
               
               <div className="form-group">
-                <label htmlFor="quality">JPEG Quality: {quality}%</label>
+                <label htmlFor="quality">JPEG Quality (%)</label>
                 <input
                   id="quality"
-                  type="range"
+                  type="number"
                   min="60"
                   max="100"
                   value={quality}
-                  onChange={(e) => setQuality(parseInt(e.target.value))}
-                  className="form-control"
+                  onChange={(e) => setQuality(parseInt(e.target.value) || 95)}
+                  className="form-control number-input"
+                  style={{ maxWidth: '120px' }}
                 />
+                <small className="text-muted">
+                  60-100, higher values = better quality but larger files
+                </small>
               </div>
               
               {backgroundMethod === 'edge_detection' && (
                 <div className="form-group">
-                  <label htmlFor="edge-threshold">Edge Threshold: {edgeThreshold}</label>
+                  <label htmlFor="edge-threshold">Edge Threshold</label>
                   <input
                     id="edge-threshold"
-                    type="range"
+                    type="number"
                     min="10"
                     max="100"
                     value={edgeThreshold}
-                    onChange={(e) => setEdgeThreshold(parseInt(e.target.value))}
-                    className="form-control"
+                    onChange={(e) => setEdgeThreshold(parseInt(e.target.value) || 30)}
+                    className="form-control number-input"
+                    style={{ maxWidth: '120px' }}
                   />
+                  <small className="text-muted">
+                    10-100, lower values detect more edges
+                  </small>
                 </div>
               )}
             </div>
@@ -379,7 +437,33 @@ const ColumnSelectionTab: React.FC<ColumnSelectionTabProps> = ({
           className="btn btn-success"
           onClick={handleNext}
         >
-          Next: Process & Download
+          Next: Process & Download →
+        </button>
+        <button
+          type="button"
+          className="btn btn-secondary"
+          onClick={() => window.electronAPI.saveConfig({
+            excelFile: data.filePath,
+            sheetName: data.sheetName,
+            partNoColumn,
+            imageColumns,
+            pdfColumn,
+            filenameColumn,
+            imageFolder,
+            pdfFolder,
+            sourceImageFolder,
+            imageFilePath,
+            pdfFilePath,
+            maxWorkers,
+            backgroundProcessing: {
+              enabled: backgroundProcessingEnabled,
+              method: backgroundMethod,
+              quality,
+              edgeThreshold
+            }
+          })}
+        >
+          Save Configuration
         </button>
       </div>
     </div>
