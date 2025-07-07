@@ -41,7 +41,7 @@ const ColumnSelectionTab: React.FC<ColumnSelectionTabProps> = ({
       setPdfFolder(initialConfig.pdfFolder || '');
       setSourceImageFolder(initialConfig.sourceImageFolder || '');
       setImageFilePath(initialConfig.imageFilePath || "U:\\old_g\\IMAGES\\ABM Product Images");
-      setPdfFilePath(initialConfig.pdfFilePath || "U:\\old_g\\IMAGES\\Product pdf\\'s");
+      setPdfFilePath(initialConfig.pdfFilePath || "U:\\old_g\\IMAGES\\Product pdf's");
       setMaxWorkers(initialConfig.maxWorkers || 5);
       setBackgroundProcessingEnabled(initialConfig.backgroundProcessing?.enabled || false);
       setBackgroundMethod(initialConfig.backgroundProcessing?.method || 'smart_detect');
@@ -50,7 +50,7 @@ const ColumnSelectionTab: React.FC<ColumnSelectionTabProps> = ({
     } else {
       // Set defaults when no initial config
       setImageFilePath("U:\\old_g\\IMAGES\\ABM Product Images");
-      setPdfFilePath("U:\\old_g\\IMAGES\\Product pdf\\'s");
+      setPdfFilePath("U:\\old_g\\IMAGES\\Product pdf's");
     }
   }, [initialConfig]);
 
@@ -333,105 +333,6 @@ const ColumnSelectionTab: React.FC<ColumnSelectionTabProps> = ({
               Network path that will be logged in CSV reports (separate from local download path)
             </small>
           </div>
-        </div>
-        
-        {/* Advanced Settings Section */}
-        <div className="config-section">
-          <h3>Advanced Settings</h3>
-          <p className="section-description">
-            Configure download performance and image processing options
-          </p>
-          
-          {/* Concurrent Downloads */}
-          <div className="form-group">
-            <label htmlFor="max-workers">Concurrent Downloads</label>
-            <input
-              id="max-workers"
-              type="number"
-              min="1"
-              max="20"
-              value={maxWorkers}
-              onChange={(e) => setMaxWorkers(parseInt(e.target.value) || 1)}
-              className="form-control number-input"
-              style={{ maxWidth: '120px' }}
-            />
-            <small className="text-muted">
-              Number of simultaneous downloads (1-20)
-            </small>
-          </div>
-          
-          {/* Background Processing */}
-          <div className="form-group">
-            <label className="checkbox-label">
-              <input
-                type="checkbox"
-                checked={backgroundProcessingEnabled}
-                onChange={(e) => setBackgroundProcessingEnabled(e.target.checked)}
-              />
-              Enable Background Processing
-            </label>
-            <small className="text-muted">
-              Process downloaded images to remove backgrounds and convert to JPEG
-            </small>
-          </div>
-          
-          {backgroundProcessingEnabled && (
-            <div className="bg-processing-options">
-              <div className="form-group">
-                <label htmlFor="bg-method">Processing Method</label>
-                <select
-                  id="bg-method"
-                  value={backgroundMethod}
-                  onChange={(e) => setBackgroundMethod(e.target.value as any)}
-                  className="form-control"
-                >
-                  <option value="smart_detect">Smart Detection (samples edges and corners)</option>
-                  <option value="ai_removal">AI Removal (requires AI model)</option>
-                  <option value="color_replace">Color Range Replacement (removes specific colors)</option>
-                  <option value="edge_detection">Edge Detection (uses Canny edge detection)</option>
-                </select>
-                <small className="text-muted">
-                  Choose the background removal method that works best for your images
-                </small>
-              </div>
-              
-              <div className="form-group">
-                <label htmlFor="quality">JPEG Quality (%)</label>
-                <input
-                  id="quality"
-                  type="number"
-                  min="60"
-                  max="100"
-                  value={quality}
-                  onChange={(e) => setQuality(parseInt(e.target.value) || 95)}
-                  className="form-control number-input"
-                  style={{ maxWidth: '120px' }}
-                />
-                <small className="text-muted">
-                  60-100, higher values = better quality but larger files
-                </small>
-              </div>
-              
-              {backgroundMethod === 'edge_detection' && (
-                <div className="form-group">
-                  <label htmlFor="edge-threshold">Edge Threshold</label>
-                  <input
-                    id="edge-threshold"
-                    type="number"
-                    min="10"
-                    max="100"
-                    value={edgeThreshold}
-                    onChange={(e) => setEdgeThreshold(parseInt(e.target.value) || 30)}
-                    className="form-control number-input"
-                    style={{ maxWidth: '120px' }}
-                  />
-                  <small className="text-muted">
-                    10-100, lower values detect more edges
-                  </small>
-                </div>
-              )}
-            </div>
-          )}
         </div>
       </div>
       
