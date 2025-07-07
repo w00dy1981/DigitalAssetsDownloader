@@ -25,7 +25,7 @@ const ColumnSelectionTab: React.FC<ColumnSelectionTabProps> = ({
   const [error, setError] = useState<string>('');
 
   // Background processing settings
-  const [backgroundProcessingEnabled, setBackgroundProcessingEnabled] = useState<boolean>(false);
+  const [backgroundProcessingEnabled, setBackgroundProcessingEnabled] = useState<boolean>(true);
   const [backgroundMethod, setBackgroundMethod] = useState<'smart_detect' | 'ai_removal' | 'color_replace' | 'edge_detection'>('smart_detect');
   const [quality, setQuality] = useState<number>(95);
   const [edgeThreshold, setEdgeThreshold] = useState<number>(30);
@@ -43,7 +43,7 @@ const ColumnSelectionTab: React.FC<ColumnSelectionTabProps> = ({
       setImageFilePath(initialConfig.imageFilePath || "U:\\old_g\\IMAGES\\ABM Product Images");
       setPdfFilePath(initialConfig.pdfFilePath || "U:\\old_g\\IMAGES\\Product pdf's");
       setMaxWorkers(initialConfig.maxWorkers || 5);
-      setBackgroundProcessingEnabled(initialConfig.backgroundProcessing?.enabled || false);
+      setBackgroundProcessingEnabled(initialConfig.backgroundProcessing?.enabled ?? true);
       setBackgroundMethod(initialConfig.backgroundProcessing?.method || 'smart_detect');
       setQuality(initialConfig.backgroundProcessing?.quality || 95);
       setEdgeThreshold(initialConfig.backgroundProcessing?.edgeThreshold || 30);

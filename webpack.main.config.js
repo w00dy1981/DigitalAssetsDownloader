@@ -36,6 +36,7 @@ module.exports = {
   },
   externals: {
     electron: 'commonjs electron',
+    sharp: 'commonjs sharp',
   },
   node: {
     __dirname: false,

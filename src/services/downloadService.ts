@@ -6,9 +6,13 @@ import { createWriteStream } from 'fs';
 import { pipeline } from 'stream/promises';
 import { DownloadConfig, DownloadItem, DownloadResult, DownloadProgress } from '@/shared/types';
 import { EventEmitter } from 'events';
-// Sharp is temporarily disabled to avoid loading issues
-// TODO: Re-enable Sharp once installation issues are resolved
-const sharp: any = null;
+// Import Sharp with error handling
+let sharp: any = null;
+try {
+  sharp = require('sharp');
+} catch (error) {
+  console.error('Sharp not available:', error);
+}
 
 interface DownloadJobItem extends DownloadItem {
   imageFilePaths: string[];
@@ -28,7 +32,8 @@ export class DownloadService extends EventEmitter {
     total: 0,
     percentage: 0,
     elapsedTime: 0,
-    estimatedTimeRemaining: 0
+    estimatedTimeRemaining: 0,
+    backgroundProcessed: 0
   };
 
   constructor() {
@@ -49,14 +54,84 @@ export class DownloadService extends EventEmitter {
   }
 
   /**
-   * Convert image to JPEG format (Sharp disabled for now)
-   * TODO: Re-enable Sharp once installation issues are resolved
+   * Smart detection for images that need background processing
    */
-  private async convertToJpg(imageBuffer: Buffer, quality = 95): Promise<Buffer> {
-    // For now, just return the original buffer
-    // TODO: Add Sharp image processing back once it's properly installed
-    console.log('Image processing disabled - returning original buffer');
-    return imageBuffer;
+  private async needsBackgroundProcessing(imageBuffer: Buffer): Promise<boolean> {
+    if (!sharp) {
+      return false; // Skip processing if Sharp not available
+    }
+    
+    try {
+      const metadata = await sharp(imageBuffer).metadata();
+      
+      // Only process PNG files with actual transparency
+      if (metadata.format === 'png' && metadata.hasAlpha) {
+        // Sample a small region to check for transparency (much faster)
+        const sampleSize = 100; // Sample 100x100 pixels max
+        const { data } = await sharp(imageBuffer)
+          .resize(Math.min(metadata.width || sampleSize, sampleSize), 
+                  Math.min(metadata.height || sampleSize, sampleSize))
+          .ensureAlpha()
+          .raw()
+          .toBuffer({ resolveWithObject: true });
+        
+        // Check every 10th alpha pixel for efficiency
+        for (let i = 3; i < data.length; i += 40) { // Sample every 10th pixel's alpha
+          if (data[i] < 255) {
+            console.log('Found transparency in PNG - needs background processing');
+            return true;
+          }
+        }
+        
+        console.log('PNG has alpha channel but no actual transparency - skipping processing');
+        return false;
+      }
+      
+      // Skip all other formats (JPEG, etc.) - they don't have transparency
+      return false;
+    } catch (error) {
+      console.warn('Error checking image for background processing needs:', error);
+      return false;
+    }
+  }
+
+  /**
+   * Convert image to JPEG format with smart background processing
+   */
+  private async convertToJpg(imageBuffer: Buffer, quality = 95, config?: DownloadConfig): Promise<{buffer: Buffer, backgroundProcessed: boolean}> {
+    if (!sharp) {
+      console.warn('Sharp not available - returning original image buffer');
+      return { buffer: imageBuffer, backgroundProcessed: false };
+    }
+    
+    // Check if background processing is enabled
+    const backgroundProcessingEnabled = config?.backgroundProcessing?.enabled ?? false;
+    
+    try {
+      const needsProcessing = backgroundProcessingEnabled && await this.needsBackgroundProcessing(imageBuffer);
+      
+      if (needsProcessing) {
+        // Apply white background to handle transparency
+        const processedBuffer = await sharp(imageBuffer)
+          .flatten({ background: { r: 255, g: 255, b: 255 } }) // White background
+          .jpeg({ quality })
+          .toBuffer();
+        
+        console.log('Image processed: transparency replaced with white background');
+        return { buffer: processedBuffer, backgroundProcessed: true };
+      } else {
+        // Just convert to JPEG without background processing
+        const processedBuffer = await sharp(imageBuffer)
+          .jpeg({ quality })
+          .toBuffer();
+        
+        return { buffer: processedBuffer, backgroundProcessed: false };
+      }
+    } catch (error) {
+      console.error('Sharp image processing failed:', error);
+      // Return original buffer if processing fails
+      return { buffer: imageBuffer, backgroundProcessed: false };
+    }
   }
 
   /**
@@ -122,7 +197,8 @@ export class DownloadService extends EventEmitter {
     retryCount = 3,
     partNo?: string,
     sourceFolder?: string,
-    specificFilename?: string
+    specificFilename?: string,
+    config?: DownloadConfig
   ): Promise<DownloadResult> {
     // Create download result object
     const createResult = (
@@ -162,8 +238,9 @@ export class DownloadService extends EventEmitter {
           const isImageFile = /\.(jpg|jpeg|png|gif|bmp)$/i.test(sourceFile);
           if (isImageFile) {
             try {
-              processedContent = await this.convertToJpg(content);
-              backgroundProcessed = true;
+              const result = await this.convertToJpg(content, 95, config);
+              processedContent = result.buffer;
+              backgroundProcessed = result.backgroundProcessed;
             } catch (error) {
               console.warn(`Image processing failed for ${sourceFile}:`, error);
               // Continue with original content if processing fails
@@ -208,8 +285,9 @@ export class DownloadService extends EventEmitter {
         const isImageFile = /\.(jpg|jpeg|png|gif|bmp)$/i.test(url);
         if (isImageFile) {
           try {
-            processedContent = await this.convertToJpg(content);
-            backgroundProcessed = true;
+            const result = await this.convertToJpg(content, 95, config);
+            processedContent = result.buffer;
+            backgroundProcessed = result.backgroundProcessed;
           } catch (error) {
             console.warn('Image processing failed:', error);
           }
@@ -243,8 +321,9 @@ export class DownloadService extends EventEmitter {
           let backgroundProcessed = false;
           
           try {
-            processedContent = await this.convertToJpg(content);
-            backgroundProcessed = true;
+            const result = await this.convertToJpg(content, 95, config);
+            processedContent = result.buffer;
+            backgroundProcessed = result.backgroundProcessed;
           } catch (error) {
             console.warn('Image processing failed:', error);
           }
@@ -295,8 +374,9 @@ export class DownloadService extends EventEmitter {
         
         if (contentType.startsWith('image/') && !filepath.toLowerCase().endsWith('.pdf')) {
           try {
-            processedContent = await this.convertToJpg(content);
-            backgroundProcessed = true;
+            const result = await this.convertToJpg(content, 95, config);
+            processedContent = result.buffer;
+            backgroundProcessed = result.backgroundProcessed;
           } catch (error) {
             if (attempt === retryCount - 1) {
               return createResult(
@@ -471,7 +551,8 @@ export class DownloadService extends EventEmitter {
       total: 0,
       percentage: 0,
       elapsedTime: 0,
-      estimatedTimeRemaining: 0
+      estimatedTimeRemaining: 0,
+      backgroundProcessed: 0
     };
 
     try {
@@ -509,6 +590,7 @@ export class DownloadService extends EventEmitter {
         successful: this.progress.successful,
         failed: this.progress.failed,
         total: this.progress.total,
+        backgroundProcessed: this.progress.backgroundProcessed,
         logFile,
         cancelled: this.cancelled
       });
@@ -580,7 +662,8 @@ export class DownloadService extends EventEmitter {
         3, // retry count
         item.partNumber,
         config.sourceImageFolder,
-        item.customFilename
+        item.customFilename,
+        config
       );
 
       // Update network path in result
@@ -589,6 +672,9 @@ export class DownloadService extends EventEmitter {
       // Update counters
       if (result.success) {
         this.progress.successful++;
+        if (result.backgroundProcessed) {
+          this.progress.backgroundProcessed++;
+        }
       } else {
         this.progress.failed++;
       }
@@ -598,7 +684,8 @@ export class DownloadService extends EventEmitter {
 
       this.updateProgress({
         successful: this.progress.successful,
-        failed: this.progress.failed
+        failed: this.progress.failed,
+        backgroundProcessed: this.progress.backgroundProcessed
       });
 
     } catch (error) {

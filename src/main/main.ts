@@ -39,6 +39,7 @@ class DigitalAssetDownloaderApp {
       y: windowState.y,
       minWidth: 900,
       minHeight: 700,
+      backgroundColor: '#2d3748', // Dark background to prevent white flash
       webPreferences: {
         nodeIntegration: false,
         contextIsolation: true,

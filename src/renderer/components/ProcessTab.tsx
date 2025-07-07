@@ -8,6 +8,7 @@ interface ProcessTabProps {
 
 const ProcessTab: React.FC<ProcessTabProps> = ({ config, onConfigurationChange }) => {
   const [isDownloading, setIsDownloading] = useState<boolean>(false);
+  const [workerInputValue, setWorkerInputValue] = useState<string>(config.maxWorkers.toString());
   const [progress, setProgress] = useState<DownloadProgress>({
     currentFile: '',
     successful: 0,
@@ -15,7 +16,8 @@ const ProcessTab: React.FC<ProcessTabProps> = ({ config, onConfigurationChange }
     total: 0,
     percentage: 0,
     elapsedTime: 0,
-    estimatedTimeRemaining: 0
+    estimatedTimeRemaining: 0,
+    backgroundProcessed: 0
   });
   const [logs, setLogs] = useState<string[]>([]);
   const [startTime, setStartTime] = useState<number>(0);
@@ -35,10 +37,19 @@ const ProcessTab: React.FC<ProcessTabProps> = ({ config, onConfigurationChange }
       } else if (data.cancelled) {
         setLogs(prev => [...prev, `Downloads cancelled: ${data.successful || 0} successful, ${data.failed || 0} failed`]);
       } else {
-        setLogs(prev => [...prev, 
-          `Downloads complete: ${data.successful || 0} successful, ${data.failed || 0} failed`,
-          data.logFile ? `Log file saved: ${data.logFile}` : ''
-        ].filter(Boolean));
+        const messages = [
+          `Downloads complete: ${data.successful || 0} successful, ${data.failed || 0} failed`
+        ];
+        
+        if (data.backgroundProcessed > 0) {
+          messages.push(`Background processing: ${data.backgroundProcessed} images had backgrounds fixed`);
+        }
+        
+        if (data.logFile) {
+          messages.push(`Log file saved: ${data.logFile}`);
+        }
+        
+        setLogs(prev => [...prev, ...messages]);
       }
     };
 
@@ -79,7 +90,8 @@ const ProcessTab: React.FC<ProcessTabProps> = ({ config, onConfigurationChange }
       total: 0,
       percentage: 0,
       elapsedTime: 0,
-      estimatedTimeRemaining: 0
+      estimatedTimeRemaining: 0,
+      backgroundProcessed: 0
     });
     setLogs(['Starting downloads...']);
 
@@ -129,6 +141,11 @@ const ProcessTab: React.FC<ProcessTabProps> = ({ config, onConfigurationChange }
   const updateConfig = useCallback((updates: Partial<DownloadConfig>) => {
     onConfigurationChange({ ...config, ...updates });
   }, [config, onConfigurationChange]);
+
+  // Sync worker input value when config changes
+  useEffect(() => {
+    setWorkerInputValue(config.maxWorkers.toString());
+  }, [config.maxWorkers]);
 
   // Initialize default ERP paths when component mounts (only if empty)
   useEffect(() => {
@@ -199,9 +216,8 @@ const ProcessTab: React.FC<ProcessTabProps> = ({ config, onConfigurationChange }
 
   return (
     <div className="tab-panel">
-      <div className="process-header">
+      <div className="process-header-compact">
         <h2>Process & Download</h2>
-        <p>Review your configuration and start the download process.</p>
       </div>
       
       <div className="process-layout">
@@ -263,57 +279,12 @@ const ProcessTab: React.FC<ProcessTabProps> = ({ config, onConfigurationChange }
             </div>
           )}
 
-          {/* Quick Settings */}
-          <div className="quick-settings">
-            <h3>Quick Settings</h3>
+          {/* Download Settings */}
+          <div className="download-settings">
+            <h3>Download Settings</h3>
             
-            <div className="settings-grid">
-              <div className="form-group">
-                <label htmlFor="image-folder-quick">Image Download Folder</label>
-                <div className="folder-input-group">
-                  <input
-                    id="image-folder-quick"
-                    type="text"
-                    value={config.imageFolder}
-                    onChange={(e) => updateConfig({ imageFolder: e.target.value })}
-                    className="form-control"
-                  />
-                  <button
-                    type="button"
-                    className="btn btn-secondary"
-                    onClick={() => handleFolderSelect(
-                      (value) => updateConfig({ imageFolder: value }),
-                      config.imageFolder
-                    )}
-                  >
-                    Browse
-                  </button>
-                </div>
-              </div>
-              
-              <div className="form-group">
-                <label htmlFor="pdf-folder-quick">PDF Download Folder</label>
-                <div className="folder-input-group">
-                  <input
-                    id="pdf-folder-quick"
-                    type="text"
-                    value={config.pdfFolder}
-                    onChange={(e) => updateConfig({ pdfFolder: e.target.value })}
-                    className="form-control"
-                  />
-                  <button
-                    type="button"
-                    className="btn btn-secondary"
-                    onClick={() => handleFolderSelect(
-                      (value) => updateConfig({ pdfFolder: value }),
-                      config.pdfFolder
-                    )}
-                  >
-                    Browse
-                  </button>
-                </div>
-              </div>
-              
+            <div className="settings-compact">
+              {/* Concurrent Downloads */}
               <div className="form-group">
                 <label htmlFor="workers-quick">Concurrent Downloads</label>
                 <input
@@ -321,45 +292,41 @@ const ProcessTab: React.FC<ProcessTabProps> = ({ config, onConfigurationChange }
                   type="number"
                   min="1"
                   max="20"
-                  value={config.maxWorkers}
-                  onChange={(e) => updateConfig({ maxWorkers: parseInt(e.target.value) || 1 })}
+                  value={workerInputValue}
+                  onChange={(e) => {
+                    const value = e.target.value;
+                    setWorkerInputValue(value);
+                    
+                    // Only update config if it's a valid number
+                    if (value !== '') {
+                      const numValue = parseInt(value);
+                      if (!isNaN(numValue) && numValue >= 1 && numValue <= 20) {
+                        updateConfig({ maxWorkers: numValue });
+                      }
+                    }
+                  }}
+                  onBlur={(e) => {
+                    const value = e.target.value;
+                    if (value === '' || isNaN(parseInt(value))) {
+                      // Reset to current config value if invalid
+                      setWorkerInputValue(config.maxWorkers.toString());
+                    } else {
+                      const numValue = parseInt(value);
+                      if (numValue < 1) {
+                        setWorkerInputValue('1');
+                        updateConfig({ maxWorkers: 1 });
+                      } else if (numValue > 20) {
+                        setWorkerInputValue('20');
+                        updateConfig({ maxWorkers: 20 });
+                      }
+                    }
+                  }}
                   className="form-control number-input"
                   style={{ maxWidth: '120px' }}
                 />
                 <small className="form-text">Number of simultaneous downloads (1-20)</small>
               </div>
-            </div>
-            
-            <div className="network-paths">
-              <div className="form-group">
-                <label htmlFor="image-network-path">Image Network Path (for CSV logging)</label>
-                <input
-                  id="image-network-path"
-                  type="text"
-                  value={config.imageFilePath}
-                  onChange={(e) => updateConfig({ imageFilePath: e.target.value })}
-                  className="form-control"
-                  placeholder="U:\old_g\IMAGES\ABM Product Images"
-                />
-              </div>
-              
-              <div className="form-group">
-                <label htmlFor="pdf-network-path">PDF Network Path (for CSV logging)</label>
-                <input
-                  id="pdf-network-path"
-                  type="text"
-                  value={config.pdfFilePath}
-                  onChange={(e) => updateConfig({ pdfFilePath: e.target.value })}
-                  className="form-control"
-                  placeholder="U:\old_g\IMAGES\Product pdf\'s"
-                />
-              </div>
-            </div>
 
-            {/* Advanced Settings */}
-            <div className="advanced-settings">
-              <h4>Advanced Settings</h4>
-              
               {/* Background Processing */}
               <div className="form-group">
                 <label className="checkbox-label">
@@ -373,7 +340,7 @@ const ProcessTab: React.FC<ProcessTabProps> = ({ config, onConfigurationChange }
                       } 
                     })}
                   />
-                  Enable Background Processing
+                  <span className="checkbox-text">Enable Background Processing</span>
                 </label>
                 <small className="text-muted">
                   Process downloaded images to remove backgrounds and convert to JPEG
@@ -382,43 +349,52 @@ const ProcessTab: React.FC<ProcessTabProps> = ({ config, onConfigurationChange }
               
               {config.backgroundProcessing.enabled && (
                 <div className="bg-processing-options">
-                  <div className="form-group">
-                    <label htmlFor="bg-method">Processing Method</label>
-                    <select
-                      id="bg-method"
-                      value={config.backgroundProcessing.method}
-                      onChange={(e) => updateConfig({ 
-                        backgroundProcessing: { 
-                          ...config.backgroundProcessing, 
-                          method: e.target.value as any 
-                        } 
-                      })}
-                      className="form-control"
-                    >
-                      <option value="smart_detect">Smart Detection</option>
-                      <option value="ai_removal">AI Removal</option>
-                      <option value="color_replace">Color Range Replacement</option>
-                      <option value="edge_detection">Edge Detection</option>
-                    </select>
-                  </div>
-                  
-                  <div className="form-group">
-                    <label htmlFor="quality">JPEG Quality (%)</label>
-                    <input
-                      id="quality"
-                      type="number"
-                      min="60"
-                      max="100"
-                      value={config.backgroundProcessing.quality}
-                      onChange={(e) => updateConfig({ 
-                        backgroundProcessing: { 
-                          ...config.backgroundProcessing, 
-                          quality: parseInt(e.target.value) || 95 
-                        } 
-                      })}
-                      className="form-control number-input"
-                      style={{ maxWidth: '120px' }}
-                    />
+                  <div className="form-group-inline">
+                    <div className="form-group">
+                      <label htmlFor="bg-method">Processing Method</label>
+                      <select
+                        id="bg-method"
+                        value={config.backgroundProcessing.method}
+                        onChange={(e) => updateConfig({ 
+                          backgroundProcessing: { 
+                            ...config.backgroundProcessing, 
+                            method: e.target.value as any 
+                          } 
+                        })}
+                        className="form-control"
+                        style={{ maxWidth: '200px' }}
+                      >
+                        <option value="smart_detect">Smart Detection</option>
+                        <option value="ai_removal">AI Removal</option>
+                        <option value="color_replace">Color Range Replacement</option>
+                        <option value="edge_detection">Edge Detection</option>
+                      </select>
+                      <small className="text-muted method-explanation">
+                        {config.backgroundProcessing.method === 'smart_detect' && 'Analyzes edges to detect and remove backgrounds automatically'}
+                        {config.backgroundProcessing.method === 'ai_removal' && 'Uses AI to intelligently remove backgrounds (most accurate)'}
+                        {config.backgroundProcessing.method === 'color_replace' && 'Replaces specific color ranges with transparency'}
+                        {config.backgroundProcessing.method === 'edge_detection' && 'Uses edge detection algorithms for background removal'}
+                      </small>
+                    </div>
+                    
+                    <div className="form-group">
+                      <label htmlFor="quality">JPEG Quality (%)</label>
+                      <input
+                        id="quality"
+                        type="number"
+                        min="60"
+                        max="100"
+                        value={config.backgroundProcessing.quality}
+                        onChange={(e) => updateConfig({ 
+                          backgroundProcessing: { 
+                            ...config.backgroundProcessing, 
+                            quality: parseInt(e.target.value) || 95 
+                          } 
+                        })}
+                        className="form-control number-input"
+                        style={{ maxWidth: '120px' }}
+                      />
+                    </div>
                   </div>
                 </div>
               )}
@@ -476,6 +452,12 @@ const ProcessTab: React.FC<ProcessTabProps> = ({ config, onConfigurationChange }
                     <div className="stat-number">{progress.percentage.toFixed(1)}%</div>
                     <div className="stat-label">Complete</div>
                   </div>
+                  {progress.backgroundProcessed > 0 && (
+                    <div className="stat-card processed">
+                      <div className="stat-number">{progress.backgroundProcessed}</div>
+                      <div className="stat-label">Background Fixed</div>
+                    </div>
+                  )}
                 </div>
               </div>
               

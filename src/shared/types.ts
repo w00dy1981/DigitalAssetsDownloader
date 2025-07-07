@@ -46,6 +46,7 @@ export interface DownloadProgress {
   percentage: number;
   elapsedTime: number;
   estimatedTimeRemaining: number;
+  backgroundProcessed: number; // Count of images that had background processing applied
 }
 
 export interface DownloadResult {
