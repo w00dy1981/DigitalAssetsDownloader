@@ -703,11 +703,13 @@ input[type="range"]::-moz-range-thumb {
 .form-control.number-input::-webkit-outer-spin-button,
 .form-control.number-input::-webkit-inner-spin-button {
   -webkit-appearance: none;
+  appearance: none;
   margin: 0;
 }
 
 .form-control.number-input[type=number] {
   -moz-appearance: textfield;
+  appearance: textfield;
 }
 
 /* Modern Data Info Styling */
@@ -734,4 +736,286 @@ input[type="range"]::-moz-range-thumb {
   background-repeat: no-repeat;
   background-position: 0 0;
   line-height: 1.5;
+}
+
+/* Validation Errors Styling */
+.validation-errors {
+  background: linear-gradient(135deg, rgba(220, 53, 69, 0.1) 0%, rgba(220, 53, 69, 0.05) 100%);
+  border: 2px solid rgba(220, 53, 69, 0.3);
+  border-radius: 8px;
+  padding: 1rem;
+  margin-bottom: 1.5rem;
+  backdrop-filter: blur(10px);
+}
+
+.validation-errors h3 {
+  color: #dc3545;
+  margin: 0 0 0.5rem 0;
+  font-size: 1rem;
+  font-weight: 600;
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.validation-errors h3::before {
+  content: '⚠️';
+}
+
+.error-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+
+.error-item {
+  color: #dc3545;
+  font-size: 0.9rem;
+  margin-bottom: 0.25rem;
+  padding-left: 0.5rem;
+  font-weight: 500;
+}
+
+/* Configuration Status Styling */
+.config-status {
+  background: linear-gradient(135deg, rgba(40, 167, 69, 0.1) 0%, rgba(40, 167, 69, 0.05) 100%);
+  border: 2px solid rgba(40, 167, 69, 0.3);
+  border-radius: 8px;
+  padding: 1rem;
+  margin-bottom: 1.5rem;
+  backdrop-filter: blur(10px);
+}
+
+.success-message {
+  color: #28a745;
+  margin: 0;
+  font-size: 0.9rem;
+  font-weight: 600;
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+/* Enhanced Progress Section */
+.progress-section {
+  background: rgba(255, 255, 255, 0.95);
+  border-radius: 12px;
+  padding: 1.5rem;
+  margin-top: 2rem;
+  backdrop-filter: blur(20px);
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.1);
+}
+
+.progress-summary {
+  margin-bottom: 1.5rem;
+}
+
+.summary-stats {
+  display: flex;
+  gap: 1rem;
+  justify-content: space-around;
+  margin-bottom: 1rem;
+}
+
+.stat-card {
+  background: rgba(255, 255, 255, 0.9);
+  border-radius: 8px;
+  padding: 1rem;
+  text-align: center;
+  min-width: 80px;
+  border: 2px solid transparent;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+  transition: all 0.3s ease;
+}
+
+.stat-card.success {
+  border-color: rgba(40, 167, 69, 0.3);
+  background: linear-gradient(135deg, rgba(40, 167, 69, 0.1) 0%, rgba(40, 167, 69, 0.05) 100%);
+}
+
+.stat-card.failed {
+  border-color: rgba(220, 53, 69, 0.3);
+  background: linear-gradient(135deg, rgba(220, 53, 69, 0.1) 0%, rgba(220, 53, 69, 0.05) 100%);
+}
+
+.stat-card.total {
+  border-color: rgba(102, 126, 234, 0.3);
+  background: linear-gradient(135deg, rgba(102, 126, 234, 0.1) 0%, rgba(102, 126, 234, 0.05) 100%);
+}
+
+.stat-card.percentage {
+  border-color: rgba(111, 66, 193, 0.3);
+  background: linear-gradient(135deg, rgba(111, 66, 193, 0.1) 0%, rgba(111, 66, 193, 0.05) 100%);
+}
+
+.stat-number {
+  font-size: 1.8rem;
+  font-weight: bold;
+  margin-bottom: 0.25rem;
+}
+
+.stat-card.success .stat-number {
+  color: #28a745;
+}
+
+.stat-card.failed .stat-number {
+  color: #dc3545;
+}
+
+.stat-card.total .stat-number {
+  color: #667eea;
+}
+
+.stat-card.percentage .stat-number {
+  color: #6f42c1;
+}
+
+.stat-label {
+  font-size: 0.8rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  color: #6c757d;
+}
+
+.downloading-indicator {
+  color: #17a2b8;
+  font-weight: 600;
+  animation: pulse 2s infinite;
+}
+
+@keyframes pulse {
+  0% { opacity: 1; }
+  50% { opacity: 0.6; }
+  100% { opacity: 1; }
+}
+
+.progress-container {
+  margin-bottom: 1rem;
+}
+
+.progress-bar {
+  width: 100%;
+  height: 12px;
+  background: rgba(0, 0, 0, 0.1);
+  border-radius: 6px;
+  overflow: hidden;
+  margin-bottom: 1rem;
+  box-shadow: inset 0 2px 4px rgba(0, 0, 0, 0.1);
+}
+
+.progress-fill {
+  height: 100%;
+  border-radius: 6px;
+  transition: width 0.3s ease, background-color 0.3s ease;
+  background: linear-gradient(135deg, #28a745 0%, #20c997 100%);
+  box-shadow: 0 2px 4px rgba(40, 167, 69, 0.3);
+}
+
+.progress-fill.success {
+  background: linear-gradient(135deg, #28a745 0%, #20c997 100%);
+}
+
+.progress-fill.warning {
+  background: linear-gradient(135deg, #ffc107 0%, #fd7e14 100%);
+}
+
+.progress-fill.danger {
+  background: linear-gradient(135deg, #dc3545 0%, #e83e8c 100%);
+}
+
+.progress-stats {
+  display: flex;
+  justify-content: center;
+  flex-wrap: wrap;
+  gap: 1rem;
+}
+
+.progress-stats .stat {
+  font-size: 0.9rem;
+  font-weight: 600;
+  padding: 0.25rem 0.5rem;
+  border-radius: 4px;
+  background: rgba(255, 255, 255, 0.7);
+  backdrop-filter: blur(10px);
+  border: 1px solid rgba(255, 255, 255, 0.3);
+}
+
+.current-file {
+  background: rgba(102, 126, 234, 0.1);
+  border: 1px solid rgba(102, 126, 234, 0.2);
+  border-radius: 6px;
+  padding: 0.75rem;
+  margin-top: 1rem;
+  font-size: 0.9rem;
+  font-family: 'SF Mono', 'Monaco', 'Cascadia Code', monospace;
+  word-break: break-all;
+}
+
+.logs-section {
+  background: rgba(255, 255, 255, 0.95);
+  border-radius: 12px;
+  padding: 1.5rem;
+  margin-top: 2rem;
+  backdrop-filter: blur(20px);
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.1);
+}
+
+.logs-container {
+  max-height: 200px;
+  overflow-y: auto;
+  border: 1px solid rgba(0, 0, 0, 0.1);
+  border-radius: 6px;
+  padding: 0.75rem;
+  background: rgba(248, 249, 250, 0.9);
+  font-family: 'SF Mono', 'Monaco', 'Cascadia Code', monospace;
+  font-size: 0.85rem;
+}
+
+.log-entry {
+  margin-bottom: 0.25rem;
+  padding: 0.25rem 0;
+  border-bottom: 1px solid rgba(0, 0, 0, 0.05);
+}
+
+.log-entry:last-child {
+  border-bottom: none;
+  margin-bottom: 0;
+}
+
+/* Form Helper Text */
+.form-text {
+  font-size: 0.75rem;
+  color: #6c757d;
+  margin-top: 0.25rem;
+  font-style: italic;
+}
+
+/* Quick Settings Enhanced Styling */
+.quick-settings {
+  margin-bottom: 2rem;
+}
+
+.quick-settings .form-group {
+  margin-bottom: 1rem;
+}
+
+.quick-settings .form-group:last-child {
+  margin-bottom: 0;
+}
+
+.folder-input-group {
+  display: flex;
+  gap: 0.5rem;
+  align-items: center;
+}
+
+.folder-input-group .form-control {
+  flex: 1;
+}
+
+.folder-input-group .btn {
+  white-space: nowrap;
 }

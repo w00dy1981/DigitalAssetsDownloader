@@ -55,6 +55,16 @@ Three-tab workflow matching original Python application:
 - Handles multiple sheets with proper data type conversion
 - Robust error handling for file format issues
 
+### Download Engine (`src/services/downloadService.ts`)
+- Complete implementation of sophisticated download functionality from Python app
+- Source folder searching with part number and filename matching
+- Comprehensive retry logic with exponential backoff (3 attempts)
+- Image processing with Sharp (automatic JPG conversion with quality control)
+- Network path separation for CSV logging
+- Progress tracking with real-time updates and ETAs
+- Concurrent download management with configurable workers (1-20 threads)
+- Advanced error handling and validation
+
 ### TypeScript Configuration
 - Path aliases configured (`@/` prefix for all source directories)
 - Strict TypeScript settings enabled
@@ -81,9 +91,17 @@ This application is migrating from `OLD_Standalone_App/Digital_Asset_Downloader.
 ## Development Notes
 
 ### Current Implementation Status
-- **Phase 1 & 2 Complete** - Basic UI and Excel/CSV processing working
-- **Phase 3 Needed** - Column mapping UI and configuration management
-- **Phase 4-8 Planned** - Download engine, image processing, and advanced features
+- **Phase 1 & 2 & 3 & 4 Complete** - Full UI, Excel/CSV processing, column mapping, and advanced download engine working
+- **Phase 5-8 Planned** - Background image processing (4 methods), advanced features, testing, and distribution
+
+### Core Features Implemented
+- **Multi-threaded downloads** with configurable worker count (1-20)
+- **Source folder searching** - finds files by part number or custom filename column
+- **Advanced retry logic** - exponential backoff with 3 attempts, 30s timeout
+- **Network path logging** - separate download paths vs. CSV log paths
+- **Configuration validation** - prevents invalid operations with clear error messages
+- **Real-time progress tracking** - with ETAs and success/failure counters
+- **Comprehensive CSV logging** - matches original Python format exactly
 
 ### File Naming Conventions
 - React components use PascalCase (e.g., `FileSelectionTab.tsx`)

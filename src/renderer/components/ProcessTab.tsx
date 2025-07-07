@@ -22,12 +22,24 @@ const ProcessTab: React.FC<ProcessTabProps> = ({ config, onConfigurationChange }
 
   useEffect(() => {
     const handleProgress = (data: DownloadProgress) => {
+      console.log('Progress update received:', data); // Debug log
       setProgress(data);
     };
 
     const handleComplete = (data: any) => {
+      console.log('Download complete:', data); // Debug log
       setIsDownloading(false);
-      setLogs(prev => [...prev, `Download complete: ${data.successful} successful, ${data.failed} failed`]);
+      
+      if (data.error) {
+        setLogs(prev => [...prev, `Download error: ${data.error}`]);
+      } else if (data.cancelled) {
+        setLogs(prev => [...prev, `Downloads cancelled: ${data.successful || 0} successful, ${data.failed || 0} failed`]);
+      } else {
+        setLogs(prev => [...prev, 
+          `Downloads complete: ${data.successful || 0} successful, ${data.failed || 0} failed`,
+          data.logFile ? `Log file saved: ${data.logFile}` : ''
+        ].filter(Boolean));
+      }
     };
 
     window.electronAPI.onDownloadProgress(handleProgress);
@@ -42,6 +54,22 @@ const ProcessTab: React.FC<ProcessTabProps> = ({ config, onConfigurationChange }
   const handleStartDownloads = useCallback(async () => {
     if (isDownloading) return;
 
+    // Validate configuration
+    if (!config.partNoColumn) {
+      setLogs(prev => [...prev, 'Error: Please select a Part Number column']);
+      return;
+    }
+
+    if (!config.imageColumns.length && !config.pdfColumn) {
+      setLogs(prev => [...prev, 'Error: Please select at least one Image URL column or PDF column']);
+      return;
+    }
+
+    if (!config.imageFolder && !config.pdfFolder) {
+      setLogs(prev => [...prev, 'Error: Please select download folders']);
+      return;
+    }
+
     setIsDownloading(true);
     setStartTime(Date.now());
     setProgress({
@@ -53,14 +81,21 @@ const ProcessTab: React.FC<ProcessTabProps> = ({ config, onConfigurationChange }
       elapsedTime: 0,
       estimatedTimeRemaining: 0
     });
-    setLogs([]);
+    setLogs(['Starting downloads...']);
 
     try {
-      await window.electronAPI.startDownloads(config);
+      const result = await window.electronAPI.startDownloads(config);
+      if (result.success) {
+        setLogs(prev => [...prev, result.message]);
+      } else {
+        setLogs(prev => [...prev, `Error: ${result.message || 'Unknown error'}`]);
+        setIsDownloading(false);
+      }
     } catch (error) {
       console.error('Error starting downloads:', error);
+      const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+      setLogs(prev => [...prev, `Error starting downloads: ${errorMessage}`]);
       setIsDownloading(false);
-      setLogs(prev => [...prev, `Error starting downloads: ${error}`]);
     }
   }, [config, isDownloading]);
 
@@ -95,6 +130,25 @@ const ProcessTab: React.FC<ProcessTabProps> = ({ config, onConfigurationChange }
     onConfigurationChange({ ...config, ...updates });
   }, [config, onConfigurationChange]);
 
+  // Initialize default ERP paths when component mounts (only if empty)
+  useEffect(() => {
+    // Set default paths only if they are empty/undefined
+    const updates: Partial<DownloadConfig> = {};
+    
+    if (!config.imageFilePath || config.imageFilePath.trim() === '') {
+      updates.imageFilePath = "U:\\old_g\\IMAGES\\ABM Product Images";
+    }
+    
+    if (!config.pdfFilePath || config.pdfFilePath.trim() === '') {
+      updates.pdfFilePath = "U:\\old_g\\IMAGES\\Product pdf\\'s";
+    }
+    
+    // Only update if there are changes to avoid infinite re-renders
+    if (Object.keys(updates).length > 0) {
+      updateConfig(updates);
+    }
+  }, []);
+
   const formatTime = (seconds: number): string => {
     const hours = Math.floor(seconds / 3600);
     const minutes = Math.floor((seconds % 3600) / 60);
@@ -108,6 +162,31 @@ const ProcessTab: React.FC<ProcessTabProps> = ({ config, onConfigurationChange }
       return `${secs}s`;
     }
   };
+
+  const getValidationErrors = (): string[] => {
+    const errors: string[] = [];
+    
+    if (!config.partNoColumn) {
+      errors.push('Part Number column is required');
+    }
+    
+    if (!config.imageColumns.length && !config.pdfColumn) {
+      errors.push('At least one Image URL column or PDF column is required');
+    }
+    
+    if (config.imageColumns.length > 0 && !config.imageFolder) {
+      errors.push('Image download folder is required when image columns are selected');
+    }
+    
+    if (config.pdfColumn && !config.pdfFolder) {
+      errors.push('PDF download folder is required when PDF column is selected');
+    }
+    
+    return errors;
+  };
+
+  const validationErrors = getValidationErrors();
+  const isConfigValid = validationErrors.length === 0;
 
   const getProgressBarClass = (): string => {
     if (progress.total === 0) return '';
@@ -160,6 +239,27 @@ const ProcessTab: React.FC<ProcessTabProps> = ({ config, onConfigurationChange }
         </div>
       </div>
       
+      {/* Validation Errors */}
+      {validationErrors.length > 0 && (
+        <div className="validation-errors">
+          <h3>Configuration Issues</h3>
+          <ul className="error-list">
+            {validationErrors.map((error, index) => (
+              <li key={index} className="error-item">
+                ❌ {error}
+              </li>
+            ))}
+          </ul>
+        </div>
+      )}
+      
+      {/* Configuration Status */}
+      {isConfigValid && (
+        <div className="config-status">
+          <p className="success-message">✅ Configuration is valid and ready for downloads</p>
+        </div>
+      )}
+      
       {/* Quick Settings */}
       <div className="quick-settings">
         <h3>Quick Settings</h3>
@@ -211,6 +311,56 @@ const ProcessTab: React.FC<ProcessTabProps> = ({ config, onConfigurationChange }
         </div>
         
         <div className="form-group">
+          <label htmlFor="image-network-path">Image Network Path (for CSV logging)</label>
+          <input
+            id="image-network-path"
+            type="text"
+            value={config.imageFilePath}
+            onChange={(e) => updateConfig({ imageFilePath: e.target.value })}
+            className="form-control"
+            placeholder="U:\old_g\IMAGES\ABM Product Images"
+          />
+          <small className="form-text">Part number and .jpg extension will be added automatically</small>
+        </div>
+        
+        <div className="form-group">
+          <label htmlFor="pdf-network-path">PDF Network Path (for CSV logging)</label>
+          <input
+            id="pdf-network-path"
+            type="text"
+            value={config.pdfFilePath}
+            onChange={(e) => updateConfig({ pdfFilePath: e.target.value })}
+            className="form-control"
+            placeholder="U:\old_g\IMAGES\Product pdf\'s"
+          />
+          <small className="form-text">Part number and .pdf extension will be added automatically</small>
+        </div>
+        
+        <div className="form-group">
+          <label htmlFor="source-folder-quick">Source Image Folder (optional)</label>
+          <div className="folder-input-group">
+            <input
+              id="source-folder-quick"
+              type="text"
+              value={config.sourceImageFolder}
+              onChange={(e) => updateConfig({ sourceImageFolder: e.target.value })}
+              className="form-control"
+              placeholder="Optional: Folder containing source images for offline matching"
+            />
+            <button
+              type="button"
+              className="btn btn-secondary"
+              onClick={() => handleFolderSelect(
+                (value) => updateConfig({ sourceImageFolder: value }),
+                config.sourceImageFolder
+              )}
+            >
+              Browse
+            </button>
+          </div>
+        </div>
+        
+        <div className="form-group">
           <label htmlFor="workers-quick">Concurrent Downloads: {config.maxWorkers}</label>
           <input
             id="workers-quick"
@@ -231,7 +381,8 @@ const ProcessTab: React.FC<ProcessTabProps> = ({ config, onConfigurationChange }
             type="button"
             className="btn btn-success"
             onClick={handleStartDownloads}
-            disabled={isDownloading || !config.imageFolder}
+            disabled={isDownloading || !isConfigValid}
+            title={!isConfigValid ? 'Please fix configuration issues before starting downloads' : ''}
           >
             {isDownloading ? 'Downloading...' : 'Start Downloads'}
           </button>
@@ -249,9 +400,30 @@ const ProcessTab: React.FC<ProcessTabProps> = ({ config, onConfigurationChange }
       </div>
       
       {/* Progress Section */}
-      {(isDownloading || progress.total > 0) && (
+      {(isDownloading || progress.total > 0 || progress.successful > 0 || progress.failed > 0) && (
         <div className="progress-section">
           <h3>Download Progress</h3>
+          
+          <div className="progress-summary">
+            <div className="summary-stats">
+              <div className="stat-card success">
+                <div className="stat-number">{progress.successful}</div>
+                <div className="stat-label">Successful</div>
+              </div>
+              <div className="stat-card failed">
+                <div className="stat-number">{progress.failed}</div>
+                <div className="stat-label">Failed</div>
+              </div>
+              <div className="stat-card total">
+                <div className="stat-number">{progress.total}</div>
+                <div className="stat-label">Total</div>
+              </div>
+              <div className="stat-card percentage">
+                <div className="stat-number">{progress.percentage.toFixed(1)}%</div>
+                <div className="stat-label">Complete</div>
+              </div>
+            </div>
+          </div>
           
           <div className="progress-container">
             <div className="progress-bar">
@@ -263,20 +435,16 @@ const ProcessTab: React.FC<ProcessTabProps> = ({ config, onConfigurationChange }
             
             <div className="progress-stats">
               <div className="stat">
-                <span className="text-success">✓ {progress.successful}</span>
-              </div>
-              <div className="stat">
-                <span className="text-danger">✗ {progress.failed}</span>
-              </div>
-              <div className="stat">
-                <span>{progress.percentage.toFixed(1)}%</span>
-              </div>
-              <div className="stat">
                 <span>{formatTime(progress.elapsedTime)} elapsed</span>
               </div>
               {progress.estimatedTimeRemaining > 0 && (
                 <div className="stat">
                   <span>{formatTime(progress.estimatedTimeRemaining)} remaining</span>
+                </div>
+              )}
+              {isDownloading && (
+                <div className="stat">
+                  <span className="downloading-indicator">⬇️ Downloading...</span>
                 </div>
               )}
             </div>

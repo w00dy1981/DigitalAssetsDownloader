@@ -1,13 +1,16 @@
 import { app, BrowserWindow, ipcMain, dialog, Menu } from 'electron';
 import * as path from 'path';
 import Store from 'electron-store';
-import { IPC_CHANNELS, WindowState, AppConfig } from '@/shared/types';
+import { IPC_CHANNELS, WindowState, AppConfig, DownloadConfig } from '@/shared/types';
 import { ExcelService } from '@/services/excelService';
+import { DownloadService } from '@/services/downloadService';
 
 class DigitalAssetDownloaderApp {
   private mainWindow: BrowserWindow | null = null;
   private store: Store<AppConfig>;
   private excelService: ExcelService;
+  private downloadService: DownloadService;
+  private currentSpreadsheetData: any[] | null = null;
 
   constructor() {
     this.store = new Store<AppConfig>({
@@ -21,6 +24,8 @@ class DigitalAssetDownloaderApp {
       },
     });
     this.excelService = new ExcelService();
+    this.downloadService = new DownloadService();
+    this.currentSpreadsheetData = null;
   }
 
   async createWindow(): Promise<void> {
@@ -208,6 +213,9 @@ class DigitalAssetDownloaderApp {
       try {
         const data = await this.excelService.loadSheetData(filePath, sheetName);
         
+        // Store the data for downloads
+        this.currentSpreadsheetData = data.rows;
+        
         // Add file to recent files list
         const recentFiles = this.store.get('recentFiles', []);
         const updatedRecentFiles = [filePath, ...recentFiles.filter(f => f !== filePath)].slice(0, 10);
@@ -221,15 +229,71 @@ class DigitalAssetDownloaderApp {
       }
     });
 
-    // Download handlers (placeholder for Phase 4)
-    ipcMain.handle(IPC_CHANNELS.START_DOWNLOADS, async (_, config) => {
-      // TODO: Implement in Phase 4
-      return { message: 'Downloads not implemented yet' };
+    // Download handlers - Advanced download engine implementation
+    ipcMain.handle(IPC_CHANNELS.START_DOWNLOADS, async (_, config: DownloadConfig) => {
+      try {
+        if (!this.currentSpreadsheetData) {
+          throw new Error('No spreadsheet data loaded. Please load a file first.');
+        }
+
+        // Validate configuration
+        if (!config.partNoColumn) {
+          throw new Error('Please select a Part Number column');
+        }
+
+        if (!config.imageColumns.length && !config.pdfColumn) {
+          throw new Error('Please select at least one Image URL column or PDF column');
+        }
+
+        if (!config.imageFolder && !config.pdfFolder) {
+          throw new Error('Please select download folders');
+        }
+
+        // Set up download event listeners
+        this.downloadService.removeAllListeners();
+        
+        this.downloadService.on('progress', (progress) => {
+          this.mainWindow?.webContents.send(IPC_CHANNELS.DOWNLOAD_PROGRESS, progress);
+        });
+
+        this.downloadService.on('complete', (result) => {
+          this.mainWindow?.webContents.send(IPC_CHANNELS.DOWNLOAD_COMPLETE, result);
+        });
+
+        this.downloadService.on('error', (error) => {
+          this.mainWindow?.webContents.send(IPC_CHANNELS.DOWNLOAD_COMPLETE, {
+            error: error instanceof Error ? error.message : 'Unknown error'
+          });
+        });
+
+        this.downloadService.on('cancelled', () => {
+          this.mainWindow?.webContents.send(IPC_CHANNELS.DOWNLOAD_COMPLETE, {
+            cancelled: true,
+            successful: this.downloadService.getProgress().successful,
+            failed: this.downloadService.getProgress().failed
+          });
+        });
+
+        // Start downloads
+        await this.downloadService.startDownloads(config, this.currentSpreadsheetData);
+        
+        return { success: true, message: 'Downloads started successfully' };
+      } catch (error) {
+        console.error('Error starting downloads:', error);
+        const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+        throw new Error(errorMessage);
+      }
     });
 
     ipcMain.handle(IPC_CHANNELS.CANCEL_DOWNLOADS, async () => {
-      // TODO: Implement in Phase 4
-      return { success: true };
+      try {
+        this.downloadService.cancelDownloads();
+        return { success: true, message: 'Downloads cancelled' };
+      } catch (error) {
+        console.error('Error cancelling downloads:', error);
+        const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+        throw new Error(errorMessage);
+      }
     });
 
     // Window control handlers

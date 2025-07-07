@@ -30,7 +30,7 @@ const ColumnSelectionTab: React.FC<ColumnSelectionTabProps> = ({
   const [quality, setQuality] = useState<number>(95);
   const [edgeThreshold, setEdgeThreshold] = useState<number>(30);
 
-  // Load initial configuration
+  // Load initial configuration with defaults
   useEffect(() => {
     if (initialConfig) {
       setPartNoColumn(initialConfig.partNoColumn || '');
@@ -40,13 +40,17 @@ const ColumnSelectionTab: React.FC<ColumnSelectionTabProps> = ({
       setImageFolder(initialConfig.imageFolder || '');
       setPdfFolder(initialConfig.pdfFolder || '');
       setSourceImageFolder(initialConfig.sourceImageFolder || '');
-      setImageFilePath(initialConfig.imageFilePath || '');
-      setPdfFilePath(initialConfig.pdfFilePath || '');
+      setImageFilePath(initialConfig.imageFilePath || "U:\\old_g\\IMAGES\\ABM Product Images");
+      setPdfFilePath(initialConfig.pdfFilePath || "U:\\old_g\\IMAGES\\Product pdf\\'s");
       setMaxWorkers(initialConfig.maxWorkers || 5);
       setBackgroundProcessingEnabled(initialConfig.backgroundProcessing?.enabled || false);
       setBackgroundMethod(initialConfig.backgroundProcessing?.method || 'smart_detect');
       setQuality(initialConfig.backgroundProcessing?.quality || 95);
       setEdgeThreshold(initialConfig.backgroundProcessing?.edgeThreshold || 30);
+    } else {
+      // Set defaults when no initial config
+      setImageFilePath("U:\\old_g\\IMAGES\\ABM Product Images");
+      setPdfFilePath("U:\\old_g\\IMAGES\\Product pdf\\'s");
     }
   }, [initialConfig]);
 
