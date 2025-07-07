@@ -230,9 +230,6 @@ const ColumnSelectionTab: React.FC<ColumnSelectionTabProps> = ({
         {/* Download Folders Section */}
         <div className="config-section">
           <h3>Download Folders</h3>
-          <p className="section-description">
-            Configure where downloaded files will be saved and network paths for CSV logging
-          </p>
           
           {/* Image Download Folder */}
           <div className="form-group">
