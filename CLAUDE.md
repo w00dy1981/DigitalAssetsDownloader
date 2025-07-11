@@ -70,6 +70,48 @@ Three-tab workflow matching original Python application:
 - Strict TypeScript settings enabled
 - Separate tsconfig files for main and renderer processes
 
+#### **Critical TypeScript Issue: Electron Preload Context Bridge Types**
+
+**Problem**: When adding new methods to `contextBridge.exposeInMainWorld()` in preload.ts, TypeScript compiler in renderer process doesn't recognize the new methods, showing errors like:
+```
+Property 'loadSettings' does not exist on type 'electronAPI'
+Property 'saveSettings' does not exist on type 'electronAPI'
+```
+
+**Root Cause**: Electron's context isolation requires explicit TypeScript declarations for the global Window interface. The renderer process runs in an isolated context and can't automatically infer types from the preload script.
+
+**Solution** (from official Electron docs):
+1. **Add methods to preload.ts**:
+   ```typescript
+   contextBridge.exposeInMainWorld('electronAPI', {
+     loadSettings: () => ipcRenderer.invoke('load-settings'),
+     saveSettings: (settings) => ipcRenderer.invoke('save-settings', settings),
+   });
+   ```
+
+2. **Update TypeScript declarations in renderer/types.d.ts**:
+   ```typescript
+   declare global {
+     interface Window {
+       electronAPI: {
+         loadSettings: () => Promise<any>;
+         saveSettings: (settings: any) => Promise<any>;
+         // ... other methods
+       };
+     }
+   }
+   ```
+
+3. **Clean build to refresh TypeScript cache**:
+   ```bash
+   rm -rf dist node_modules/.cache
+   npm run build
+   ```
+
+**Reference**: [Electron Context Isolation TypeScript Guide](https://www.electronjs.org/docs/latest/tutorial/context-isolation#usage-with-typescript)
+
+**Prevention**: Always update both preload.ts AND renderer/types.d.ts simultaneously when adding new IPC methods.
+
 ## Migration Context
 
 This application is migrating from `OLD_Standalone_App/Digital_Asset_Downloader.py` with these key features to implement:

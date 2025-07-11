@@ -425,11 +425,17 @@ Key Features Verified and Working:
 - UI consistent with existing folder selection patterns
 - Application builds and runs without errors
 
-**⚠️ Phase 6b REMAINING ISSUES:**
-- Network paths still hardcoded - NOT persisted between sessions
-- TypeScript compilation errors when accessing settings methods
-- File dialog path memory not implemented
-- Settings persistence blocked by preload/renderer type compatibility issues
+**✅ Phase 6b COMPLETE - Settings Persistence Implementation:**
+- Network paths now persist between application sessions
+- TypeScript issue resolved using official Electron documentation solution
+- Settings load on component mount with graceful fallback to defaults
+- Auto-save functionality with 1-second debounce prevents excessive writes
+- All existing functionality preserved during implementation
+
+**🎯 READY FOR PHASE 7: Settings UI Implementation**
+- **Objective**: Create dedicated Settings tab/dialog for user configuration
+- **Goal**: Replace hardcoded default paths with user-configurable interface
+- **Scope**: Allow users to set default network paths, file dialog paths, and other preferences
 
 ## ⚠️ CRITICAL LESSON LEARNED - CSS Border Removal Failure
 
@@ -481,18 +487,12 @@ input, .form-control, .form-group input {
 **Status**: Application successfully reverted to working state. Future CSS changes must follow minimal, targeted approach only.
 ```
 
-## ⚠️ CRITICAL LESSON LEARNED - TypeScript Settings Implementation Failure
+## ⚠️ CRITICAL LESSON LEARNED - TypeScript Electron Preload Context Bridge Issue
 
-### What Went Wrong:
+### Problem Description:
 **Date**: Phase 6 Implementation Session  
-**Issue**: Attempted to implement settings persistence using loadSettings/saveSettings methods
-**Failure**: TypeScript compilation errors prevented renderer from accessing new preload methods
-
-### Root Cause Analysis:
-1. **TypeScript Compilation Caching**: Changes to preload.ts types not recognized by renderer build
-2. **Build Order Issues**: Renderer build occurring before preload types are available
-3. **Type Definition Mismatch**: Global Window interface declaration not updating correctly
-4. **Webpack Build Process**: TypeScript loader not picking up new global type definitions
+**Issue**: When adding new methods to `contextBridge.exposeInMainWorld()` in preload.ts, TypeScript compiler in renderer process doesn't recognize the new methods
+**Root Cause**: Electron's context isolation requires explicit TypeScript declarations for the global Window interface
 
 ### Error Messages Encountered:
 ```
@@ -501,30 +501,65 @@ ERROR: Property 'saveSettings' does not exist on type 'electronAPI'
 ERROR: Block-scoped variable 'saveNetworkPathSettings' used before its declaration
 ```
 
-### What Should Have Been Done:
-1. **Force Clean Build**: `rm -rf dist && npm run build` to clear TypeScript cache
-2. **Build Order**: Ensure main process builds completely before renderer process
-3. **Type Validation**: Verify global Window interface updates correctly
-4. **Incremental Testing**: Test simple settings access before complex persistence logic
+### Root Cause Analysis (Based on Official Electron Documentation):
+1. **Context Isolation**: Electron runs preload and renderer in separate contexts
+2. **Type Inference Limitation**: TypeScript can't automatically infer types across context boundaries  
+3. **Missing Type Declarations**: Global Window interface must be explicitly declared in renderer
+4. **Build Cache Issues**: TypeScript compilation cache prevents type updates from being recognized
 
-### Development Principles for Future Settings Implementation:
-1. **Start Simple** - Test basic IPC channel access before complex logic
-2. **Verify Types** - Ensure TypeScript recognizes new methods before using them
-3. **Clean Builds** - Always clean TypeScript cache when adding new global types
-4. **Minimal Testing** - Test each IPC method individually before combining
-5. **Fallback Strategy** - Keep working version while troubleshooting TypeScript issues
+### Official Solution (from Electron Documentation):
 
-### Process for Phase 6b:
-1. **Clean Build Environment** - Remove all build artifacts and caches
-2. **Verify IPC Channels** - Test settings save/load in main process directly
-3. **Test Type Recognition** - Verify renderer can access new electronAPI methods
-4. **Implement Gradually** - Add settings persistence piece by piece
-5. **Emergency Revert** - Keep git commit ready for quick rollback if needed
+#### Step 1: Add Methods to Preload Script
+```typescript
+// src/main/preload.ts
+contextBridge.exposeInMainWorld('electronAPI', {
+  loadSettings: () => ipcRenderer.invoke('load-settings'),
+  saveSettings: (settings: any) => ipcRenderer.invoke('save-settings', settings),
+  // ... other methods
+});
+```
+
+#### Step 2: Update TypeScript Declarations
+```typescript
+// src/renderer/types.d.ts
+declare global {
+  interface Window {
+    electronAPI: {
+      loadSettings: () => Promise<any>;
+      saveSettings: (settings: any) => Promise<any>;
+      // ... other methods
+    };
+  }
+}
+```
+
+#### Step 3: Clean Build to Refresh TypeScript Cache
+```bash
+rm -rf dist node_modules/.cache
+npm run build
+```
+
+### Prevention Guidelines for Future Agents:
+1. **Always Update Both Files**: When adding preload methods, update both `preload.ts` AND `renderer/types.d.ts` simultaneously
+2. **Clean Build Required**: Force clean build when adding new global type definitions
+3. **Test Simple First**: Test basic IPC channel access before complex logic
+4. **Verify Types**: Ensure TypeScript recognizes new methods before implementing business logic
+
+### Reference Documentation:
+- **Official Source**: [Electron Context Isolation TypeScript Guide](https://www.electronjs.org/docs/latest/tutorial/context-isolation#usage-with-typescript)
+- **Key Quote**: "The renderer's window object won't have the correct typings unless you extend the types with a declaration file"
+
+### Success Pattern:
+1. ✅ Add method to contextBridge in preload.ts
+2. ✅ Add matching declaration to renderer/types.d.ts  
+3. ✅ Clean build: `rm -rf dist && npm run build`
+4. ✅ Test TypeScript compilation: `npx tsc --noEmit`
+5. ✅ Implement business logic in renderer
 
 ### Red Flags to Avoid:
-- ❌ Making multiple TypeScript interface changes simultaneously
-- ❌ Adding complex useEffect logic before verifying basic IPC access
+- ❌ Adding preload methods without updating type declarations
 - ❌ Assuming TypeScript cache will update automatically
+- ❌ Making multiple interface changes simultaneously
 - ❌ Testing in development mode without confirming build success
 - ❌ Proceeding with implementation when TypeScript errors appear
 
@@ -539,20 +574,35 @@ ERROR: Block-scoped variable 'saveNetworkPathSettings' used before its declarati
 
 ---
 
-## Phase 6: User Settings & Preferences System ⭐ NEXT PHASE
-**Session Goal**: Implement comprehensive user settings to eliminate hardcoded values and improve UX
+## Phase 7: User Settings UI & Configuration ⭐ NEXT PHASE
+**Session Goal**: Create dedicated Settings UI to eliminate hardcoded values and provide user-friendly configuration
+
+### Objective:
+Replace hardcoded default paths with user-configurable settings interface that allows users to set their preferred default locations and behaviors.
 
 ### Current Hardcoded Values to Replace:
-- **Network Paths**: `"U:\\old_g\\IMAGES\\ABM Product Images"` and `"U:\\old_g\\IMAGES\\Product pdf's"` in `ColumnSelectionTab.tsx:43-44,52-53`
+- **Network Paths**: `"U:\\old_g\\IMAGES\\ABM Product Images"` and `"U:\\old_g\\IMAGES\\Product pdf's"` 
 - **File Dialog Path**: No memory of last opened location - always opens to system default
 - **Download Defaults**: Various default values scattered throughout components
 
-### UserSettings Interface Design:
+### Settings UI Implementation Plan:
+
+#### Option A: Settings Tab (Recommended)
+Add a fourth tab to the existing tab navigation:
+1. **File Selection** 
+2. **Column Selection**
+3. **Process & Download**
+4. **Settings** ← NEW
+
+#### Option B: Settings Menu/Dialog
+Add Settings option to application menu that opens modal dialog
+
+### UserSettings Interface Extensions:
 ```typescript
 interface UserSettings {
   defaultPaths: {
     lastFileDialogPath: string;           // Remember last CSV/Excel location
-    imageDownloadFolder: string;          // Default download folder for images
+    imageDownloadFolder: string;          // Default download folder for images  
     pdfDownloadFolder: string;            // Default download folder for PDFs
     sourceImageFolder: string;            // Default source folder for searching
     imageNetworkPath: string;             // Default network path for image logging
@@ -563,7 +613,6 @@ interface UserSettings {
     connectionTimeout: number;            // Default connection timeout (5s)
     readTimeout: number;                  // Default read timeout (30s)
     retryAttempts: number;                // Default retry count (3)
-    retryDelayMultiplier: number;         // Exponential backoff multiplier
   };
   imageProcessing: {
     enabledByDefault: boolean;            // Background processing on/off by default
@@ -573,18 +622,56 @@ interface UserSettings {
   };
   uiPreferences: {
     rememberFileDialogPath: boolean;      // Enable/disable file dialog path memory
-    autoLoadLastConfig: boolean;          // Auto-load previous configuration
-    showCompletionDialog: boolean;        // Show completion dialog after downloads
-    defaultTab: 'file' | 'column' | 'process';  // Which tab to show on startup
+    showAdvancedOptions: boolean;         // Show/hide advanced configuration options
   };
-  updateSettings: {
-    enableAutoUpdates: boolean;           // Enable automatic app updates (Phase 8)
-    checkForUpdatesOnStartup: boolean;    // Check for updates when app starts
-    updateChannel: 'stable' | 'beta';     // Update channel preference
-    allowPrerelease: boolean;             // Include beta/preview versions
-    updateCheckInterval: number;          // Hours between update checks (24, 48, 168)
-  };
-  advanced: {
+}
+```
+
+### Phase 7 Implementation Tasks:
+
+#### Task 1: Create Settings Component
+- [ ] Create `SettingsTab.tsx` component following existing tab patterns
+- [ ] Add form fields for all UserSettings interface properties
+- [ ] Implement Browse buttons for folder/path selection
+- [ ] Add validation for user inputs (timeouts, quality ranges, etc.)
+- [ ] Include Reset to Defaults functionality
+
+#### Task 2: Add Settings Tab to Navigation
+- [ ] Update `App.tsx` to include Settings as fourth tab
+- [ ] Add Settings tab icon and navigation
+- [ ] Ensure consistent styling with existing tabs
+- [ ] Test tab switching preserves settings state
+
+#### Task 3: Integrate Settings with Existing Components
+- [ ] Update `FileSelectionTab.tsx` to use `lastFileDialogPath` setting
+- [ ] Update `ColumnSelectionTab.tsx` to use `imageNetworkPath` and `pdfNetworkPath` defaults
+- [ ] Update `ProcessTab.tsx` to use download behavior defaults
+- [ ] Replace all hardcoded values with settings-based defaults
+
+#### Task 4: Settings Persistence & Validation
+- [ ] Extend existing settings save/load functionality for new properties
+- [ ] Add settings validation (ensure paths exist, ranges are valid)
+- [ ] Implement import/export settings functionality
+- [ ] Add settings migration for future versions
+
+### Success Criteria for Phase 7:
+- [ ] Users can configure all default paths through Settings UI
+- [ ] No hardcoded network paths remain in the application
+- [ ] File dialogs remember last location (when enabled in settings)
+- [ ] Settings persist between application sessions
+- [ ] Reset to Defaults restores factory settings
+- [ ] All existing functionality preserved
+
+### Testing Checklist:
+- [ ] Settings tab loads without errors
+- [ ] All form fields accept valid inputs
+- [ ] Browse buttons open appropriate folder dialogs
+- [ ] Settings save and load correctly between sessions
+- [ ] Invalid settings show appropriate error messages
+- [ ] Reset to Defaults works for all settings categories
+- [ ] Existing download/processing workflows use new default values
+
+---
     enableDebugLogging: boolean;          // Console logging for troubleshooting
     memoryUsageLimit: number;             // Memory usage limit (MB)
     crashReporting: boolean;              // Send anonymous crash reports (Phase 8)
