@@ -30,6 +30,31 @@ const ColumnSelectionTab: React.FC<ColumnSelectionTabProps> = ({
   const [quality, setQuality] = useState<number>(95);
   const [edgeThreshold, setEdgeThreshold] = useState<number>(30);
 
+  // Load saved settings on component mount
+  useEffect(() => {
+    const loadSavedSettings = async () => {
+      try {
+        const settings = await window.electronAPI.loadSettings();
+        if (settings?.defaultPaths) {
+          // Use saved paths or fall back to defaults
+          setImageFilePath(settings.defaultPaths.imageNetworkPath || "U:\\old_g\\IMAGES\\ABM Product Images");
+          setPdfFilePath(settings.defaultPaths.pdfNetworkPath || "U:\\old_g\\IMAGES\\Product pdf's");
+        } else {
+          // Fall back to defaults if no settings
+          setImageFilePath("U:\\old_g\\IMAGES\\ABM Product Images");
+          setPdfFilePath("U:\\old_g\\IMAGES\\Product pdf's");
+        }
+      } catch (error) {
+        console.error('Error loading settings:', error);
+        // Fall back to defaults on error
+        setImageFilePath("U:\\old_g\\IMAGES\\ABM Product Images");
+        setPdfFilePath("U:\\old_g\\IMAGES\\Product pdf's");
+      }
+    };
+
+    loadSavedSettings();
+  }, []); // Run once on mount
+
   // Load initial configuration with defaults
   useEffect(() => {
     if (initialConfig) {
@@ -40,19 +65,20 @@ const ColumnSelectionTab: React.FC<ColumnSelectionTabProps> = ({
       setImageFolder(initialConfig.imageFolder || '');
       setPdfFolder(initialConfig.pdfFolder || '');
       setSourceImageFolder(initialConfig.sourceImageFolder || '');
-      setImageFilePath(initialConfig.imageFilePath || "U:\\old_g\\IMAGES\\ABM Product Images");
-      setPdfFilePath(initialConfig.pdfFilePath || "U:\\old_g\\IMAGES\\Product pdf's");
+      // Don't override network paths from settings with config values
+      if (initialConfig.imageFilePath && imageFilePath === "U:\\old_g\\IMAGES\\ABM Product Images") {
+        setImageFilePath(initialConfig.imageFilePath);
+      }
+      if (initialConfig.pdfFilePath && pdfFilePath === "U:\\old_g\\IMAGES\\Product pdf's") {
+        setPdfFilePath(initialConfig.pdfFilePath);
+      }
       setMaxWorkers(initialConfig.maxWorkers || 5);
       setBackgroundProcessingEnabled(initialConfig.backgroundProcessing?.enabled ?? true);
       setBackgroundMethod(initialConfig.backgroundProcessing?.method || 'smart_detect');
       setQuality(initialConfig.backgroundProcessing?.quality || 95);
       setEdgeThreshold(initialConfig.backgroundProcessing?.edgeThreshold || 30);
-    } else {
-      // Set defaults when no initial config
-      setImageFilePath("U:\\old_g\\IMAGES\\ABM Product Images");
-      setPdfFilePath("U:\\old_g\\IMAGES\\Product pdf's");
     }
-  }, [initialConfig]);
+  }, [initialConfig, imageFilePath, pdfFilePath]);
 
   const handleFolderSelect = useCallback(async (setter: (value: string) => void) => {
     try {
@@ -68,6 +94,35 @@ const ColumnSelectionTab: React.FC<ColumnSelectionTabProps> = ({
       console.error('Error opening folder dialog:', err);
     }
   }, []);
+
+  // Save settings whenever network paths change
+  const saveNetworkPathSettings = useCallback(async () => {
+    try {
+      const currentSettings = await window.electronAPI.loadSettings() || {};
+      const updatedSettings = {
+        ...currentSettings,
+        defaultPaths: {
+          ...currentSettings.defaultPaths,
+          imageNetworkPath: imageFilePath,
+          pdfNetworkPath: pdfFilePath
+        }
+      };
+      await window.electronAPI.saveSettings(updatedSettings);
+    } catch (error) {
+      console.error('Error saving settings:', error);
+    }
+  }, [imageFilePath, pdfFilePath]);
+
+  // Save settings when paths change (with debounce to avoid too many saves)
+  useEffect(() => {
+    const timeoutId = setTimeout(() => {
+      if (imageFilePath && pdfFilePath) {
+        saveNetworkPathSettings();
+      }
+    }, 1000); // 1 second debounce
+
+    return () => clearTimeout(timeoutId);
+  }, [imageFilePath, pdfFilePath, saveNetworkPathSettings]);
 
   const validateConfiguration = useCallback((): boolean => {
     setError('');

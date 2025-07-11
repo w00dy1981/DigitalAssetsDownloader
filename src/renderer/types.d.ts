@@ -19,6 +19,10 @@ declare global {
       saveConfig: (config: any) => Promise<any>;
       loadConfig: () => Promise<any>;
       
+      // Settings operations
+      saveSettings: (settings: any) => Promise<any>;
+      loadSettings: () => Promise<any>;
+      
       // Window operations
       minimizeWindow: () => Promise<void>;
       maximizeWindow: () => Promise<void>;
