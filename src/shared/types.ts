@@ -69,10 +69,19 @@ export interface WindowState {
   isMaximized: boolean;
 }
 
+export interface UserSettings {
+  defaultPaths: {
+    lastFileDialogPath: string;
+    imageNetworkPath: string;
+    pdfNetworkPath: string;
+  };
+}
+
 export interface AppConfig {
   windowState: WindowState;
   lastConfiguration?: DownloadConfig;
   recentFiles: string[];
+  userSettings?: UserSettings;
 }
 
 // IPC Channel names for communication between main and renderer
@@ -101,6 +110,10 @@ export const IPC_CHANNELS = {
   CANCEL_DOWNLOADS: 'cancel-downloads',
   DOWNLOAD_PROGRESS: 'download-progress',
   DOWNLOAD_COMPLETE: 'download-complete',
+  
+  // Settings operations
+  SAVE_SETTINGS: 'save-settings',
+  LOAD_SETTINGS: 'load-settings',
 } as const;
 
 export type IpcChannelType = typeof IPC_CHANNELS[keyof typeof IPC_CHANNELS];

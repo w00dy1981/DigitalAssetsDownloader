@@ -402,7 +402,7 @@ network_filepath = os.path.join(image_file_path, f"{part_no}.jpg")  # For CSV lo
 - **Configuration Validation**: Prevents processing when disabled
 - **Real-time Statistics**: Progress tracking with background processing counts
 
-🎯 READY FOR PRODUCTION DEPLOYMENT!
+🎯 READY FOR PHASE 6: USER SETTINGS IMPLEMENTATION
 
 Key Features Verified and Working:
 ✅ Downloads work for URLs, local files, and directories
@@ -418,11 +418,250 @@ Key Features Verified and Working:
 ✅ Multi-threaded downloads with configurable concurrency
 ✅ Memory efficient with proper cleanup
 ✅ Cross-platform compatibility verified
+
+**⚠️ Known Issues to Address in Phase 6:**
+- Hardcoded network paths in `ColumnSelectionTab.tsx` lines 43-44, 52-53
+- File dialog always opens to system default (no path memory)
+- No central settings management for user preferences
+
+## ⚠️ CRITICAL LESSON LEARNED - CSS Border Removal Failure
+
+### What Went Wrong:
+**Date**: Latest session  
+**Issue**: Attempted to remove visible borders from 3 folder input fields in Column Selection tab
+**Failure**: Applied overly broad CSS changes that broke ALL tabs and form functionality across entire application
+
+### Root Cause Analysis:
+1. **Scope Creep**: Started with simple border removal → turned into complete CSS overhaul
+2. **Poor CSS Targeting**: Used global selectors (`input`, `.form-control`) instead of specific ones
+3. **No Incremental Testing**: Made multiple major changes simultaneously without testing
+4. **Overengineering**: Applied "comprehensive" solutions instead of minimal targeted fixes
+
+### What Should Have Been Done:
+```css
+/* CORRECT - Minimal, targeted approach */
+.folder-input-group .form-control {
+  border: none !important;
+}
+
+/* WRONG - What was attempted - Broke everything */
+input, .form-control, .form-group input {
+  border: none !important;
+}
+```
+
+### Development Principles for Future CSS Changes:
+1. **One Change at a Time** - Never make multiple CSS changes simultaneously
+2. **Scope Selectors Tightly** - Always use the most specific selector possible  
+3. **Test Immediately** - Verify each change works before proceeding
+4. **Avoid Global Changes** - Never modify base elements globally
+5. **Use DevTools First** - Always inspect to understand the actual problem
+
+### Process for Next Time:
+1. **Inspect Element** to identify exact CSS rule causing borders
+2. **Target Specifically** with `.folder-input-group .form-control` selector only
+3. **Apply Minimal Fix** with `border: none !important`
+4. **Test All Tabs** to ensure no breakage
+5. **Commit Immediately** if successful
+
+### Red Flags to Avoid:
+- ❌ Global selectors targeting `input`, `select`, `textarea`
+- ❌ Modifying `.form-group` or base form classes
+- ❌ Using terms like "aggressive" or "comprehensive" in CSS
+- ❌ Making changes to more than one CSS rule without testing
+- ❌ Applying grid layouts or major structural changes for simple border fixes
+
+**Status**: Application successfully reverted to working state. Future CSS changes must follow minimal, targeted approach only.
 ```
 
 ---
 
-## Phase 5: Advanced Image Processing
+## Phase 6: User Settings & Preferences System ⭐ NEXT PHASE
+**Session Goal**: Implement comprehensive user settings to eliminate hardcoded values and improve UX
+
+### Current Hardcoded Values to Replace:
+- **Network Paths**: `"U:\\old_g\\IMAGES\\ABM Product Images"` and `"U:\\old_g\\IMAGES\\Product pdf's"` in `ColumnSelectionTab.tsx:43-44,52-53`
+- **File Dialog Path**: No memory of last opened location - always opens to system default
+- **Download Defaults**: Various default values scattered throughout components
+
+### UserSettings Interface Design:
+```typescript
+interface UserSettings {
+  defaultPaths: {
+    lastFileDialogPath: string;           // Remember last CSV/Excel location
+    imageDownloadFolder: string;          // Default download folder for images
+    pdfDownloadFolder: string;            // Default download folder for PDFs
+    sourceImageFolder: string;            // Default source folder for searching
+    imageNetworkPath: string;             // Default network path for image logging
+    pdfNetworkPath: string;               // Default network path for PDF logging
+  };
+  downloadBehavior: {
+    defaultConcurrentDownloads: number;   // Default worker count (1-20)
+    connectionTimeout: number;            // Default connection timeout (5s)
+    readTimeout: number;                  // Default read timeout (30s)
+    retryAttempts: number;                // Default retry count (3)
+    retryDelayMultiplier: number;         // Exponential backoff multiplier
+  };
+  imageProcessing: {
+    enabledByDefault: boolean;            // Background processing on/off by default
+    defaultMethod: 'smart_detect' | 'ai_removal' | 'color_replace' | 'edge_detection';
+    defaultQuality: number;               // JPEG quality (60-100%)
+    defaultEdgeThreshold: number;         // Edge detection threshold
+  };
+  uiPreferences: {
+    rememberFileDialogPath: boolean;      // Enable/disable file dialog path memory
+    autoLoadLastConfig: boolean;          // Auto-load previous configuration
+    showCompletionDialog: boolean;        // Show completion dialog after downloads
+    defaultTab: 'file' | 'column' | 'process';  // Which tab to show on startup
+  };
+  updateSettings: {
+    enableAutoUpdates: boolean;           // Enable automatic app updates (Phase 8)
+    checkForUpdatesOnStartup: boolean;    // Check for updates when app starts
+    updateChannel: 'stable' | 'beta';     // Update channel preference
+    allowPrerelease: boolean;             // Include beta/preview versions
+    updateCheckInterval: number;          // Hours between update checks (24, 48, 168)
+  };
+  advanced: {
+    enableDebugLogging: boolean;          // Console logging for troubleshooting
+    memoryUsageLimit: number;             // Memory usage limit (MB)
+    crashReporting: boolean;              // Send anonymous crash reports (Phase 8)
+    analyticsEnabled: boolean;            // Usage analytics for improvement (Phase 8)
+  };
+}
+```
+
+### File Dialog Path Memory Implementation:
+1. **Track Last Location**: Store directory of successfully opened files
+2. **IPC Integration**: Pass `defaultPath` to `dialog.showOpenDialog()` in main process
+3. **Path Validation**: Verify stored path exists before using, fallback to system default
+4. **User Control**: Settings toggle to enable/disable this feature
+
+### Implementation Tasks:
+- [ ] **Settings Infrastructure**:
+  - Extend `AppConfig` interface to include `UserSettings`
+  - Add IPC channels: `SAVE_SETTINGS`, `LOAD_SETTINGS`, `RESET_SETTINGS`
+  - Update electron-store configuration for settings persistence
+
+- [ ] **Settings UI Component**:
+  - Create `SettingsTab.tsx` with organized sections
+  - Add settings menu item (`File > Settings...`) with `Cmd/Ctrl+,` shortcut
+  - Include "Reset to Defaults" functionality per section
+
+- [ ] **File Dialog Enhancement**:
+  - Modify `FileSelectionTab.tsx` to update last path after successful selection
+  - Update `main.ts` IPC handlers to use stored `lastFileDialogPath`
+  - Add path validation with graceful fallback
+
+- [ ] **Default Value Replacement**:
+  - Replace all hardcoded defaults in `ColumnSelectionTab.tsx`
+  - Update initialization logic throughout app to use settings
+  - Ensure settings provide fallbacks for all configurable values
+
+### Settings Screen Sections:
+1. **Default Paths**: File dialog memory, download folders, network paths
+2. **Download Behavior**: Workers, timeouts, retry logic
+3. **Image Processing**: Default method, quality, processing toggles
+4. **UI Preferences**: Auto-load, completion dialogs, startup tab
+5. **Update Settings**: Auto-updater preferences, update channels *(Phase 8)*
+6. **Advanced**: Debug logging, performance limits, crash reporting *(Phase 8)*
+
+### Validation & Error Handling:
+- **Path Validation**: Check if paths exist and are writable
+- **Range Validation**: Ensure numeric values are within valid ranges
+- **Real-time Feedback**: Show validation errors immediately
+- **Import/Export**: Settings backup and restore functionality
+
+### Session Handoff Notes:
+```
+Phase 6 Complete Checklist:
+- [ ] All hardcoded values replaced with settings
+- [ ] File dialog remembers last opened location
+- [ ] Settings persist between application restarts
+- [ ] Settings UI is intuitive and well-organized
+- [ ] Default values are sensible for new users
+- [ ] Settings validation prevents invalid configurations
+- [ ] Reset to defaults functionality works correctly
+- [ ] Settings import/export works for backup/sharing
+```
+
+### Integration Points:
+- **Configuration System**: Settings provide defaults for DownloadConfig
+- **File Operations**: Settings control file dialog behavior
+- **UI State**: Settings determine startup behavior and preferences
+- **Performance**: Settings control resource usage and timeout values
+
+### Technical Implementation Details:
+
+#### Settings Data Structure (extends AppConfig):
+```typescript
+// Current AppConfig in src/shared/types.ts
+export interface AppConfig {
+  windowState: WindowState;
+  lastConfiguration?: DownloadConfig;
+  recentFiles: string[];
+  userSettings?: UserSettings;  // NEW: Add settings to existing config
+}
+```
+
+#### File Dialog Path Memory Flow:
+1. **File Selection**: User selects file in FileSelectionTab
+2. **Path Extraction**: Extract directory from selected file path using `path.dirname()`
+3. **Settings Update**: Save directory to `userSettings.defaultPaths.lastFileDialogPath`
+4. **Next Open**: Pass stored path as `defaultPath` in dialog options
+5. **Validation**: Check if stored path exists, fallback to system default if not
+
+#### Hardcoded Values Location Reference:
+- `src/renderer/components/ColumnSelectionTab.tsx:43-44` - Image network path default
+- `src/renderer/components/ColumnSelectionTab.tsx:52-53` - PDF network path default
+- These currently default to `"U:\\old_g\\IMAGES\\ABM Product Images"` and `"U:\\old_g\\IMAGES\\Product pdf's"`
+
+#### Settings Menu Integration:
+```typescript
+// In main.ts menu template
+{
+  label: 'File',
+  submenu: [
+    // ... existing items
+    { type: 'separator' },
+    {
+      label: 'Settings...',
+      accelerator: 'CmdOrCtrl+,',
+      click: () => {
+        // Send IPC to open settings dialog/tab
+      }
+    }
+  ]
+}
+```
+
+### Future Agent Implementation Guidance:
+
+#### Phase 6 Implementation Order:
+1. **Start with Types**: Add UserSettings interface to `src/shared/types.ts`
+2. **Extend Storage**: Update AppConfig to include userSettings
+3. **Add IPC Channels**: Create settings save/load/reset IPC handlers
+4. **Create Settings UI**: Build SettingsTab.tsx component
+5. **Integrate File Dialog**: Add path memory to FileSelectionTab
+6. **Replace Hardcoded Values**: Update ColumnSelectionTab defaults
+7. **Add Settings Menu**: Update main.ts menu with settings option
+
+#### Critical Implementation Notes:
+- **Settings Default Values**: Must provide sensible defaults for all settings
+- **Validation**: Always validate paths exist before using them
+- **Backward Compatibility**: Settings should be optional - app works without them
+- **Error Handling**: Gracefully handle corrupted or missing settings
+- **Platform Paths**: Use path.join() for cross-platform path handling
+
+#### Testing Requirements:
+- Settings persist after app restart
+- Invalid paths gracefully fallback to defaults
+- File dialog opens to correct location when path memory enabled
+- Settings UI validation works correctly
+- Reset to defaults restores all original values
+
+---
+
+## Phase 7: Advanced Image Processing
 **Session Goal**: Implement all four background processing methods
 
 ### BackgroundProcessor Class Reference (Lines 45-287)
@@ -645,22 +884,88 @@ Phase 7 Complete Checklist:
    - Test PNG to JPG conversion
    - Test quality settings
 
-### Distribution Setup
-- [ ] Configure electron-builder for:
-  - Windows installer (.exe)
-  - macOS DMG with code signing
-  - Linux AppImage and .deb
-- [ ] Implement auto-updater
-- [ ] Create portable versions
+### Distribution Setup & Auto-Updater Implementation
+- [ ] **Configure electron-builder for multi-platform builds**:
+  - Windows installer (.exe) with NSIS
+  - macOS DMG with code signing and notarization
+  - Linux AppImage and .deb packages
+  - Portable versions for all platforms
+
+- [ ] **Implement Auto-Updater System** (electron-updater):
+  - Configure update server (GitHub Releases, S3, or custom)
+  - Implement update checking logic in main process
+  - Add update notification UI in renderer
+  - Handle download and installation of updates
+  - Support for delta updates to minimize download size
+
+- [ ] **Auto-Updater Settings Integration**:
+  - Connect settings UI to auto-updater functionality
+  - Implement update channel switching (stable/beta)
+  - Add manual update check option in Help menu
+  - Configure update check intervals based on user settings
+  - Handle offline scenarios gracefully
+
+- [ ] **Update Security & Verification**:
+  - Code signing for all platforms
+  - Update signature verification
+  - Secure update server configuration
+  - Rollback capability for failed updates
+
+- [ ] **Update User Experience**:
+  - Progress indicators during download/install
+  - Release notes display
+  - Option to delay updates until next restart
+  - Background downloading with user notification
+
+### Auto-Updater Technical Implementation Notes:
+
+#### Dependencies to Add:
+```json
+{
+  "dependencies": {
+    "electron-updater": "^6.1.7"
+  },
+  "devDependencies": {
+    "electron-builder": "^24.6.4"
+  }
+}
+```
+
+#### Settings Integration Example:
+```typescript
+// In main process - auto-updater initialization
+import { autoUpdater } from 'electron-updater';
+
+// Configure based on user settings
+const updateSettings = store.get('userSettings.updateSettings');
+autoUpdater.autoDownload = updateSettings.enableAutoUpdates;
+autoUpdater.channel = updateSettings.updateChannel;
+
+// Check for updates based on interval setting
+if (updateSettings.checkForUpdatesOnStartup) {
+  autoUpdater.checkForUpdatesAndNotify();
+}
+```
+
+#### Settings UI Integration:
+- Update Settings section in SettingsTab.tsx
+- Real-time toggling of auto-update behavior
+- Manual "Check for Updates" button
+- Update channel selection dropdown
+- Progress notifications for update downloads
 
 ### Session Handoff Notes
 ```
 Phase 8 Complete Checklist:
 - [ ] All tests pass with >80% coverage
-- [ ] Installers build for all platforms
-- [ ] Auto-update tested and working
+- [ ] Installers build for all platforms (Windows, macOS, Linux)
+- [ ] Auto-updater system fully implemented and tested
+- [ ] Settings UI controls auto-updater behavior correctly
+- [ ] Code signing and update verification working
+- [ ] Update server configured (GitHub Releases recommended)
+- [ ] Release notes and version management system in place
 - [ ] Documentation complete and reviewed
-- [ ] Ready for v1.0.0 release
+- [ ] Ready for v1.0.0 release with auto-update capability
 ```
 
 ---

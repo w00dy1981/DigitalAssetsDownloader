@@ -18,6 +18,10 @@ contextBridge.exposeInMainWorld('electronAPI', {
   saveConfig: (config: any) => ipcRenderer.invoke(IPC_CHANNELS.SAVE_CONFIG, config),
   loadConfig: () => ipcRenderer.invoke(IPC_CHANNELS.LOAD_CONFIG),
 
+  // Settings
+  saveSettings: (settings: any) => ipcRenderer.invoke(IPC_CHANNELS.SAVE_SETTINGS, settings),
+  loadSettings: () => ipcRenderer.invoke(IPC_CHANNELS.LOAD_SETTINGS),
+
   // Window operations
   minimizeWindow: () => ipcRenderer.invoke(IPC_CHANNELS.MINIMIZE_WINDOW),
   maximizeWindow: () => ipcRenderer.invoke(IPC_CHANNELS.MAXIMIZE_WINDOW),
@@ -59,6 +63,8 @@ declare global {
       loadSheetData: (filePath: string, sheetName: string) => Promise<any>;
       saveConfig: (config: any) => Promise<any>;
       loadConfig: () => Promise<any>;
+      saveSettings: (settings: any) => Promise<any>;
+      loadSettings: () => Promise<any>;
       minimizeWindow: () => Promise<void>;
       maximizeWindow: () => Promise<void>;
       closeWindow: () => Promise<void>;

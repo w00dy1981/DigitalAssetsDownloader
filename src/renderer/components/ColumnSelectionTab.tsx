@@ -303,14 +303,23 @@ const ColumnSelectionTab: React.FC<ColumnSelectionTabProps> = ({
           {/* Network Path Configuration */}
           <div className="form-group">
             <label htmlFor="image-network-path">Image Network Path (for CSV logging)</label>
-            <input
-              id="image-network-path"
-              type="text"
-              value={imageFilePath}
-              onChange={(e) => setImageFilePath(e.target.value)}
-              placeholder="Network path for image files in CSV log (e.g., \\server\images\)"
-              className="form-control"
-            />
+            <div className="folder-input-group">
+              <input
+                id="image-network-path"
+                type="text"
+                value={imageFilePath}
+                onChange={(e) => setImageFilePath(e.target.value)}
+                placeholder="Network path for image files in CSV log (e.g., \\server\images\)"
+                className="form-control"
+              />
+              <button
+                type="button"
+                className="btn btn-secondary"
+                onClick={() => handleFolderSelect(setImageFilePath)}
+              >
+                Browse
+              </button>
+            </div>
             <small className="text-muted">
               Network path that will be logged in CSV reports (separate from local download path)
             </small>
@@ -318,14 +327,23 @@ const ColumnSelectionTab: React.FC<ColumnSelectionTabProps> = ({
           
           <div className="form-group">
             <label htmlFor="pdf-network-path">PDF Network Path (for CSV logging)</label>
-            <input
-              id="pdf-network-path"
-              type="text"
-              value={pdfFilePath}
-              onChange={(e) => setPdfFilePath(e.target.value)}
-              placeholder="Network path for PDF files in CSV log (e.g., \\server\pdfs\)"
-              className="form-control"
-            />
+            <div className="folder-input-group">
+              <input
+                id="pdf-network-path"
+                type="text"
+                value={pdfFilePath}
+                onChange={(e) => setPdfFilePath(e.target.value)}
+                placeholder="Network path for PDF files in CSV log (e.g., \\server\pdfs\)"
+                className="form-control"
+              />
+              <button
+                type="button"
+                className="btn btn-secondary"
+                onClick={() => handleFolderSelect(setPdfFilePath)}
+              >
+                Browse
+              </button>
+            </div>
             <small className="text-muted">
               Network path that will be logged in CSV reports (separate from local download path)
             </small>

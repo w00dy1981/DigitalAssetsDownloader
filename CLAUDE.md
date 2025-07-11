@@ -177,3 +177,214 @@ The application now has full feature parity with the original Python application
 - **Modern UI**: Dark theme, better UX than original PySide6 interface  
 - **Cross-Platform**: Single codebase for macOS and Windows
 - **Maintainable**: TypeScript, modular architecture, comprehensive error handling
+
+---
+
+# 🚨 CRITICAL DEVELOPMENT SAFEGUARDS - FOLLOW STRICTLY
+
+## **KISS (Keep It Simple, Stupid) & DRY (Don't Repeat Yourself) Principles**
+
+### **⚠️ MANDATORY: Read Before ANY Code Changes**
+
+This application is **PRODUCTION READY** and **FULLY FUNCTIONAL**. Any changes must follow these strict safeguards to prevent breaking existing functionality.
+
+---
+
+## **🛡️ BREAKING CHANGE PREVENTION RULES**
+
+### **Rule #1: ONE CHANGE AT A TIME**
+- ❌ **NEVER** modify multiple files simultaneously
+- ❌ **NEVER** make multiple unrelated changes in one session
+- ✅ **ALWAYS** make one targeted change, test immediately, then proceed
+- ✅ **ALWAYS** test `npm run dev` after each file modification
+
+### **Rule #2: MINIMAL VIABLE CHANGES**
+- ❌ **NEVER** refactor existing working code "while you're at it"
+- ❌ **NEVER** change patterns that already work (IPC, state management, etc.)
+- ✅ **ALWAYS** use the smallest possible change to achieve the goal
+- ✅ **ALWAYS** preserve existing interfaces and function signatures
+
+### **Rule #3: ADDITIVE-ONLY DEVELOPMENT**
+- ❌ **NEVER** delete or rename existing functions/interfaces
+- ❌ **NEVER** change existing type definitions that are in use
+- ✅ **ALWAYS** add new optional properties with defaults
+- ✅ **ALWAYS** extend interfaces rather than modify them
+
+### **Rule #4: IMMEDIATE TESTING REQUIREMENT**
+```bash
+# MANDATORY after EVERY file change:
+npm run dev      # Test application still starts and works
+npm run lint     # Verify no TypeScript errors
+```
+
+---
+
+## **📋 CHANGE IMPLEMENTATION CHECKLIST**
+
+### **Before Starting ANY Task:**
+- [ ] Read the current implementation in the target files
+- [ ] Identify the MINIMAL change needed (not the "best" or "cleanest")
+- [ ] Plan to preserve ALL existing functionality
+- [ ] Verify the change is truly necessary vs. nice-to-have
+
+### **During Implementation:**
+- [ ] Make ONE file change at a time
+- [ ] Test immediately with `npm run dev`
+- [ ] If anything breaks, revert immediately using git
+- [ ] Only proceed to next file after current change works
+
+### **After Each Change:**
+- [ ] Application starts without errors
+- [ ] All existing tabs load correctly
+- [ ] Previous functionality still works
+- [ ] No TypeScript compilation errors
+
+---
+
+## **🚫 FORBIDDEN ACTIONS**
+
+### **Never Do These:**
+1. **Global CSS Changes** - Only modify specific selectors
+2. **Rewrite Working Components** - Only add to them
+3. **Change IPC Channel Names** - These are working contracts
+4. **Modify Core Types** - Extend them instead
+5. **Refactor "While You're Here"** - Stay focused on the task
+6. **Remove "Unused" Code** - It might be used in ways you don't see
+
+### **Phase 5 CSS Failure Lesson:**
+```css
+/* ❌ WRONG - Broke entire application */
+input, .form-control { border: none !important; }
+
+/* ✅ CORRECT - Minimal, targeted */
+.folder-input-group .form-control { border: none !important; }
+```
+
+---
+
+## **📐 ARCHITECTURAL CONSTRAINTS**
+
+### **Existing Patterns MUST Be Preserved:**
+- **IPC Communication**: Use existing channels in `IPC_CHANNELS`
+- **State Management**: React useState/useCallback patterns
+- **Configuration**: electron-store with `AppConfig` interface
+- **File Structure**: Keep all files in their current directories
+- **TypeScript**: Strict typing, no `any` types
+
+### **Settings Implementation MUST:**
+- Extend `AppConfig` interface (don't replace)
+- Use electron-store (already working)
+- Provide defaults for ALL new settings
+- Make settings optional (app works without them)
+- Use existing IPC patterns
+
+---
+
+## **🎯 PHASE 6 SPECIFIC CONSTRAINTS**
+
+### **Settings System Requirements:**
+```typescript
+// ✅ CORRECT - Extends existing AppConfig
+interface AppConfig {
+  windowState: WindowState;
+  lastConfiguration?: DownloadConfig;
+  recentFiles: string[];
+  userSettings?: UserSettings;  // OPTIONAL - app works without this
+}
+
+// ✅ CORRECT - All settings have defaults
+interface UserSettings {
+  defaultPaths: {
+    lastFileDialogPath: string;
+    imageNetworkPath: string;    // Replaces hardcoded value
+    pdfNetworkPath: string;      // Replaces hardcoded value
+  };
+  // ... other sections
+}
+```
+
+### **File Dialog Path Memory:**
+```typescript
+// ✅ CORRECT - Minimal addition to existing code
+const result = await window.electronAPI.openFileDialog({
+  title: 'Select Excel or CSV File',
+  defaultPath: lastPath || undefined,  // Graceful fallback
+  properties: ['openFile'],
+  filters: [...] // Keep existing filters
+});
+
+// Save path after successful selection
+if (result.filePaths.length > 0) {
+  const directory = path.dirname(result.filePaths[0]);
+  // Save to settings (optional operation)
+}
+```
+
+### **Hardcoded Value Replacement:**
+```typescript
+// ✅ CORRECT - Replace with settings fallback
+const imageNetworkPath = userSettings?.defaultPaths?.imageNetworkPath || 
+                        "U:\\old_g\\IMAGES\\ABM Product Images";  // Keep as fallback
+```
+
+---
+
+## **🔧 EMERGENCY PROCEDURES**
+
+### **If Something Breaks:**
+1. **STOP IMMEDIATELY** - Don't try to "fix" it
+2. **Revert using Git**: `git checkout HEAD -- <filename>`
+3. **Test revert works**: `npm run dev`
+4. **Re-read these guidelines**
+5. **Plan a smaller change**
+
+### **If Tests Fail:**
+```bash
+# Verify application state:
+npm run dev      # Must start without errors
+npm run lint     # Must pass without errors
+
+# If either fails, revert ALL changes and start over
+```
+
+---
+
+## **✅ SUCCESS CRITERIA FOR ANY CHANGE**
+
+### **Before Marking Complete:**
+- [ ] `npm run dev` starts application successfully
+- [ ] All three tabs (File, Column, Process) load without errors
+- [ ] Existing download functionality works
+- [ ] No TypeScript compilation errors
+- [ ] No console errors in browser dev tools
+- [ ] File selection, column mapping, and downloads still work
+
+### **Phase 6 Success Criteria:**
+- [ ] Settings can be saved and loaded
+- [ ] File dialog remembers last path (when enabled)
+- [ ] Hardcoded network paths replaced but with same defaults
+- [ ] ALL existing functionality preserved
+- [ ] Settings are optional (app works without them)
+
+---
+
+## **📖 IMPLEMENTATION MANTRAS**
+
+1. **"Does it work now? Don't touch it."**
+2. **"Minimal change for maximum safety."**
+3. **"Add, don't modify."**
+4. **"Test immediately, revert quickly."**
+5. **"When in doubt, make it optional."**
+
+---
+
+## **🏆 DEVELOPMENT PHILOSOPHY**
+
+This application took 5 phases to reach production quality. **DO NOT** undo that work by making unnecessary changes. Focus on:
+
+- **Adding value** without removing functionality
+- **Extending capabilities** without changing existing patterns  
+- **Improving user experience** without breaking existing workflows
+- **Following established patterns** rather than creating new ones
+
+**Remember**: A working application with hardcoded values is infinitely better than a broken application with perfect architecture.

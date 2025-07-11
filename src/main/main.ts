@@ -313,6 +313,22 @@ class DigitalAssetDownloaderApp {
     ipcMain.handle(IPC_CHANNELS.CLOSE_WINDOW, () => {
       this.mainWindow?.close();
     });
+
+    // Settings handlers
+    ipcMain.handle(IPC_CHANNELS.SAVE_SETTINGS, async (_, settings) => {
+      this.store.set('userSettings', settings);
+      return { success: true };
+    });
+
+    ipcMain.handle(IPC_CHANNELS.LOAD_SETTINGS, async () => {
+      return this.store.get('userSettings') || {
+        defaultPaths: {
+          lastFileDialogPath: '',
+          imageNetworkPath: "U:\\old_g\\IMAGES\\ABM Product Images",
+          pdfNetworkPath: "U:\\old_g\\IMAGES\\Product pdf's"
+        }
+      };
+    });
   }
 
   private openFileDialog(): void {
