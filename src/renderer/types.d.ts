@@ -37,6 +37,7 @@ declare global {
       onDownloadComplete: (callback: (data: any) => void) => void;
       onMenuOpenFile: (callback: () => void) => void;
       onMenuSaveConfig: (callback: () => void) => void;
+      onMenuOpenSettings: (callback: () => void) => void;
       
       // Remove listeners
       removeAllListeners: (channel: IpcChannelType) => void;

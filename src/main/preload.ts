@@ -44,6 +44,9 @@ contextBridge.exposeInMainWorld('electronAPI', {
   onMenuSaveConfig: (callback: () => void) => {
     ipcRenderer.on('menu-save-config', callback);
   },
+  onMenuOpenSettings: (callback: () => void) => {
+    ipcRenderer.on('menu-open-settings', callback);
+  },
 
   // Remove listeners
   removeAllListeners: (channel: IpcChannelType) => {
@@ -74,6 +77,7 @@ declare global {
       onDownloadComplete: (callback: (data: any) => void) => void;
       onMenuOpenFile: (callback: () => void) => void;
       onMenuSaveConfig: (callback: () => void) => void;
+      onMenuOpenSettings: (callback: () => void) => void;
       removeAllListeners: (channel: IpcChannelType) => void;
     };
   }

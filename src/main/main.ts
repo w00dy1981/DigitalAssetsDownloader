@@ -1,4 +1,4 @@
-import { app, BrowserWindow, ipcMain, dialog, Menu } from 'electron';
+import { app, BrowserWindow, ipcMain, dialog, Menu, MenuItem } from 'electron';
 import * as path from 'path';
 import Store from 'electron-store';
 import { IPC_CHANNELS, WindowState, AppConfig, DownloadConfig } from '@/shared/types';
@@ -99,10 +99,13 @@ class DigitalAssetDownloaderApp {
 
     // Set up application menu
     this.createMenu();
+    
+    // Set up context menu for copy/paste
+    this.setupContextMenu();
   }
 
   private createMenu(): void {
-    const template = [
+    const template: any[] = [
       {
         label: 'File',
         submenu: [
@@ -119,10 +122,31 @@ class DigitalAssetDownloaderApp {
           },
           { type: 'separator' },
           {
+            label: 'Settings...',
+            accelerator: 'CmdOrCtrl+,',
+            click: () => this.openSettings(),
+          },
+          { type: 'separator' },
+          {
             label: 'Exit',
             accelerator: process.platform === 'darwin' ? 'Cmd+Q' : 'Ctrl+Q',
             click: () => app.quit(),
           },
+        ],
+      },
+      {
+        label: 'Edit',
+        submenu: [
+          { role: 'undo' },
+          { role: 'redo' },
+          { type: 'separator' },
+          { role: 'cut' },
+          { role: 'copy' },
+          { role: 'paste' },
+          { role: 'pasteandmatchstyle' },
+          { role: 'delete' },
+          { type: 'separator' },
+          { role: 'selectall' },
         ],
       },
       {
@@ -148,8 +172,48 @@ class DigitalAssetDownloaderApp {
       },
     ];
 
-    const menu = Menu.buildFromTemplate(template as any);
+    // On macOS, add the app menu
+    if (process.platform === 'darwin') {
+      template.unshift({
+        label: app.getName(),
+        submenu: [
+          { role: 'about' },
+          { type: 'separator' },
+          { role: 'services', submenu: [] },
+          { type: 'separator' },
+          { role: 'hide' },
+          { role: 'hideothers' },
+          { role: 'unhide' },
+          { type: 'separator' },
+          { role: 'quit' },
+        ],
+      });
+    }
+
+    const menu = Menu.buildFromTemplate(template);
     Menu.setApplicationMenu(menu);
+  }
+
+  private setupContextMenu(): void {
+    this.mainWindow?.webContents.on('context-menu', (event, params) => {
+      const menu = new Menu();
+
+      // Add copy/paste items when right-clicking on editable content
+      if (params.isEditable) {
+        menu.append(new MenuItem({ label: 'Cut', role: 'cut' }));
+        menu.append(new MenuItem({ label: 'Copy', role: 'copy' }));
+        menu.append(new MenuItem({ label: 'Paste', role: 'paste' }));
+        menu.append(new MenuItem({ type: 'separator' }));
+        menu.append(new MenuItem({ label: 'Select All', role: 'selectAll' }));
+      } else if (params.selectionText) {
+        menu.append(new MenuItem({ label: 'Copy', role: 'copy' }));
+      }
+
+      // Only show context menu if there are items
+      if (menu.items.length > 0) {
+        menu.popup();
+      }
+    });
   }
 
   private setupIpcHandlers(): void {
@@ -337,6 +401,10 @@ class DigitalAssetDownloaderApp {
 
   private saveConfiguration(): void {
     this.mainWindow?.webContents.send('menu-save-config');
+  }
+
+  private openSettings(): void {
+    this.mainWindow?.webContents.send('menu-open-settings');
   }
 
   async initialize(): Promise<void> {

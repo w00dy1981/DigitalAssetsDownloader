@@ -1256,7 +1256,38 @@ input[type="range"]::-moz-range-thumb {
 /* Enable copy/paste for all input fields */
 .settings-tab input[type="text"],
 .settings-tab input[type="number"],
-.settings-tab select {
+.settings-tab select,
+.settings-tab .folder-input-group input {
+  user-select: text !important;
+  -webkit-user-select: text !important;
+  -moz-user-select: text !important;
+  -ms-user-select: text !important;
+  pointer-events: auto !important;
+  -webkit-touch-callout: default !important;
+  -webkit-context-menu: default !important;
+  context-menu: default !important;
+}
+
+/* Ensure right-click context menu works */
+.settings-tab input {
+  -webkit-app-region: no-drag !important;
+}
+
+/* Override any disabled context menus */
+.settings-tab .folder-input-group,
+.settings-tab .folder-input-group * {
+  -webkit-app-region: no-drag !important;
+  user-select: text !important;
+  -webkit-user-select: text !important;
+}
+
+/* Global override for Settings tab - ensure copy/paste works everywhere */
+.settings-tab * {
+  -webkit-app-region: no-drag !important;
+}
+
+.settings-tab input,
+.settings-tab textarea {
   user-select: text !important;
   -webkit-user-select: text !important;
   -moz-user-select: text !important;

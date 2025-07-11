@@ -23,12 +23,18 @@ const App: React.FC = () => {
       }
     };
 
+    const handleMenuOpenSettings = () => {
+      setActiveTab(3); // Switch to settings tab
+    };
+
     window.electronAPI.onMenuOpenFile(handleMenuOpenFile);
     window.electronAPI.onMenuSaveConfig(handleMenuSaveConfig);
+    window.electronAPI.onMenuOpenSettings(handleMenuOpenSettings);
 
     return () => {
       window.electronAPI.removeAllListeners('menu-open-file' as any);
       window.electronAPI.removeAllListeners('menu-save-config' as any);
+      window.electronAPI.removeAllListeners('menu-open-settings' as any);
     };
   }, [downloadConfig]);
 
