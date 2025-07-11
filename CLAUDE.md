@@ -142,38 +142,56 @@ When implementing new features, validate against the original Python application
 - Ensure configuration persistence works correctly
 - Test error scenarios (invalid files, network issues, etc.)
 
+### Implementation Workflow Protocol
+
+#### Before Making Any Changes:
+1. **Analyze and Plan**: Explain what you plan to change and why
+2. **Propose Minimal Scope**: Identify the smallest possible change to achieve the goal
+3. **Get User Agreement**: Confirm the plan before proceeding with implementation
+
+#### During Implementation:
+- Make ONE targeted change at a time
+- Follow all safety constraints and architectural patterns
+- Test immediately with `npm run dev` and `npm run lint`
+
+#### After Implementation:
+1. **Provide Testing Instructions**: Give specific steps for user to verify the change
+   - Which tabs to navigate to
+   - What buttons to click
+   - What expected outcomes should occur
+   - Any error scenarios to test
+2. **Wait for User Confirmation**: Do not proceed until user confirms tests pass
+3. **Provide Git Commit Message**: Only after successful testing, provide a descriptive commit message
+4. **Proceed Only After Confirmation**: Wait for user to commit before implementing next features
+
+#### Example Testing Instructions Format:
+```
+Testing Instructions:
+1. Run `npm run dev` to start the application
+2. Navigate to [specific tab]
+3. Click [specific button/input]
+4. Verify [expected behavior]
+5. Test error case: [specific scenario]
+Expected Outcome: [clear success criteria]
+```
+
+#### Example Commit Message Format:
+```
+feat: Add [brief description of feature]
+
+- [Specific change 1]
+- [Specific change 2]
+- [Any important notes]
+
+Tested: [Brief description of what was verified]
+```
+
 ## Current Implementation Status
 
-### ✅ **COMPLETED - Production Ready Application**
+The application is **PRODUCTION READY** with all core features implemented. Refer to `DEVELOPMENT_PLAN.md` for detailed progress tracking and implementation history.
 
-#### **Phase 1-5 Complete** - All Core Features Implemented:
-- **Phase 1**: Electron + React + TypeScript foundation ✅
-- **Phase 2**: Excel/CSV processing with ExcelJS ✅  
-- **Phase 3**: Column mapping & configuration UI ✅
-- **Phase 4**: Advanced download engine with retry logic ✅
-- **Phase 5**: Smart background processing & dark theme ✅
-
-#### **Key Features Working:**
-✅ **Multi-threaded downloads** with configurable worker count (1-20)  
-✅ **Source folder searching** - finds files by part number or custom filename  
-✅ **Smart background processing** - PNG transparency → white backgrounds  
-✅ **Advanced retry logic** - exponential backoff with 3 attempts, 30s timeout  
-✅ **Network path logging** - separate download paths vs. CSV log paths  
-✅ **Configuration validation** - prevents invalid operations with clear error messages  
-✅ **Real-time progress tracking** - with ETAs and success/failure counters  
-✅ **Comprehensive CSV logging** - matches original Python format exactly  
-✅ **Dark theme UI** - professional appearance, easy on the eyes  
-✅ **Cross-platform compatibility** - macOS development → Windows production  
-
-#### **Enterprise Features:**
-✅ **Background processing enabled by default** - optimized for supplier workflows  
-✅ **Sharp image processing** - cross-platform PNG → JPEG conversion  
-✅ **Intelligent transparency detection** - only processes images that need it  
-✅ **ERP integration ready** - with default network paths configured  
-✅ **Professional UI** - streamlined layout for 27" monitors without scrolling  
-
-### **Production Deployment Ready:**
-The application now has full feature parity with the original Python application plus modern improvements:
+### Development Focus
+This application has full feature parity with the original Python application plus modern improvements:
 - **Better Performance**: JavaScript concurrency vs Python threading
 - **Modern UI**: Dark theme, better UX than original PySide6 interface  
 - **Cross-Platform**: Single codebase for macOS and Windows
@@ -187,7 +205,7 @@ The application now has full feature parity with the original Python application
 
 ### **⚠️ MANDATORY: Read Before ANY Code Changes**
 
-This application is **PRODUCTION READY** and **FULLY FUNCTIONAL**. Any changes must follow these strict safeguards to prevent breaking existing functionality.
+This application is **PRODUCTION READY** and **FULLY FUNCTIONAL**. Any changes must follow strict safeguards to prevent breaking existing functionality. For detailed lessons learned and technical debt documentation, see `DEVELOPMENT_PLAN.md`.
 
 ---
 
