@@ -13,8 +13,8 @@ const SettingsTab: React.FC<SettingsTabProps> = ({ onSettingsChange }) => {
       imageDownloadFolder: '',
       pdfDownloadFolder: '',
       sourceImageFolder: '',
-      imageNetworkPath: "U:\\old_g\\IMAGES\\ABM Product Images",
-      pdfNetworkPath: "U:\\old_g\\IMAGES\\Product pdf's",
+      imageNetworkPath: '',
+      pdfNetworkPath: '',
     },
     downloadBehavior: {
       defaultConcurrentDownloads: 5,
