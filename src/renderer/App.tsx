@@ -3,6 +3,7 @@ import { SpreadsheetData, DownloadConfig } from '@/shared/types';
 import FileSelectionTab from './components/FileSelectionTab';
 import ColumnSelectionTab from './components/ColumnSelectionTab';
 import ProcessTab from './components/ProcessTab';
+import SettingsTab from './components/SettingsTab';
 import './App.css';
 
 const App: React.FC = () => {
@@ -54,7 +55,7 @@ const App: React.FC = () => {
   };
 
   const handleTabChange = (tabIndex: number) => {
-    // Validate before allowing tab change
+    // Validate before allowing tab change (Settings tab is always accessible)
     if (tabIndex === 1 && !spreadsheetData) {
       alert('Please load an Excel file first.');
       return;
@@ -63,6 +64,7 @@ const App: React.FC = () => {
       alert('Please complete column selection first.');
       return;
     }
+    // Settings tab (index 3) is always accessible
     setActiveTab(tabIndex);
   };
 
@@ -93,6 +95,12 @@ const App: React.FC = () => {
         >
           3. Process & Download
         </button>
+        <button 
+          className={`tab-button ${activeTab === 3 ? 'active' : ''}`}
+          onClick={() => handleTabChange(3)}
+        >
+          4. Settings
+        </button>
       </nav>
 
       <main className="tab-content">
@@ -114,6 +122,9 @@ const App: React.FC = () => {
             config={downloadConfig}
             onConfigurationChange={setDownloadConfig}
           />
+        )}
+        {activeTab === 3 && (
+          <SettingsTab />
         )}
       </main>
     </div>
