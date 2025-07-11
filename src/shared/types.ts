@@ -72,8 +72,28 @@ export interface WindowState {
 export interface UserSettings {
   defaultPaths: {
     lastFileDialogPath: string;
-    imageNetworkPath: string;
-    pdfNetworkPath: string;
+    imageDownloadFolder: string;          // Default download folder for images
+    pdfDownloadFolder: string;            // Default download folder for PDFs  
+    sourceImageFolder: string;            // Default source folder for searching
+    imageNetworkPath: string;             // Default network path for image logging
+    pdfNetworkPath: string;               // Default network path for PDF logging
+  };
+  downloadBehavior: {
+    defaultConcurrentDownloads: number;   // Default worker count (1-20)
+    connectionTimeout: number;            // Default connection timeout (5s)
+    readTimeout: number;                  // Default read timeout (30s)
+    retryAttempts: number;                // Default retry count (3)
+  };
+  imageProcessing: {
+    enabledByDefault: boolean;            // Background processing on/off by default
+    defaultMethod: 'smart_detect' | 'ai_removal' | 'color_replace' | 'edge_detection';
+    defaultQuality: number;               // JPEG quality (60-100%)
+    defaultEdgeThreshold: number;         // Edge detection threshold
+  };
+  uiPreferences: {
+    rememberFileDialogPath: boolean;      // Enable/disable file dialog path memory
+    showAdvancedOptions: boolean;         // Show/hide advanced configuration options
+    startupTab: 'file' | 'column' | 'process' | 'settings'; // Default tab on startup
   };
 }
 
