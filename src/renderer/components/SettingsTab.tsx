@@ -165,7 +165,7 @@ const SettingsTab: React.FC<SettingsTabProps> = ({ onSettingsChange }) => {
   }, []);
 
   return (
-    <div className="tab-content">
+    <div className="tab-content settings-tab">
       <div className="tab-header">
         <h2>Settings</h2>
         <div className="tab-actions">
@@ -184,8 +184,8 @@ const SettingsTab: React.FC<SettingsTabProps> = ({ onSettingsChange }) => {
       </div>
       
       <div className="configuration-sections">
-        {/* Default Paths Section */}
-        <div className="config-section">
+        {/* Default Paths Section - Takes first column */}
+        <div className="config-section default-paths">
           <h3>Default Paths</h3>
           
           <div className="form-group">
@@ -298,188 +298,191 @@ const SettingsTab: React.FC<SettingsTabProps> = ({ onSettingsChange }) => {
           </div>
         </div>
 
-        {/* Download Behavior Section */}
-        <div className="config-section">
-          <h3>Download Behavior</h3>
-          
-          <div className="form-group">
-            <label htmlFor="concurrent-downloads">Concurrent Downloads</label>
-            <div className="number-input-group">
-              <input
-                id="concurrent-downloads"
-                type="number"
-                min="1"
-                max="20"
-                value={settings.downloadBehavior.defaultConcurrentDownloads}
-                onChange={(e) => updateSetting('downloadBehavior.defaultConcurrentDownloads', parseInt(e.target.value))}
-                className="form-control number-input"
-              />
-              <span className="input-suffix">workers</span>
+        {/* Second column - stacked sections */}
+        <div className="other-settings">
+          {/* Download Behavior Section */}
+          <div className="config-section">
+            <h3>Download Behavior</h3>
+            
+            <div className="form-group">
+              <label htmlFor="concurrent-downloads">Concurrent Downloads</label>
+              <div className="number-input-group">
+                <input
+                  id="concurrent-downloads"
+                  type="number"
+                  min="1"
+                  max="20"
+                  value={settings.downloadBehavior.defaultConcurrentDownloads}
+                  onChange={(e) => updateSetting('downloadBehavior.defaultConcurrentDownloads', parseInt(e.target.value))}
+                  className="form-control number-input"
+                />
+                <span className="input-suffix">workers</span>
+              </div>
+              <small className="text-muted">
+                Number of simultaneous downloads (1-20)
+              </small>
             </div>
-            <small className="text-muted">
-              Number of simultaneous downloads (1-20)
-            </small>
-          </div>
 
-          <div className="form-group">
-            <label htmlFor="connection-timeout">Connection Timeout</label>
-            <div className="number-input-group">
-              <input
-                id="connection-timeout"
-                type="number"
-                min="1"
-                max="60"
-                value={settings.downloadBehavior.connectionTimeout}
-                onChange={(e) => updateSetting('downloadBehavior.connectionTimeout', parseInt(e.target.value))}
-                className="form-control number-input"
-              />
-              <span className="input-suffix">seconds</span>
+            <div className="form-group">
+              <label htmlFor="connection-timeout">Connection Timeout</label>
+              <div className="number-input-group">
+                <input
+                  id="connection-timeout"
+                  type="number"
+                  min="1"
+                  max="60"
+                  value={settings.downloadBehavior.connectionTimeout}
+                  onChange={(e) => updateSetting('downloadBehavior.connectionTimeout', parseInt(e.target.value))}
+                  className="form-control number-input"
+                />
+                <span className="input-suffix">seconds</span>
+              </div>
             </div>
-          </div>
 
-          <div className="form-group">
-            <label htmlFor="read-timeout">Read Timeout</label>
-            <div className="number-input-group">
-              <input
-                id="read-timeout"
-                type="number"
-                min="10"
-                max="300"
-                value={settings.downloadBehavior.readTimeout}
-                onChange={(e) => updateSetting('downloadBehavior.readTimeout', parseInt(e.target.value))}
-                className="form-control number-input"
-              />
-              <span className="input-suffix">seconds</span>
+            <div className="form-group">
+              <label htmlFor="read-timeout">Read Timeout</label>
+              <div className="number-input-group">
+                <input
+                  id="read-timeout"
+                  type="number"
+                  min="10"
+                  max="300"
+                  value={settings.downloadBehavior.readTimeout}
+                  onChange={(e) => updateSetting('downloadBehavior.readTimeout', parseInt(e.target.value))}
+                  className="form-control number-input"
+                />
+                <span className="input-suffix">seconds</span>
+              </div>
             </div>
-          </div>
 
-          <div className="form-group">
-            <label htmlFor="retry-attempts">Retry Attempts</label>
-            <div className="number-input-group">
-              <input
-                id="retry-attempts"
-                type="number"
-                min="1"
-                max="10"
-                value={settings.downloadBehavior.retryAttempts}
-                onChange={(e) => updateSetting('downloadBehavior.retryAttempts', parseInt(e.target.value))}
-                className="form-control number-input"
-              />
-              <span className="input-suffix">attempts</span>
-            </div>
-          </div>
-        </div>
-
-        {/* Image Processing Section */}
-        <div className="config-section">
-          <h3>Image Processing</h3>
-          
-          <div className="form-group">
-            <label>
-              <input
-                type="checkbox"
-                checked={settings.imageProcessing.enabledByDefault}
-                onChange={(e) => updateSetting('imageProcessing.enabledByDefault', e.target.checked)}
-              />
-              Enable background processing by default
-            </label>
-            <small className="text-muted">
-              Automatically enable background processing for new configurations
-            </small>
-          </div>
-
-          <div className="form-group">
-            <label htmlFor="processing-method">Default Processing Method</label>
-            <select
-              id="processing-method"
-              value={settings.imageProcessing.defaultMethod}
-              onChange={(e) => updateSetting('imageProcessing.defaultMethod', e.target.value)}
-              className="form-control"
-            >
-              <option value="smart_detect">Smart Detection</option>
-              <option value="ai_removal">AI Removal</option>
-              <option value="color_replace">Color Replacement</option>
-              <option value="edge_detection">Edge Detection</option>
-            </select>
-          </div>
-
-          <div className="form-group">
-            <label htmlFor="jpeg-quality">JPEG Quality</label>
-            <div className="number-input-group">
-              <input
-                id="jpeg-quality"
-                type="number"
-                min="60"
-                max="100"
-                value={settings.imageProcessing.defaultQuality}
-                onChange={(e) => updateSetting('imageProcessing.defaultQuality', parseInt(e.target.value))}
-                className="form-control number-input"
-              />
-              <span className="input-suffix">%</span>
+            <div className="form-group">
+              <label htmlFor="retry-attempts">Retry Attempts</label>
+              <div className="number-input-group">
+                <input
+                  id="retry-attempts"
+                  type="number"
+                  min="1"
+                  max="10"
+                  value={settings.downloadBehavior.retryAttempts}
+                  onChange={(e) => updateSetting('downloadBehavior.retryAttempts', parseInt(e.target.value))}
+                  className="form-control number-input"
+                />
+                <span className="input-suffix">attempts</span>
+              </div>
             </div>
           </div>
 
-          <div className="form-group">
-            <label htmlFor="edge-threshold">Edge Detection Threshold</label>
-            <div className="number-input-group">
-              <input
-                id="edge-threshold"
-                type="number"
-                min="10"
-                max="100"
-                value={settings.imageProcessing.defaultEdgeThreshold}
-                onChange={(e) => updateSetting('imageProcessing.defaultEdgeThreshold', parseInt(e.target.value))}
-                className="form-control number-input"
-              />
+          {/* Image Processing Section */}
+          <div className="config-section">
+            <h3>Image Processing</h3>
+            
+            <div className="form-group">
+              <label>
+                <input
+                  type="checkbox"
+                  checked={settings.imageProcessing.enabledByDefault}
+                  onChange={(e) => updateSetting('imageProcessing.enabledByDefault', e.target.checked)}
+                />
+                Enable background processing by default
+              </label>
+              <small className="text-muted">
+                Automatically enable background processing for new configurations
+              </small>
+            </div>
+
+            <div className="form-group">
+              <label htmlFor="processing-method">Default Processing Method</label>
+              <select
+                id="processing-method"
+                value={settings.imageProcessing.defaultMethod}
+                onChange={(e) => updateSetting('imageProcessing.defaultMethod', e.target.value)}
+                className="form-control"
+              >
+                <option value="smart_detect">Smart Detection</option>
+                <option value="ai_removal">AI Removal</option>
+                <option value="color_replace">Color Replacement</option>
+                <option value="edge_detection">Edge Detection</option>
+              </select>
+            </div>
+
+            <div className="form-group">
+              <label htmlFor="jpeg-quality">JPEG Quality</label>
+              <div className="number-input-group">
+                <input
+                  id="jpeg-quality"
+                  type="number"
+                  min="60"
+                  max="100"
+                  value={settings.imageProcessing.defaultQuality}
+                  onChange={(e) => updateSetting('imageProcessing.defaultQuality', parseInt(e.target.value))}
+                  className="form-control number-input"
+                />
+                <span className="input-suffix">%</span>
+              </div>
+            </div>
+
+            <div className="form-group">
+              <label htmlFor="edge-threshold">Edge Detection Threshold</label>
+              <div className="number-input-group">
+                <input
+                  id="edge-threshold"
+                  type="number"
+                  min="10"
+                  max="100"
+                  value={settings.imageProcessing.defaultEdgeThreshold}
+                  onChange={(e) => updateSetting('imageProcessing.defaultEdgeThreshold', parseInt(e.target.value))}
+                  className="form-control number-input"
+                />
+              </div>
             </div>
           </div>
-        </div>
 
-        {/* UI Preferences Section */}
-        <div className="config-section">
-          <h3>UI Preferences</h3>
-          
-          <div className="form-group">
-            <label>
-              <input
-                type="checkbox"
-                checked={settings.uiPreferences.rememberFileDialogPath}
-                onChange={(e) => updateSetting('uiPreferences.rememberFileDialogPath', e.target.checked)}
-              />
-              Remember file dialog location
-            </label>
-            <small className="text-muted">
-              File dialogs will open to the last used location
-            </small>
-          </div>
+          {/* UI Preferences Section */}
+          <div className="config-section">
+            <h3>UI Preferences</h3>
+            
+            <div className="form-group">
+              <label>
+                <input
+                  type="checkbox"
+                  checked={settings.uiPreferences.rememberFileDialogPath}
+                  onChange={(e) => updateSetting('uiPreferences.rememberFileDialogPath', e.target.checked)}
+                />
+                Remember file dialog location
+              </label>
+              <small className="text-muted">
+                File dialogs will open to the last used location
+              </small>
+            </div>
 
-          <div className="form-group">
-            <label>
-              <input
-                type="checkbox"
-                checked={settings.uiPreferences.showAdvancedOptions}
-                onChange={(e) => updateSetting('uiPreferences.showAdvancedOptions', e.target.checked)}
-              />
-              Show advanced options
-            </label>
-            <small className="text-muted">
-              Display advanced configuration options in other tabs
-            </small>
-          </div>
+            <div className="form-group">
+              <label>
+                <input
+                  type="checkbox"
+                  checked={settings.uiPreferences.showAdvancedOptions}
+                  onChange={(e) => updateSetting('uiPreferences.showAdvancedOptions', e.target.checked)}
+                />
+                Show advanced options
+              </label>
+              <small className="text-muted">
+                Display advanced configuration options in other tabs
+              </small>
+            </div>
 
-          <div className="form-group">
-            <label htmlFor="startup-tab">Default startup tab</label>
-            <select
-              id="startup-tab"
-              value={settings.uiPreferences.startupTab}
-              onChange={(e) => updateSetting('uiPreferences.startupTab', e.target.value)}
-              className="form-control"
-            >
-              <option value="file">File Selection</option>
-              <option value="column">Column Selection</option>
-              <option value="process">Process & Download</option>
-              <option value="settings">Settings</option>
-            </select>
+            <div className="form-group">
+              <label htmlFor="startup-tab">Default startup tab</label>
+              <select
+                id="startup-tab"
+                value={settings.uiPreferences.startupTab}
+                onChange={(e) => updateSetting('uiPreferences.startupTab', e.target.value)}
+                className="form-control"
+              >
+                <option value="file">File Selection</option>
+                <option value="column">Column Selection</option>
+                <option value="process">Process & Download</option>
+                <option value="settings">Settings</option>
+              </select>
+            </div>
           </div>
         </div>
       </div>

@@ -1209,6 +1209,10 @@ input[type="range"]::-moz-range-thumb {
   color: #e2e8f0 !important;
   font-size: 0.85rem !important;
   padding: 0.5rem !important;
+  user-select: text !important;
+  -webkit-user-select: text !important;
+  -moz-user-select: text !important;
+  -ms-user-select: text !important;
 }
 
 .folder-input-group .form-control:focus {
@@ -1229,4 +1233,176 @@ input[type="range"]::-moz-range-thumb {
 .folder-input-group .btn:hover:not(:disabled) {
   transform: translateY(-2px);
   box-shadow: 0 8px 25px rgba(102, 126, 234, 0.3);
+}
+
+/* Settings Tab Specific Layout */
+.settings-tab .configuration-sections {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 1rem;
+  margin-top: 0;
+}
+
+/* Default Paths takes first column */
+.settings-tab .config-section.default-paths {
+  grid-column: 1;
+}
+
+/* Other sections stack in second column */
+.settings-tab .config-section.other-settings {
+  grid-column: 2;
+}
+
+/* Enable copy/paste for all input fields */
+.settings-tab input[type="text"],
+.settings-tab input[type="number"],
+.settings-tab select {
+  user-select: text !important;
+  -webkit-user-select: text !important;
+  -moz-user-select: text !important;
+  -ms-user-select: text !important;
+  pointer-events: auto !important;
+}
+
+.settings-tab .config-section {
+  background: rgba(74, 85, 104, 0.6);
+  backdrop-filter: blur(10px);
+  border: 1px solid rgba(226, 232, 240, 0.4);
+  border-radius: 8px;
+  padding: 1rem;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.04);
+}
+
+.settings-tab .config-section h3 {
+  color: #e2e8f0;
+  margin-bottom: 0.75rem;
+  font-size: 1.1rem;
+  font-weight: 700;
+  border-bottom: 2px solid transparent;
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  background-size: 100% 2px;
+  background-repeat: no-repeat;
+  background-position: 0 100%;
+  padding-bottom: 0.5rem;
+  letter-spacing: -0.015em;
+}
+
+/* Settings Tab Header */
+.settings-tab .tab-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 1.5rem;
+  padding-bottom: 1rem;
+  border-bottom: 1px solid rgba(226, 232, 240, 0.2);
+}
+
+.settings-tab .tab-header h2 {
+  margin: 0;
+  font-size: 1.5rem;
+  color: #e2e8f0;
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+}
+
+.settings-tab .tab-actions {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+}
+
+.settings-tab .save-status {
+  font-size: 0.9rem;
+  font-weight: 600;
+  padding: 0.25rem 0.75rem;
+  border-radius: 4px;
+  transition: all 0.3s ease;
+}
+
+.settings-tab .save-status.success {
+  color: #28a745;
+  background: rgba(40, 167, 69, 0.1);
+}
+
+.settings-tab .save-status.error {
+  color: #dc3545;
+  background: rgba(220, 53, 69, 0.1);
+}
+
+/* Consolidated Settings Sections */
+.settings-tab .settings-row {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 1rem;
+  margin-bottom: 1rem;
+}
+
+.settings-tab .settings-row-full {
+  grid-column: 1 / -1;
+}
+
+/* Number Input Groups */
+.settings-tab .number-input-group {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.settings-tab .number-input-group .form-control {
+  width: 80px !important;
+  text-align: center;
+  font-weight: 600;
+}
+
+.settings-tab .number-input-group .input-suffix {
+  font-size: 0.8rem;
+  color: #cbd5e0;
+  font-weight: 500;
+}
+
+/* Compact Form Groups for Settings */
+.settings-tab .form-group {
+  margin-bottom: 1rem;
+}
+
+.settings-tab .form-group label {
+  display: block;
+  margin-bottom: 0.5rem;
+  font-weight: 600;
+  color: #e2e8f0;
+  font-size: 0.9rem;
+}
+
+.settings-tab .form-group input[type="checkbox"] {
+  margin-right: 0.5rem;
+  width: auto;
+}
+
+.settings-tab .form-group .text-muted {
+  color: #cbd5e0;
+  font-size: 0.8rem;
+  margin-top: 0.25rem;
+  line-height: 1.4;
+}
+
+/* Responsive Settings Layout */
+@media (max-width: 1024px) {
+  .settings-tab .settings-row {
+    grid-template-columns: 1fr;
+  }
+}
+
+@media (max-width: 768px) {
+  .settings-tab .tab-header {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 1rem;
+  }
+  
+  .settings-tab .tab-actions {
+    width: 100%;
+    justify-content: space-between;
+  }
 }
