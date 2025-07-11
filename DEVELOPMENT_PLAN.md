@@ -419,10 +419,17 @@ Key Features Verified and Working:
 ✅ Memory efficient with proper cleanup
 ✅ Cross-platform compatibility verified
 
-**⚠️ Known Issues to Address in Phase 6:**
-- Hardcoded network paths in `ColumnSelectionTab.tsx` lines 43-44, 52-53
-- File dialog always opens to system default (no path memory)
-- No central settings management for user preferences
+**✅ Phase 6a COMPLETE - Browse Buttons Implementation:**
+- Browse buttons added to network path fields with folder dialog integration
+- Settings infrastructure implemented (IPC channels, types, handlers)
+- UI consistent with existing folder selection patterns
+- Application builds and runs without errors
+
+**⚠️ Phase 6b REMAINING ISSUES:**
+- Network paths still hardcoded - NOT persisted between sessions
+- TypeScript compilation errors when accessing settings methods
+- File dialog path memory not implemented
+- Settings persistence blocked by preload/renderer type compatibility issues
 
 ## ⚠️ CRITICAL LESSON LEARNED - CSS Border Removal Failure
 
@@ -472,6 +479,62 @@ input, .form-control, .form-group input {
 - ❌ Applying grid layouts or major structural changes for simple border fixes
 
 **Status**: Application successfully reverted to working state. Future CSS changes must follow minimal, targeted approach only.
+```
+
+## ⚠️ CRITICAL LESSON LEARNED - TypeScript Settings Implementation Failure
+
+### What Went Wrong:
+**Date**: Phase 6 Implementation Session  
+**Issue**: Attempted to implement settings persistence using loadSettings/saveSettings methods
+**Failure**: TypeScript compilation errors prevented renderer from accessing new preload methods
+
+### Root Cause Analysis:
+1. **TypeScript Compilation Caching**: Changes to preload.ts types not recognized by renderer build
+2. **Build Order Issues**: Renderer build occurring before preload types are available
+3. **Type Definition Mismatch**: Global Window interface declaration not updating correctly
+4. **Webpack Build Process**: TypeScript loader not picking up new global type definitions
+
+### Error Messages Encountered:
+```
+ERROR: Property 'loadSettings' does not exist on type 'electronAPI'
+ERROR: Property 'saveSettings' does not exist on type 'electronAPI'
+ERROR: Block-scoped variable 'saveNetworkPathSettings' used before its declaration
+```
+
+### What Should Have Been Done:
+1. **Force Clean Build**: `rm -rf dist && npm run build` to clear TypeScript cache
+2. **Build Order**: Ensure main process builds completely before renderer process
+3. **Type Validation**: Verify global Window interface updates correctly
+4. **Incremental Testing**: Test simple settings access before complex persistence logic
+
+### Development Principles for Future Settings Implementation:
+1. **Start Simple** - Test basic IPC channel access before complex logic
+2. **Verify Types** - Ensure TypeScript recognizes new methods before using them
+3. **Clean Builds** - Always clean TypeScript cache when adding new global types
+4. **Minimal Testing** - Test each IPC method individually before combining
+5. **Fallback Strategy** - Keep working version while troubleshooting TypeScript issues
+
+### Process for Phase 6b:
+1. **Clean Build Environment** - Remove all build artifacts and caches
+2. **Verify IPC Channels** - Test settings save/load in main process directly
+3. **Test Type Recognition** - Verify renderer can access new electronAPI methods
+4. **Implement Gradually** - Add settings persistence piece by piece
+5. **Emergency Revert** - Keep git commit ready for quick rollback if needed
+
+### Red Flags to Avoid:
+- ❌ Making multiple TypeScript interface changes simultaneously
+- ❌ Adding complex useEffect logic before verifying basic IPC access
+- ❌ Assuming TypeScript cache will update automatically
+- ❌ Testing in development mode without confirming build success
+- ❌ Proceeding with implementation when TypeScript errors appear
+
+### Alternative Approaches for Phase 6b:
+1. **Configuration-Based Persistence**: Save paths to existing configuration system
+2. **Local Storage**: Use localStorage for renderer-side settings caching
+3. **File-Based Settings**: Direct file I/O for settings persistence
+4. **Simplified IPC**: Use existing successful IPC patterns as template
+
+**Status**: Settings infrastructure implemented but persistence blocked by TypeScript issues. Browse buttons functional, paths revert to hardcoded defaults on restart.
 ```
 
 ---
