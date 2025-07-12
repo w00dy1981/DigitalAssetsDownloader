@@ -104,3 +104,11 @@ sample-data/
 *.xlsx
 *.xls
 *.csv
+
+# Private development files
+*_PRIVATE.md
+*.private.*
+*.local.*
+NOTES_PRIVATE.md
+TODO_PRIVATE.md
+DEVELOPMENT_PLAN_PRIVATE.md
