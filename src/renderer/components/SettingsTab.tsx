@@ -176,16 +176,27 @@ const SettingsTab: React.FC<SettingsTabProps> = ({ onSettingsChange }) => {
 
   // State for update checking
   const [isCheckingForUpdates, setIsCheckingForUpdates] = useState(false);
+  const [updateCheckTimeoutId, setUpdateCheckTimeoutId] = useState<NodeJS.Timeout | null>(null);
 
   // Set up update event listeners
   useEffect(() => {
     const handleUpdateAvailable = (updateInfo: any) => {
+      // Clear timeout if update check completed successfully
+      if (updateCheckTimeoutId) {
+        clearTimeout(updateCheckTimeoutId);
+        setUpdateCheckTimeoutId(null);
+      }
       setIsCheckingForUpdates(false);
       setSaveStatus(`Update available: v${updateInfo.version}`);
       setTimeout(() => setSaveStatus(''), 8000);
     };
 
     const handleUpdateNotAvailable = () => {
+      // Clear timeout if update check completed successfully
+      if (updateCheckTimeoutId) {
+        clearTimeout(updateCheckTimeoutId);
+        setUpdateCheckTimeoutId(null);
+      }
       setIsCheckingForUpdates(false);
       setSaveStatus('You are running the latest version');
       setTimeout(() => setSaveStatus(''), 5000);
@@ -199,25 +210,60 @@ const SettingsTab: React.FC<SettingsTabProps> = ({ onSettingsChange }) => {
     return () => {
       window.electronAPI.removeAllListeners(IPC_CHANNELS.UPDATE_AVAILABLE as any);
       window.electronAPI.removeAllListeners(IPC_CHANNELS.UPDATE_NOT_AVAILABLE as any);
+      
+      // Clear any pending timeout
+      if (updateCheckTimeoutId) {
+        clearTimeout(updateCheckTimeoutId);
+        setUpdateCheckTimeoutId(null);
+      }
     };
-  }, []);
+  }, [updateCheckTimeoutId]);
 
-  // Manual update check
+  // Manual update check with timeout mechanism and development mode detection
   const checkForUpdatesManually = useCallback(async () => {
     if (isCheckingForUpdates) return; // Prevent multiple clicks
+    
+    // Detect development mode (when running with npm run dev)
+    const isDevelopment = process.env.NODE_ENV === 'development' || 
+                         window.location.protocol === 'file:' ||
+                         !window.electronAPI;
     
     try {
       setIsCheckingForUpdates(true);
       setSaveStatus('Checking for updates...');
+      
+      // Add shorter timeout for development mode
+      const timeoutDuration = isDevelopment ? 10000 : 30000; // 10s for dev, 30s for prod
+      const timeoutId = setTimeout(() => {
+        setIsCheckingForUpdates(false);
+        setUpdateCheckTimeoutId(null);
+        const message = isDevelopment 
+          ? 'Update checks may not work in development mode - try again in production build'
+          : 'Update check timed out - try again later';
+        setSaveStatus(message);
+        setTimeout(() => setSaveStatus(''), 8000);
+      }, timeoutDuration);
+      setUpdateCheckTimeoutId(timeoutId);
+      
       await window.electronAPI.checkForUpdates();
+      // Don't clear timeout here - let the event listeners handle it
       // Don't set status here - let the event listeners handle it
     } catch (error) {
       console.error('Manual update check failed:', error);
+      // Clear timeout on error
+      if (updateCheckTimeoutId) {
+        clearTimeout(updateCheckTimeoutId);
+        setUpdateCheckTimeoutId(null);
+      }
       setIsCheckingForUpdates(false);
-      setSaveStatus('Update check failed - Please try again later');
-      setTimeout(() => setSaveStatus(''), 5000);
+      
+      const message = isDevelopment 
+        ? 'Update checks are limited in development mode - build and test in production'
+        : 'Update check failed - Please try again later';
+      setSaveStatus(message);
+      setTimeout(() => setSaveStatus(''), 8000);
     }
-  }, [isCheckingForUpdates]);
+  }, [isCheckingForUpdates, updateCheckTimeoutId]);
 
   return (
     <div className="tab-content settings-tab">
