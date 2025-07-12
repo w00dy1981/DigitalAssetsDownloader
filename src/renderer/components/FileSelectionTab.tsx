@@ -98,11 +98,26 @@ const FileSelectionTab: React.FC<FileSelectionTabProps> = ({ onDataLoaded, curre
     
     if (!file) return;
     
-    // For Electron, we can access the file path
-    const filePath = (file as any).path || file.name;
+    // For Electron, we can access the file path with proper type checking
+    let filePath: string;
     
-    if (!filePath) {
-      setError('Unable to get file path.');
+    // Check if file has a path property (Electron-specific)
+    if (file && typeof file === 'object' && 'path' in file) {
+      const fileWithPath = file as File & { path?: string };
+      filePath = fileWithPath.path || file.name;
+    } else {
+      filePath = file.name;
+    }
+    
+    // Validate the file path is a string and not empty
+    if (!filePath || typeof filePath !== 'string' || filePath.trim() === '') {
+      setError('Unable to get valid file path.');
+      return;
+    }
+    
+    // Additional security check: ensure filename doesn't contain path traversal
+    if (filePath.includes('..') || filePath.includes('\0')) {
+      setError('Invalid file path detected.');
       return;
     }
     
