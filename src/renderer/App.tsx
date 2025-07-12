@@ -35,6 +35,7 @@ const App: React.FC = () => {
     window.electronAPI.onMenuOpenSettings(handleMenuOpenSettings);
 
     return () => {
+      // Remove all listeners for these channels when component unmounts
       window.electronAPI.removeAllListeners('menu-open-file' as any);
       window.electronAPI.removeAllListeners('menu-save-config' as any);
       window.electronAPI.removeAllListeners('menu-open-settings' as any);

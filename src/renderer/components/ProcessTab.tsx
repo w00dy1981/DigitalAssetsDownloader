@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useCallback } from 'react';
-import { DownloadConfig, DownloadProgress } from '@/shared/types';
+import { DownloadConfig, DownloadProgress, IPC_CHANNELS } from '@/shared/types';
 
 interface ProcessTabProps {
   config: DownloadConfig;
@@ -57,8 +57,9 @@ const ProcessTab: React.FC<ProcessTabProps> = ({ config, onConfigurationChange }
     window.electronAPI.onDownloadComplete(handleComplete);
 
     return () => {
-      window.electronAPI.removeAllListeners('download-progress' as any);
-      window.electronAPI.removeAllListeners('download-complete' as any);
+      // Remove all listeners for these channels when component unmounts
+      window.electronAPI.removeAllListeners(IPC_CHANNELS.DOWNLOAD_PROGRESS as any);
+      window.electronAPI.removeAllListeners(IPC_CHANNELS.DOWNLOAD_COMPLETE as any);
     };
   }, []);
 
