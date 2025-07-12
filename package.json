@@ -28,7 +28,10 @@
     "digital-assets",
     "downloader"
   ],
-  "author": "Digital Asset Downloader Team",
+  "author": {
+    "name": "Digital Asset Downloader Team",
+    "email": "noreply@digitalassetdownloader.com"
+  },
   "license": "MIT",
   "devDependencies": {
     "@types/node": "^20.10.0",
@@ -119,7 +122,8 @@
       "target": [
         "AppImage",
         "deb"
-      ]
+      ],
+      "category": "Office"
     }
   }
 }
