@@ -80,3 +80,27 @@ release/
 config/
 user-data/
 crash-dumps/
+
+# Sensitive/Personal files
+*.key
+*.p12
+*.cer
+*.mobileprovision
+signing/
+certificates/
+
+# GitHub token and secrets
+.secrets
+GH_TOKEN
+*.env.production
+
+# Auto-updater cache
+updates/
+update-cache/
+
+# Personal test files
+test-files/
+sample-data/
+*.xlsx
+*.xls
+*.csv

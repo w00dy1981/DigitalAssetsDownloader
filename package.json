@@ -78,7 +78,7 @@
     "publish": [
       {
         "provider": "github",
-        "owner": "your-github-username",
+        "owner": "w00dy1981",
         "repo": "DigitalAssetsDownloader"
       }
     ],

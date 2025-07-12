@@ -1,118 +1,257 @@
 # Digital Asset Downloader
 
-A modern, cross-platform desktop application for bulk downloading and processing digital assets (images, PDFs, etc.) from Excel/CSV data sources. This project is a migration and enhancement of a 2,485-line Python/PySide6 application, now rebuilt using Electron, React, and TypeScript.
+A modern, cross-platform desktop application for bulk downloading and processing digital assets (images, PDFs, etc.) from Excel/CSV data sources. Built with Electron, React, and TypeScript for professional workflows.
+
+![Digital Asset Downloader](https://img.shields.io/badge/platform-Windows%20%7C%20macOS%20%7C%20Linux-blue)
+![License](https://img.shields.io/badge/license-MIT-green)
+![Version](https://img.shields.io/badge/version-1.0.0-orange)
 
 ---
 
-## Key Features
+## ✨ Key Features
 
-- Multi-threaded bulk downloads from Excel/CSV data
-- Advanced image processing with four background removal methods:
-  - Smart background detection
-  - AI background removal
-  - Color range replacement
-  - Edge detection
-- Supports both URL downloads and local file copying
-- Intelligent filename matching from source folders (by part number or custom column)
-- Comprehensive logging and error handling
-- Configurable download folders and network path logging
-- Persistent configuration and session auto-load
-- Real-time progress tracking and summary logs
-- Modern, user-friendly UI with tabbed workflow
+### 📊 **Data Processing**
+- **Excel/CSV Support**: Load .xlsx, .xls, .xlsm, and .csv files
+- **Multi-sheet Support**: Select and preview data from multiple sheets
+- **Smart Column Mapping**: Map part numbers, image URLs, PDF URLs, and custom filenames
 
----
+### 🚀 **Download Engine**
+- **Multi-threaded Downloads**: Configurable concurrent downloads (1-20 threads)
+- **Source Folder Search**: Find files by part number or custom filename matching
+- **Advanced Retry Logic**: Exponential backoff with 3 attempts and 30s timeout
+- **Progress Tracking**: Real-time progress with ETAs and success/failure counters
 
-## Migration Overview
+### 🎨 **Image Processing**
+- **Smart Background Detection**: Automatic transparency detection and removal
+- **PNG to JPEG Conversion**: Optimized 95% quality JPEG output
+- **Batch Processing**: Process hundreds of images efficiently
+- **Selective Processing**: Only processes images that actually need background fixes
 
-This project is a full rewrite of the original Python app (`/OLD_Standalone_App/Digital_Asset_Downloader.py`). The new version aims for:
-- **Feature parity** with the original, including all advanced processing and search logic
-- **Improved performance** and stability
-- **Modern UI/UX** using React and Material-UI/Ant Design
-- **Easy distribution** with auto-update support
-
-### Key References from the Original App
-- `BackgroundProcessor` class: Advanced image processing (Lines 45-287)
-- `DownloadWorker` class: Download engine, retry logic, and file handling (Lines 290-486)
-- Source folder search logic: Smart file discovery (Lines 340-362)
-- Configuration schema: Persistent settings (Lines 1200-1225)
+### ⚙️ **Professional Features**
+- **Network Path Logging**: Separate download paths vs. CSV log paths for enterprise workflows
+- **Comprehensive CSV Logging**: Detailed logs matching enterprise reporting standards
+- **Auto-Updates**: Automatic application updates via GitHub Releases
+- **Cross-platform**: Works on Windows, macOS, and Linux
+- **Dark Theme**: Professional UI optimized for extended use
 
 ---
 
-## Project Structure
+## 🛠️ Technology Stack
 
-- `/src/main` - Electron main process (file system, native dialogs)
-- `/src/renderer` - React application (UI)
-- `/src/shared` - Shared types and interfaces
-- `/src/services` - Business logic (downloads, processing)
-- `/src/workers` - Background workers for downloads/processing
-
----
-
-## Getting Started
-
-1. **Install dependencies:**
-   ```sh
-   npm install
-   ```
-2. **Start the app in development mode:**
-   ```sh
-   npm run dev
-   ```
-3. **Build for production:**
-   ```sh
-   npm run build
-   ```
-4. **Package installers:**
-   ```sh
-   npm run dist
-   ```
+- **Frontend**: React 18 + TypeScript
+- **Desktop**: Electron 28
+- **Image Processing**: Sharp (cross-platform)
+- **Excel Processing**: ExcelJS
+- **HTTP Client**: Axios with retry logic
+- **Configuration**: electron-store
+- **Auto-Updates**: electron-updater
 
 ---
 
-## Usage Workflow
+## 📦 Installation
 
-1. **File Selection:**
-   - Load Excel/CSV file
-   - Select sheet and preview data
-2. **Column Mapping:**
-   - Map part number, image/PDF URLs, and filename columns
-   - Configure download and source folders
-3. **Processing & Download:**
-   - Choose background processing method and quality
-   - Start downloads with real-time progress and logging
-   - View summary and export logs
+### Windows (Recommended)
+1. Go to [Releases](https://github.com/w00dy1981/DigitalAssetsDownloader/releases)
+2. Download the latest `.exe` installer
+3. Run the installer and follow the setup wizard
+4. The app will auto-update when new versions are available
 
----
+### macOS
+1. Go to [Releases](https://github.com/w00dy1981/DigitalAssetsDownloader/releases)
+2. Download the latest `.dmg` file
+3. Open the DMG and drag the app to Applications
+4. Launch from Applications folder
 
-## Configuration & Customization
-
-- All settings are saved and auto-loaded on startup
-- Supports custom path templates for downloads and network logging
-- Advanced options for background processing and concurrency
+### Linux
+1. Go to [Releases](https://github.com/w00dy1981/DigitalAssetsDownloader/releases)
+2. Download the `.AppImage` or `.deb` file
+3. Make executable and run: `chmod +x *.AppImage && ./Digital-Asset-Downloader*.AppImage`
 
 ---
 
-## Technology Stack
+## 🚀 Usage
 
-- **Frontend:** React 18, TypeScript, Material-UI/Ant Design
-- **Backend:** Electron, Node.js, Sharp (image processing), ExcelJS, Axios
-- **Other:** fast-csv, electron-store, rembg-node (AI background removal)
+### 1. **File Selection**
+- Load your Excel/CSV file with drag & drop or file picker
+- Select the appropriate sheet if using Excel
+- Preview your data to ensure proper loading
+
+### 2. **Column Configuration**
+- **Part Number Column**: Required for file identification
+- **Image URL Columns**: Select one or more columns containing image URLs
+- **PDF URL Column**: Optional column for PDF downloads
+- **Filename Column**: Optional for custom filename matching in source folders
+
+### 3. **Download Setup**
+- **Download Folders**: Choose where to save images and PDFs
+- **Source Folders**: Optional local folders to search for existing files
+- **Network Paths**: Enterprise logging paths (separate from download locations)
+- **Processing Options**: Configure background removal and image quality
+
+### 4. **Processing & Download**
+- **Review Settings**: Verify all configuration before starting
+- **Start Downloads**: Begin bulk download with real-time progress
+- **Monitor Progress**: Track success/failure rates and ETAs
+- **Review Results**: Export detailed CSV logs for reporting
 
 ---
 
-## License
+## ⚙️ Configuration
 
-MIT License
+### Settings Tab
+Access via the Settings tab or `Ctrl/Cmd + ,`:
+
+- **Default Paths**: Configure default locations for files and networks
+- **Download Behavior**: Set concurrent downloads, timeouts, and retry logic
+- **Image Processing**: Configure background removal and quality settings
+- **UI Preferences**: Customize interface behavior and startup options
+- **Update Settings**: Control automatic updates and release channels
+
+### Auto-Save
+All settings are automatically saved and restored between sessions.
 
 ---
 
-## Credits
+## 🔄 Auto-Updates
 
-- Original Python app by Shane Boaden
-- Migration and modernization by the Digital Asset Downloader team
+The application includes a professional auto-update system:
+
+- **Automatic Checking**: Checks for updates on startup (configurable)
+- **Background Downloads**: Downloads updates without interrupting work
+- **User Control**: Choose when to install updates
+- **Release Channels**: Stable (recommended) or Beta (early access)
+- **Manual Checks**: Check for updates anytime via Settings
 
 ---
 
-## Development Plan
+## 🏢 Enterprise Features
 
-See `DEVELOPMENT_PLAN.md` for a detailed, phase-based migration and implementation guide, including code references to the original application.
+### Network Path Integration
+- **Separate Logging**: Download to local paths, log network paths to CSV
+- **ERP Compatibility**: Works with existing enterprise file systems
+- **Batch Processing**: Handle thousands of assets efficiently
+
+### Comprehensive Logging
+- **Detailed CSV Reports**: Include status, file sizes, processing info
+- **Error Categorization**: Clear error messages for troubleshooting
+- **Success Metrics**: Track completion rates and performance
+
+### Configuration Management
+- **Persistent Settings**: All preferences saved automatically
+- **Import/Export**: Share configurations between users
+- **Reset Options**: Restore defaults when needed
+
+---
+
+## 🔧 Development
+
+### Prerequisites
+- Node.js 18+
+- npm or yarn
+
+### Setup
+```bash
+# Clone the repository
+git clone https://github.com/w00dy1981/DigitalAssetsDownloader.git
+cd DigitalAssetsDownloader
+
+# Install dependencies
+npm install
+
+# Start development server
+npm run dev
+```
+
+### Build Commands
+```bash
+# Build for production
+npm run build
+
+# Package for current platform
+npm run dist
+
+# Package for Windows
+npm run dist:win
+
+# Package for macOS
+npm run dist:mac
+
+# Package for Linux
+npm run dist:linux
+```
+
+### Publishing Releases
+```bash
+# Set GitHub token
+export GH_TOKEN="your_github_token"
+
+# Publish new release
+npm run publish
+```
+
+---
+
+## 🐛 Troubleshooting
+
+### Common Issues
+
+**App won't start**
+- Ensure you have the latest version installed
+- Check Windows Defender/antivirus isn't blocking the app
+- Try running as administrator (Windows)
+
+**Downloads failing**
+- Check internet connection
+- Verify URLs are accessible
+- Check firewall/proxy settings
+- Review error messages in the progress log
+
+**Excel files not loading**
+- Ensure file isn't corrupted
+- Try opening in Excel first to verify
+- Check file permissions
+- Supported formats: .xlsx, .xls, .xlsm, .csv
+
+**Background processing not working**
+- Enable background processing in settings
+- Check that images actually have transparency
+- Verify Sharp library is properly installed
+
+### Getting Help
+1. Check the [Issues](https://github.com/w00dy1981/DigitalAssetsDownloader/issues) page
+2. Create a new issue with:
+   - Operating system and version
+   - Application version
+   - Steps to reproduce the problem
+   - Error messages or screenshots
+
+---
+
+## 📝 License
+
+MIT License - see [LICENSE](LICENSE) file for details.
+
+---
+
+## 🙏 Acknowledgments
+
+- **Sharp**: High-performance image processing
+- **ExcelJS**: Excel file reading and writing
+- **Electron**: Cross-platform desktop framework
+- **React**: Modern UI framework
+
+---
+
+## 📈 Version History
+
+### v1.0.0 (Current)
+- ✅ Complete Excel/CSV processing
+- ✅ Multi-threaded download engine
+- ✅ Smart background image processing
+- ✅ Auto-updater system
+- ✅ Professional Settings UI
+- ✅ Cross-platform compatibility
+
+---
+
+**Built for professional workflows. Designed for efficiency. Optimized for results.**

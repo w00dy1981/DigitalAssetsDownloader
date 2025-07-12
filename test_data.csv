@@ -1,6 +1,0 @@
-PartNumber,ImageURL,Description,PDFUrl,CustomFilename
-TEST001,https://via.placeholder.com/300x300/FF0000/FFFFFF?text=TEST001,Red Test Item,https://example.com/test001.pdf,custom_test_001
-TEST002,https://via.placeholder.com/300x300/00FF00/FFFFFF?text=TEST002,Green Test Item,https://example.com/test002.pdf,custom_test_002
-TEST003,https://via.placeholder.com/300x300/0000FF/FFFFFF?text=TEST003,Blue Test Item,https://example.com/test003.pdf,custom_test_003
-ABC123,https://via.placeholder.com/300x300/FFFF00/000000?text=ABC123,Yellow Test Item,https://example.com/abc123.pdf,yellow_item
-XYZ789,https://via.placeholder.com/300x300/FF00FF/FFFFFF?text=XYZ789,Magenta Test Item,https://example.com/xyz789.pdf,magenta_item
