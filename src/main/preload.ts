@@ -22,6 +22,11 @@ contextBridge.exposeInMainWorld('electronAPI', {
   saveSettings: (settings: any) => ipcRenderer.invoke(IPC_CHANNELS.SAVE_SETTINGS, settings),
   loadSettings: () => ipcRenderer.invoke(IPC_CHANNELS.LOAD_SETTINGS),
 
+  // Auto-updater
+  checkForUpdates: () => ipcRenderer.invoke(IPC_CHANNELS.CHECK_FOR_UPDATES),
+  installUpdate: () => ipcRenderer.invoke(IPC_CHANNELS.INSTALL_UPDATE),
+  downloadUpdate: () => ipcRenderer.invoke('download-update'),
+
   // Window operations
   minimizeWindow: () => ipcRenderer.invoke(IPC_CHANNELS.MINIMIZE_WINDOW),
   maximizeWindow: () => ipcRenderer.invoke(IPC_CHANNELS.MAXIMIZE_WINDOW),
@@ -48,6 +53,20 @@ contextBridge.exposeInMainWorld('electronAPI', {
     ipcRenderer.on('menu-open-settings', callback);
   },
 
+  // Auto-updater event listeners
+  onUpdateAvailable: (callback: (updateInfo: any) => void) => {
+    ipcRenderer.on(IPC_CHANNELS.UPDATE_AVAILABLE, (_, updateInfo) => callback(updateInfo));
+  },
+  onUpdateNotAvailable: (callback: (updateInfo: any) => void) => {
+    ipcRenderer.on(IPC_CHANNELS.UPDATE_NOT_AVAILABLE, (_, updateInfo) => callback(updateInfo));
+  },
+  onUpdateDownloaded: (callback: (updateInfo: any) => void) => {
+    ipcRenderer.on(IPC_CHANNELS.UPDATE_DOWNLOADED, (_, updateInfo) => callback(updateInfo));
+  },
+  onUpdateDownloadProgress: (callback: (progressInfo: any) => void) => {
+    ipcRenderer.on(IPC_CHANNELS.UPDATE_DOWNLOAD_PROGRESS, (_, progressInfo) => callback(progressInfo));
+  },
+
   // Remove listeners
   removeAllListeners: (channel: IpcChannelType) => {
     ipcRenderer.removeAllListeners(channel);
@@ -68,6 +87,9 @@ declare global {
       loadConfig: () => Promise<any>;
       saveSettings: (settings: any) => Promise<any>;
       loadSettings: () => Promise<any>;
+      checkForUpdates: () => Promise<any>;
+      installUpdate: () => Promise<void>;
+      downloadUpdate: () => Promise<any>;
       minimizeWindow: () => Promise<void>;
       maximizeWindow: () => Promise<void>;
       closeWindow: () => Promise<void>;
@@ -78,6 +100,10 @@ declare global {
       onMenuOpenFile: (callback: () => void) => void;
       onMenuSaveConfig: (callback: () => void) => void;
       onMenuOpenSettings: (callback: () => void) => void;
+      onUpdateAvailable: (callback: (updateInfo: any) => void) => void;
+      onUpdateNotAvailable: (callback: (updateInfo: any) => void) => void;
+      onUpdateDownloaded: (callback: (updateInfo: any) => void) => void;
+      onUpdateDownloadProgress: (callback: (progressInfo: any) => void) => void;
       removeAllListeners: (channel: IpcChannelType) => void;
     };
   }

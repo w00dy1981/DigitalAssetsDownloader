@@ -33,6 +33,12 @@ const SettingsTab: React.FC<SettingsTabProps> = ({ onSettingsChange }) => {
       showAdvancedOptions: false,
       startupTab: 'file',
     },
+    updateSettings: {
+      enableAutoUpdates: true,
+      checkForUpdatesOnStartup: true,
+      updateChannel: 'stable',
+      downloadUpdatesAutomatically: false,
+    },
   };
 
   // State for all settings
@@ -65,6 +71,10 @@ const SettingsTab: React.FC<SettingsTabProps> = ({ onSettingsChange }) => {
             uiPreferences: {
               ...defaultSettings.uiPreferences,
               ...savedSettings.uiPreferences,
+            },
+            updateSettings: {
+              ...defaultSettings.updateSettings,
+              ...savedSettings.updateSettings,
             },
           };
           setSettings(mergedSettings);
@@ -162,6 +172,22 @@ const SettingsTab: React.FC<SettingsTabProps> = ({ onSettingsChange }) => {
       return newSettings;
     });
     setHasChanges(true);
+  }, []);
+
+  // Manual update check
+  const checkForUpdatesManually = useCallback(async () => {
+    try {
+      setSaveStatus('Checking for updates...');
+      await window.electronAPI.checkForUpdates();
+      setSaveStatus('Update check completed');
+      
+      // Clear status after a delay
+      setTimeout(() => setSaveStatus(''), 3000);
+    } catch (error) {
+      console.error('Manual update check failed:', error);
+      setSaveStatus('Update check failed');
+      setTimeout(() => setSaveStatus(''), 3000);
+    }
   }, []);
 
   return (
@@ -295,6 +321,133 @@ const SettingsTab: React.FC<SettingsTabProps> = ({ onSettingsChange }) => {
             <small className="text-muted">
               Network path used for PDF CSV logging (separate from download location)
             </small>
+          </div>
+
+          {/* UI Preferences Section */}
+          <div className="config-section">
+            <h3>UI Preferences</h3>
+            
+            <div className="form-group">
+              <label>
+                <input
+                  type="checkbox"
+                  checked={settings.uiPreferences.rememberFileDialogPath}
+                  onChange={(e) => updateSetting('uiPreferences.rememberFileDialogPath', e.target.checked)}
+                />
+                Remember file dialog location
+              </label>
+              <small className="text-muted">
+                File dialogs will open to the last used location
+              </small>
+            </div>
+
+            <div className="form-group">
+              <label>
+                <input
+                  type="checkbox"
+                  checked={settings.uiPreferences.showAdvancedOptions}
+                  onChange={(e) => updateSetting('uiPreferences.showAdvancedOptions', e.target.checked)}
+                />
+                Show advanced options
+              </label>
+              <small className="text-muted">
+                Display advanced configuration options in other tabs
+              </small>
+            </div>
+
+            <div className="form-group">
+              <label htmlFor="startup-tab">Default startup tab</label>
+              <select
+                id="startup-tab"
+                value={settings.uiPreferences.startupTab}
+                onChange={(e) => updateSetting('uiPreferences.startupTab', e.target.value)}
+                className="form-control"
+              >
+                <option value="file">File Selection</option>
+                <option value="column">Column Selection</option>
+                <option value="process">Process & Download</option>
+                <option value="settings">Settings</option>
+              </select>
+            </div>
+          </div>
+
+          {/* Update Settings Section */}
+          <div className="config-section">
+            <h3>Update Settings</h3>
+            
+            <div className="form-group">
+              <label>
+                <input
+                  type="checkbox"
+                  checked={settings.updateSettings.enableAutoUpdates}
+                  onChange={(e) => updateSetting('updateSettings.enableAutoUpdates', e.target.checked)}
+                />
+                Enable automatic updates
+              </label>
+              <small className="text-muted">
+                Allow the application to automatically check for and install updates
+              </small>
+            </div>
+
+            <div className="form-group">
+              <label>
+                <input
+                  type="checkbox"
+                  checked={settings.updateSettings.checkForUpdatesOnStartup}
+                  onChange={(e) => updateSetting('updateSettings.checkForUpdatesOnStartup', e.target.checked)}
+                  disabled={!settings.updateSettings.enableAutoUpdates}
+                />
+                Check for updates on startup
+              </label>
+              <small className="text-muted">
+                Automatically check for updates when the application starts
+              </small>
+            </div>
+
+            <div className="form-group">
+              <label htmlFor="update-channel">Update channel</label>
+              <select
+                id="update-channel"
+                value={settings.updateSettings.updateChannel}
+                onChange={(e) => updateSetting('updateSettings.updateChannel', e.target.value)}
+                className="form-control"
+                disabled={!settings.updateSettings.enableAutoUpdates}
+              >
+                <option value="stable">Stable (recommended)</option>
+                <option value="beta">Beta (early access)</option>
+              </select>
+              <small className="text-muted">
+                Stable releases are tested and recommended for production use
+              </small>
+            </div>
+
+            <div className="form-group">
+              <label>
+                <input
+                  type="checkbox"
+                  checked={settings.updateSettings.downloadUpdatesAutomatically}
+                  onChange={(e) => updateSetting('updateSettings.downloadUpdatesAutomatically', e.target.checked)}
+                  disabled={!settings.updateSettings.enableAutoUpdates}
+                />
+                Download updates automatically
+              </label>
+              <small className="text-muted">
+                Download updates in background vs. prompting user first
+              </small>
+            </div>
+
+            <div className="form-group">
+              <button 
+                className="btn btn-primary"
+                onClick={checkForUpdatesManually}
+                style={{ marginRight: '10px' }}
+              >
+                Check for Updates Now
+              </button>
+              <small className="text-muted">
+                Manually check for available updates
+              </small>
+            </div>
           </div>
         </div>
 
@@ -434,54 +587,6 @@ const SettingsTab: React.FC<SettingsTabProps> = ({ onSettingsChange }) => {
                   className="form-control number-input"
                 />
               </div>
-            </div>
-          </div>
-
-          {/* UI Preferences Section */}
-          <div className="config-section">
-            <h3>UI Preferences</h3>
-            
-            <div className="form-group">
-              <label>
-                <input
-                  type="checkbox"
-                  checked={settings.uiPreferences.rememberFileDialogPath}
-                  onChange={(e) => updateSetting('uiPreferences.rememberFileDialogPath', e.target.checked)}
-                />
-                Remember file dialog location
-              </label>
-              <small className="text-muted">
-                File dialogs will open to the last used location
-              </small>
-            </div>
-
-            <div className="form-group">
-              <label>
-                <input
-                  type="checkbox"
-                  checked={settings.uiPreferences.showAdvancedOptions}
-                  onChange={(e) => updateSetting('uiPreferences.showAdvancedOptions', e.target.checked)}
-                />
-                Show advanced options
-              </label>
-              <small className="text-muted">
-                Display advanced configuration options in other tabs
-              </small>
-            </div>
-
-            <div className="form-group">
-              <label htmlFor="startup-tab">Default startup tab</label>
-              <select
-                id="startup-tab"
-                value={settings.uiPreferences.startupTab}
-                onChange={(e) => updateSetting('uiPreferences.startupTab', e.target.value)}
-                className="form-control"
-              >
-                <option value="file">File Selection</option>
-                <option value="column">Column Selection</option>
-                <option value="process">Process & Download</option>
-                <option value="settings">Settings</option>
-              </select>
             </div>
           </div>
         </div>

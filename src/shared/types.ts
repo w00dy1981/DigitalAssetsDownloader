@@ -95,6 +95,12 @@ export interface UserSettings {
     showAdvancedOptions: boolean;         // Show/hide advanced configuration options
     startupTab: 'file' | 'column' | 'process' | 'settings'; // Default tab on startup
   };
+  updateSettings: {
+    enableAutoUpdates: boolean;           // Enable/disable automatic updates
+    checkForUpdatesOnStartup: boolean;    // Check for updates when app starts
+    updateChannel: 'stable' | 'beta';     // Update channel preference
+    downloadUpdatesAutomatically: boolean; // Auto-download vs prompt user
+  };
 }
 
 export interface AppConfig {
@@ -134,6 +140,14 @@ export const IPC_CHANNELS = {
   // Settings operations
   SAVE_SETTINGS: 'save-settings',
   LOAD_SETTINGS: 'load-settings',
+  
+  // Auto-updater operations
+  CHECK_FOR_UPDATES: 'check-for-updates',
+  UPDATE_AVAILABLE: 'update-available',
+  UPDATE_NOT_AVAILABLE: 'update-not-available',
+  UPDATE_DOWNLOADED: 'update-downloaded',
+  UPDATE_DOWNLOAD_PROGRESS: 'update-download-progress',
+  INSTALL_UPDATE: 'install-update',
 } as const;
 
 export type IpcChannelType = typeof IPC_CHANNELS[keyof typeof IPC_CHANNELS];

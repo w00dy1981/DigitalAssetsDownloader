@@ -23,6 +23,11 @@ declare global {
       saveSettings: (settings: any) => Promise<any>;
       loadSettings: () => Promise<any>;
       
+      // Auto-updater operations
+      checkForUpdates: () => Promise<any>;
+      installUpdate: () => Promise<void>;
+      downloadUpdate: () => Promise<any>;
+      
       // Window operations
       minimizeWindow: () => Promise<void>;
       maximizeWindow: () => Promise<void>;
@@ -38,6 +43,12 @@ declare global {
       onMenuOpenFile: (callback: () => void) => void;
       onMenuSaveConfig: (callback: () => void) => void;
       onMenuOpenSettings: (callback: () => void) => void;
+      
+      // Auto-updater event listeners
+      onUpdateAvailable: (callback: (updateInfo: any) => void) => void;
+      onUpdateNotAvailable: (callback: (updateInfo: any) => void) => void;
+      onUpdateDownloaded: (callback: (updateInfo: any) => void) => void;
+      onUpdateDownloadProgress: (callback: (progressInfo: any) => void) => void;
       
       // Remove listeners
       removeAllListeners: (channel: IpcChannelType) => void;

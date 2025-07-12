@@ -1,4 +1,5 @@
 import { app, BrowserWindow, ipcMain, dialog, Menu, MenuItem } from 'electron';
+import { autoUpdater } from 'electron-updater';
 import * as path from 'path';
 import Store from 'electron-store';
 import { IPC_CHANNELS, WindowState, AppConfig, DownloadConfig } from '@/shared/types';
@@ -407,10 +408,87 @@ class DigitalAssetDownloaderApp {
     this.mainWindow?.webContents.send('menu-open-settings');
   }
 
+  private setupAutoUpdater(): void {
+    // Configure auto-updater behavior
+    autoUpdater.autoDownload = false; // Let user control download
+    autoUpdater.autoInstallOnAppQuit = false; // Let user control install
+
+    // Auto-updater event handlers
+    autoUpdater.on('checking-for-update', () => {
+      console.log('Checking for update...');
+      this.mainWindow?.webContents.send('update-checking');
+    });
+
+    autoUpdater.on('update-available', (info) => {
+      console.log('Update available:', info);
+      this.mainWindow?.webContents.send(IPC_CHANNELS.UPDATE_AVAILABLE, info);
+    });
+
+    autoUpdater.on('update-not-available', (info) => {
+      console.log('Update not available:', info);
+      this.mainWindow?.webContents.send(IPC_CHANNELS.UPDATE_NOT_AVAILABLE, info);
+    });
+
+    autoUpdater.on('error', (err) => {
+      console.error('Auto-updater error:', err);
+      this.mainWindow?.webContents.send('update-error', err.message);
+    });
+
+    autoUpdater.on('download-progress', (progressObj) => {
+      this.mainWindow?.webContents.send(IPC_CHANNELS.UPDATE_DOWNLOAD_PROGRESS, progressObj);
+    });
+
+    autoUpdater.on('update-downloaded', (info) => {
+      console.log('Update downloaded:', info);
+      this.mainWindow?.webContents.send(IPC_CHANNELS.UPDATE_DOWNLOADED, info);
+    });
+
+    // Set up IPC handlers for auto-updater
+    ipcMain.handle(IPC_CHANNELS.CHECK_FOR_UPDATES, async () => {
+      try {
+        const result = await autoUpdater.checkForUpdates();
+        return result;
+      } catch (error) {
+        console.error('Check for updates error:', error);
+        throw error;
+      }
+    });
+
+    ipcMain.handle(IPC_CHANNELS.INSTALL_UPDATE, () => {
+      autoUpdater.quitAndInstall();
+    });
+
+    ipcMain.handle('download-update', () => {
+      return autoUpdater.downloadUpdate();
+    });
+
+    // Check for updates on startup based on user settings
+    this.checkForUpdatesOnStartup();
+  }
+
+  private async checkForUpdatesOnStartup(): Promise<void> {
+    try {
+      const userSettings = this.store.get('userSettings');
+      
+      // Only check if user has enabled auto-updates and startup checking
+      if (userSettings?.updateSettings?.enableAutoUpdates && 
+          userSettings?.updateSettings?.checkForUpdatesOnStartup) {
+        
+        // Wait a bit for the app to fully load
+        setTimeout(() => {
+          autoUpdater.checkForUpdatesAndNotify();
+        }, 3000);
+      }
+    } catch (error) {
+      console.error('Error checking startup settings:', error);
+    }
+  }
+
   async initialize(): Promise<void> {
     await app.whenReady();
     await this.createWindow();
     this.setupIpcHandlers();
+    this.setupAutoUpdater();
 
     app.on('activate', async () => {
       if (BrowserWindow.getAllWindows().length === 0) {
