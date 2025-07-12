@@ -84,7 +84,11 @@
     ],
     "mac": {
       "category": "public.app-category.productivity",
-      "target": "dmg"
+      "target": "dmg",
+      "hardenedRuntime": true,
+      "gatekeeperAssess": false,
+      "entitlements": "build/entitlements.mac.plist",
+      "entitlementsInherit": "build/entitlements.mac.plist"
     },
     "win": {
       "target": {
@@ -101,7 +105,11 @@
       "allowToChangeInstallationDirectory": true,
       "createDesktopShortcut": true,
       "createStartMenuShortcut": true,
-      "shortcutName": "Digital Asset Downloader"
+      "shortcutName": "Digital Asset Downloader",
+      "allowElevation": true,
+      "perMachine": false,
+      "deleteAppDataOnUninstall": true,
+      "runAfterFinish": false
     },
     "linux": {
       "target": [
