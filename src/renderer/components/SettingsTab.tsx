@@ -177,6 +177,31 @@ const SettingsTab: React.FC<SettingsTabProps> = ({ onSettingsChange }) => {
   // State for update checking
   const [isCheckingForUpdates, setIsCheckingForUpdates] = useState(false);
 
+  // Set up update event listeners
+  useEffect(() => {
+    const handleUpdateAvailable = (updateInfo: any) => {
+      setIsCheckingForUpdates(false);
+      setSaveStatus(`Update available: v${updateInfo.version}`);
+      setTimeout(() => setSaveStatus(''), 8000);
+    };
+
+    const handleUpdateNotAvailable = () => {
+      setIsCheckingForUpdates(false);
+      setSaveStatus('You are running the latest version');
+      setTimeout(() => setSaveStatus(''), 5000);
+    };
+
+    // Set up listeners
+    window.electronAPI.onUpdateAvailable(handleUpdateAvailable);
+    window.electronAPI.onUpdateNotAvailable(handleUpdateNotAvailable);
+
+    // Cleanup
+    return () => {
+      window.electronAPI.removeAllListeners('update-available');
+      window.electronAPI.removeAllListeners('update-not-available');
+    };
+  }, []);
+
   // Manual update check
   const checkForUpdatesManually = useCallback(async () => {
     if (isCheckingForUpdates) return; // Prevent multiple clicks
@@ -185,16 +210,12 @@ const SettingsTab: React.FC<SettingsTabProps> = ({ onSettingsChange }) => {
       setIsCheckingForUpdates(true);
       setSaveStatus('Checking for updates...');
       await window.electronAPI.checkForUpdates();
-      setSaveStatus('Update check completed - No updates available');
-      
-      // Clear status after a delay
-      setTimeout(() => setSaveStatus(''), 5000);
+      // Don't set status here - let the event listeners handle it
     } catch (error) {
       console.error('Manual update check failed:', error);
+      setIsCheckingForUpdates(false);
       setSaveStatus('Update check failed - Please try again later');
       setTimeout(() => setSaveStatus(''), 5000);
-    } finally {
-      setIsCheckingForUpdates(false);
     }
   }, [isCheckingForUpdates]);
 
