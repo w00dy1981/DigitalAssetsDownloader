@@ -4,7 +4,7 @@ A modern, cross-platform desktop application for bulk downloading and processing
 
 ![Digital Asset Downloader](https://img.shields.io/badge/platform-Windows%20%7C%20macOS%20%7C%20Linux-blue)
 ![License](https://img.shields.io/badge/license-MIT-green)
-![Version](https://img.shields.io/badge/version-1.0.0-orange)
+![Version](https://img.shields.io/badge/version-1.0.6-orange)
 
 ---
 
@@ -244,7 +244,14 @@ MIT License - see [LICENSE](LICENSE) file for details.
 
 ## 📈 Version History
 
-### v1.0.0 (Current)
+### v1.0.6 (Current)
+- 🐛 Fixed memory leaks in React event listeners
+- ⏱️ Resolved update check hangs with timeout mechanism
+- 🏁 Eliminated race conditions in download management  
+- 🖥️ Fixed Windows case-sensitive file search bug
+- ✅ Enhanced stability and cross-platform compatibility
+
+### v1.0.0-1.0.5
 - ✅ Complete Excel/CSV processing
 - ✅ Multi-threaded download engine
 - ✅ Smart background image processing
