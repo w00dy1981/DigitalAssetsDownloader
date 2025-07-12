@@ -106,17 +106,15 @@
     },
     "nsis": {
       "oneClick": false,
-      "allowToChangeInstallationDirectory": true,
+      "allowToChangeInstallationDirectory": false,
       "createDesktopShortcut": true,
       "createStartMenuShortcut": true,
       "shortcutName": "Digital Asset Downloader",
-      "allowElevation": true,
       "perMachine": false,
       "deleteAppDataOnUninstall": true,
       "runAfterFinish": false,
       "uninstallDisplayName": "Digital Asset Downloader",
-      "menuCategory": "Productivity",
-      "warningsAsErrors": false
+      "menuCategory": "Productivity"
     },
     "linux": {
       "target": [
