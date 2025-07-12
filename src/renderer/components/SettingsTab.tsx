@@ -174,21 +174,29 @@ const SettingsTab: React.FC<SettingsTabProps> = ({ onSettingsChange }) => {
     setHasChanges(true);
   }, []);
 
+  // State for update checking
+  const [isCheckingForUpdates, setIsCheckingForUpdates] = useState(false);
+
   // Manual update check
   const checkForUpdatesManually = useCallback(async () => {
+    if (isCheckingForUpdates) return; // Prevent multiple clicks
+    
     try {
+      setIsCheckingForUpdates(true);
       setSaveStatus('Checking for updates...');
       await window.electronAPI.checkForUpdates();
-      setSaveStatus('Update check completed');
+      setSaveStatus('Update check completed - No updates available');
       
       // Clear status after a delay
-      setTimeout(() => setSaveStatus(''), 3000);
+      setTimeout(() => setSaveStatus(''), 5000);
     } catch (error) {
       console.error('Manual update check failed:', error);
-      setSaveStatus('Update check failed');
-      setTimeout(() => setSaveStatus(''), 3000);
+      setSaveStatus('Update check failed - Please try again later');
+      setTimeout(() => setSaveStatus(''), 5000);
+    } finally {
+      setIsCheckingForUpdates(false);
     }
-  }, []);
+  }, [isCheckingForUpdates]);
 
   return (
     <div className="tab-content settings-tab">
@@ -438,11 +446,12 @@ const SettingsTab: React.FC<SettingsTabProps> = ({ onSettingsChange }) => {
 
             <div className="form-group">
               <button 
-                className="btn btn-primary"
+                className={`btn btn-primary ${isCheckingForUpdates ? 'loading' : ''}`}
                 onClick={checkForUpdatesManually}
+                disabled={isCheckingForUpdates}
                 style={{ marginRight: '10px' }}
               >
-                Check for Updates Now
+                {isCheckingForUpdates ? 'Checking...' : 'Check for Updates Now'}
               </button>
               <small className="text-muted">
                 Manually check for available updates

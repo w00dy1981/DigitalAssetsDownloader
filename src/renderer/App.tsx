@@ -6,6 +6,9 @@ import ProcessTab from './components/ProcessTab';
 import SettingsTab from './components/SettingsTab';
 import './App.css';
 
+// Get version from package.json
+const packageJson = require('../../package.json');
+
 const App: React.FC = () => {
   const [activeTab, setActiveTab] = useState<number>(0);
   const [spreadsheetData, setSpreadsheetData] = useState<SpreadsheetData | null>(null);
@@ -78,6 +81,7 @@ const App: React.FC = () => {
     <div className="app">
       <header className="app-header">
         <h1>Digital Asset Downloader</h1>
+        <div className="version-info">v{packageJson.version}</div>
       </header>
       
       <nav className="tab-navigation">
