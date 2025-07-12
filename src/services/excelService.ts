@@ -3,6 +3,7 @@ import * as fs from 'fs';
 import * as path from 'path';
 import * as csv from 'fast-csv';
 import { sanitizePath, PathSecurityError, validateFileAccess } from './pathSecurity';
+import { isCsvFile, isExcelFile, getExtension } from './fileUtils';
 
 export interface SheetData {
   columns: string[];
@@ -27,7 +28,7 @@ export class ExcelService {
       const workbook = new ExcelJS.Workbook();
       
       // Handle different file formats
-      if (safeFilePath.toLowerCase().endsWith('.csv')) {
+      if (isCsvFile(safeFilePath)) {
         return ['Sheet1']; // CSV files have only one "sheet"
       }
       
@@ -64,7 +65,7 @@ export class ExcelService {
         throw new Error('File does not exist or is not accessible');
       }
 
-      if (safeFilePath.toLowerCase().endsWith('.csv')) {
+      if (isCsvFile(safeFilePath)) {
         return this.loadCSVData(safeFilePath);
       }
 
@@ -224,16 +225,14 @@ export class ExcelService {
    * Validate if a file can be processed by this service
    */
   static isValidFile(filePath: string): boolean {
-    const validExtensions = ['.xlsx', '.xls', '.xlsm', '.csv'];
-    const ext = path.extname(filePath).toLowerCase();
-    return validExtensions.includes(ext);
+    return isExcelFile(filePath) || isCsvFile(filePath);
   }
 
   /**
    * Get file format information
    */
   static getFileInfo(filePath: string): { type: string; extension: string; isValid: boolean } {
-    const extension = path.extname(filePath).toLowerCase();
+    const extension = getExtension(filePath);
     let type = 'Unknown';
     
     switch (extension) {
