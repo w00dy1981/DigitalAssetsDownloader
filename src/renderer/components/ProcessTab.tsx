@@ -152,13 +152,8 @@ const ProcessTab: React.FC<ProcessTabProps> = ({ config, onConfigurationChange }
     // Set default paths only if they are empty/undefined
     const updates: Partial<DownloadConfig> = {};
     
-    if (!config.imageFilePath || config.imageFilePath.trim() === '') {
-      updates.imageFilePath = "U:\\old_g\\IMAGES\\ABM Product Images";
-    }
-    
-    if (!config.pdfFilePath || config.pdfFilePath.trim() === '') {
-      updates.pdfFilePath = "U:\\old_g\\IMAGES\\Product pdf\\'s";
-    }
+    // Keep paths empty if not configured - don't auto-assign hardcoded defaults
+    // Users should configure these in Settings if needed
     
     // Only update if there are changes to avoid infinite re-renders
     if (Object.keys(updates).length > 0) {

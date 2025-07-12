@@ -489,8 +489,8 @@ export class DownloadService extends EventEmitter {
           urls.push(String(url));
           const filename = `${sanitizedPartNo}.jpg`;
           const localPath = path.join(config.imageFolder, filename);
-          const imageNetworkPath = config.imageFilePath?.trim() || "U:\\old_g\\IMAGES\\ABM Product Images";
-          const networkPath = path.join(imageNetworkPath, filename);
+          const imageNetworkPath = config.imageFilePath?.trim() || '';
+          const networkPath = imageNetworkPath ? path.join(imageNetworkPath, filename) : '';
           
           imageFilePaths.push(localPath);
           networkImagePaths.push(networkPath);
@@ -504,8 +504,8 @@ export class DownloadService extends EventEmitter {
       if (config.pdfColumn && row[config.pdfColumn]) {
         const pdfFilename = `${sanitizedPartNo}.pdf`;
         pdfFilePath = path.join(config.pdfFolder, pdfFilename);
-        const pdfNetworkPath = config.pdfFilePath?.trim() || "U:\\old_g\\IMAGES\\Product pdf\\'s";
-        networkPdfPath = path.join(pdfNetworkPath, pdfFilename);
+        const pdfNetworkPath = config.pdfFilePath?.trim() || '';
+        networkPdfPath = pdfNetworkPath ? path.join(pdfNetworkPath, pdfFilename) : '';
         
         if (urls.length === 0) {
           urls.push(String(row[config.pdfColumn]));

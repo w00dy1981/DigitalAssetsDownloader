@@ -36,19 +36,19 @@ const ColumnSelectionTab: React.FC<ColumnSelectionTabProps> = ({
       try {
         const settings = await window.electronAPI.loadSettings();
         if (settings?.defaultPaths) {
-          // Use saved paths or fall back to defaults
-          setImageFilePath(settings.defaultPaths.imageNetworkPath || "U:\\old_g\\IMAGES\\ABM Product Images");
-          setPdfFilePath(settings.defaultPaths.pdfNetworkPath || "U:\\old_g\\IMAGES\\Product pdf's");
+          // Use saved paths (may be empty if user hasn't configured them)
+          setImageFilePath(settings.defaultPaths.imageNetworkPath || '');
+          setPdfFilePath(settings.defaultPaths.pdfNetworkPath || '');
         } else {
-          // Fall back to defaults if no settings
-          setImageFilePath("U:\\old_g\\IMAGES\\ABM Product Images");
-          setPdfFilePath("U:\\old_g\\IMAGES\\Product pdf's");
+          // No settings available - start with empty paths
+          setImageFilePath('');
+          setPdfFilePath('');
         }
       } catch (error) {
         console.error('Error loading settings:', error);
-        // Fall back to defaults on error
-        setImageFilePath("U:\\old_g\\IMAGES\\ABM Product Images");
-        setPdfFilePath("U:\\old_g\\IMAGES\\Product pdf's");
+        // Start with empty paths on error
+        setImageFilePath('');
+        setPdfFilePath('');
       }
     };
 
@@ -65,11 +65,11 @@ const ColumnSelectionTab: React.FC<ColumnSelectionTabProps> = ({
       setImageFolder(initialConfig.imageFolder || '');
       setPdfFolder(initialConfig.pdfFolder || '');
       setSourceImageFolder(initialConfig.sourceImageFolder || '');
-      // Don't override network paths from settings with config values
-      if (initialConfig.imageFilePath && imageFilePath === "U:\\old_g\\IMAGES\\ABM Product Images") {
+      // Use network paths from config if available and current paths are empty
+      if (initialConfig.imageFilePath && !imageFilePath) {
         setImageFilePath(initialConfig.imageFilePath);
       }
-      if (initialConfig.pdfFilePath && pdfFilePath === "U:\\old_g\\IMAGES\\Product pdf's") {
+      if (initialConfig.pdfFilePath && !pdfFilePath) {
         setPdfFilePath(initialConfig.pdfFilePath);
       }
       setMaxWorkers(initialConfig.maxWorkers || 5);

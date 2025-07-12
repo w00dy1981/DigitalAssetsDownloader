@@ -270,7 +270,7 @@ const SettingsTab: React.FC<SettingsTabProps> = ({ onSettingsChange }) => {
               </button>
             </div>
             <small className="text-muted">
-              Default: U:\old_g\IMAGES\ABM Product Images
+              Network path used for CSV logging (separate from download location)
             </small>
           </div>
 
@@ -293,7 +293,7 @@ const SettingsTab: React.FC<SettingsTabProps> = ({ onSettingsChange }) => {
               </button>
             </div>
             <small className="text-muted">
-              Default: U:\old_g\IMAGES\Product pdf's
+              Network path used for PDF CSV logging (separate from download location)
             </small>
           </div>
         </div>

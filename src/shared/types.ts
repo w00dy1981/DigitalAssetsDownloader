@@ -18,8 +18,8 @@ export interface DownloadConfig {
   imageFolder: string;
   pdfFolder: string;
   sourceImageFolder: string;
-  imageFilePath: string; // Network path for logging (default: "U:\\old_g\\IMAGES\\ABM Product Images")
-  pdfFilePath: string; // Network path for logging (default: "U:\\old_g\\IMAGES\\Product pdf\\'s")
+  imageFilePath: string; // Network path for CSV logging (user-configurable in Settings)
+  pdfFilePath: string; // Network path for CSV logging (user-configurable in Settings)
   maxWorkers: number;
   backgroundProcessing: {
     enabled: boolean;

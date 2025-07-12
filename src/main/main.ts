@@ -388,8 +388,8 @@ class DigitalAssetDownloaderApp {
       return this.store.get('userSettings') || {
         defaultPaths: {
           lastFileDialogPath: '',
-          imageNetworkPath: "U:\\old_g\\IMAGES\\ABM Product Images",
-          pdfNetworkPath: "U:\\old_g\\IMAGES\\Product pdf's"
+          imageNetworkPath: '',
+          pdfNetworkPath: ''
         }
       };
     });
