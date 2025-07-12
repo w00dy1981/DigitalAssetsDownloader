@@ -79,7 +79,8 @@
       {
         "provider": "github",
         "owner": "w00dy1981",
-        "repo": "DigitalAssetsDownloader"
+        "repo": "DigitalAssetsDownloader",
+        "releaseType": "release"
       }
     ],
     "mac": {
@@ -109,7 +110,10 @@
       "allowElevation": true,
       "perMachine": false,
       "deleteAppDataOnUninstall": true,
-      "runAfterFinish": false
+      "runAfterFinish": false,
+      "uninstallDisplayName": "Digital Asset Downloader",
+      "menuCategory": "Productivity",
+      "warningsAsErrors": false
     },
     "linux": {
       "target": [
