@@ -6,6 +6,7 @@ import { createWriteStream } from 'fs';
 import { pipeline } from 'stream/promises';
 import { DownloadConfig, DownloadItem, DownloadResult, DownloadProgress } from '@/shared/types';
 import { EventEmitter } from 'events';
+import { sanitizePath, safeJoin, safeReadDir, PathSecurityError, validateFileAccess } from './pathSecurity';
 // Import Sharp with error handling
 let sharp: any = null;
 try {
@@ -144,23 +145,27 @@ export class DownloadService extends EventEmitter {
     specificFilename?: string
   ): Promise<string | null> {
     try {
-      const stats = await fs.stat(sourceFolder);
+      // Sanitize the source folder path
+      const safeSourceFolder = sanitizePath(sourceFolder);
+      
+      const stats = await fs.stat(safeSourceFolder);
       if (!stats.isDirectory()) {
         return null;
       }
 
-      const files = await fs.readdir(sourceFolder);
+      // Use secure directory reading
+      const filePaths = await safeReadDir(safeSourceFolder, safeSourceFolder);
       const matchingFiles: string[] = [];
 
       // First try to match specific filename if provided
       if (specificFilename) {
         const cleanFilename = specificFilename.toLowerCase();
-        for (const file of files) {
-          if (file.toLowerCase().includes(cleanFilename)) {
-            const fullPath = path.join(sourceFolder, file);
-            const fileStat = await fs.stat(fullPath);
-            if (fileStat.isFile()) {
-              matchingFiles.push(fullPath);
+        for (const filePath of filePaths) {
+          const fileName = path.basename(filePath);
+          if (fileName.toLowerCase().includes(cleanFilename)) {
+            // Validate file access before adding to matches
+            if (await validateFileAccess(filePath, safeSourceFolder)) {
+              matchingFiles.push(filePath);
             }
           }
         }
@@ -169,12 +174,12 @@ export class DownloadService extends EventEmitter {
       // If no matches with specific filename, try part number
       if (matchingFiles.length === 0 && partNo) {
         const cleanPartNo = String(partNo).trim().toLowerCase();
-        for (const file of files) {
-          if (file.toLowerCase().includes(cleanPartNo)) {
-            const fullPath = path.join(sourceFolder, file);
-            const fileStat = await fs.stat(fullPath);
-            if (fileStat.isFile()) {
-              matchingFiles.push(fullPath);
+        for (const filePath of filePaths) {
+          const fileName = path.basename(filePath);
+          if (fileName.toLowerCase().includes(cleanPartNo)) {
+            // Validate file access before adding to matches
+            if (await validateFileAccess(filePath, safeSourceFolder)) {
+              matchingFiles.push(filePath);
             }
           }
         }
@@ -182,6 +187,10 @@ export class DownloadService extends EventEmitter {
 
       return matchingFiles.length > 0 ? matchingFiles[0] : null;
     } catch (error) {
+      if (error instanceof PathSecurityError) {
+        console.error('Security violation in source folder search:', error.message);
+        return null;
+      }
       console.error('Error searching source folder:', error);
       return null;
     }
@@ -272,11 +281,13 @@ export class DownloadService extends EventEmitter {
 
     // Check if URL is a local file path
     try {
-      const urlStat = await fs.stat(url);
+      // Sanitize the URL as a potential file path
+      const safeUrl = sanitizePath(url);
+      const urlStat = await fs.stat(safeUrl);
       if (urlStat.isFile()) {
         // Handle local file
         await fs.mkdir(path.dirname(filepath), { recursive: true });
-        const content = await fs.readFile(url);
+        const content = await fs.readFile(safeUrl);
         
         // Process image if it's an image file
         let processedContent = content;
@@ -305,15 +316,15 @@ export class DownloadService extends EventEmitter {
         );
       } else if (urlStat.isDirectory()) {
         // Handle local directory - look for image files
-        const files = await fs.readdir(url);
+        const filePaths = await safeReadDir(safeUrl, safeUrl);
         const imageExtensions = ['.jpg', '.jpeg', '.png', '.gif', '.bmp'];
         
-        const imageFiles = files.filter(file => 
-          imageExtensions.some(ext => file.toLowerCase().endsWith(ext))
+        const imageFiles = filePaths.filter(filePath => 
+          imageExtensions.some(ext => path.basename(filePath).toLowerCase().endsWith(ext))
         );
         
         if (imageFiles.length > 0) {
-          const sourceFile = path.join(url, imageFiles[0]);
+          const sourceFile = imageFiles[0]; // Already a safe path from safeReadDir
           await fs.mkdir(path.dirname(filepath), { recursive: true });
           
           const content = await fs.readFile(sourceFile);
@@ -488,9 +499,9 @@ export class DownloadService extends EventEmitter {
         if (url) {
           urls.push(String(url));
           const filename = `${sanitizedPartNo}.jpg`;
-          const localPath = path.join(config.imageFolder, filename);
+          const localPath = safeJoin(config.imageFolder, filename);
           const imageNetworkPath = config.imageFilePath?.trim() || '';
-          const networkPath = imageNetworkPath ? path.join(imageNetworkPath, filename) : '';
+          const networkPath = imageNetworkPath ? safeJoin(imageNetworkPath, filename) : '';
           
           imageFilePaths.push(localPath);
           networkImagePaths.push(networkPath);
@@ -503,9 +514,9 @@ export class DownloadService extends EventEmitter {
       
       if (config.pdfColumn && row[config.pdfColumn]) {
         const pdfFilename = `${sanitizedPartNo}.pdf`;
-        pdfFilePath = path.join(config.pdfFolder, pdfFilename);
+        pdfFilePath = safeJoin(config.pdfFolder, pdfFilename);
         const pdfNetworkPath = config.pdfFilePath?.trim() || '';
-        networkPdfPath = pdfNetworkPath ? path.join(pdfNetworkPath, pdfFilename) : '';
+        networkPdfPath = pdfNetworkPath ? safeJoin(pdfNetworkPath, pdfFilename) : '';
         
         if (urls.length === 0) {
           urls.push(String(row[config.pdfColumn]));
@@ -567,7 +578,7 @@ export class DownloadService extends EventEmitter {
       // Create CSV log file
       const logFolder = config.imageFolder || config.pdfFolder;
       const timestamp = new Date().toISOString().replace(/[:.]/g, '-').slice(0, 19);
-      const logFile = path.join(logFolder, `DownloadLog_${timestamp}.csv`);
+      const logFile = safeJoin(logFolder, `DownloadLog_${timestamp}.csv`);
       
       await this.initializeLogFile(logFile);
 

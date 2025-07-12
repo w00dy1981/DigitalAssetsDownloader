@@ -2,6 +2,7 @@ import * as ExcelJS from 'exceljs';
 import * as fs from 'fs';
 import * as path from 'path';
 import * as csv from 'fast-csv';
+import { sanitizePath, PathSecurityError, validateFileAccess } from './pathSecurity';
 
 export interface SheetData {
   columns: string[];
@@ -15,18 +16,22 @@ export class ExcelService {
    */
   async getSheetNames(filePath: string): Promise<string[]> {
     try {
-      if (!fs.existsSync(filePath)) {
-        throw new Error('File does not exist');
+      // Sanitize the file path to prevent path traversal
+      const safeFilePath = sanitizePath(filePath);
+      
+      // Validate file access
+      if (!(await validateFileAccess(safeFilePath))) {
+        throw new Error('File does not exist or is not accessible');
       }
 
       const workbook = new ExcelJS.Workbook();
       
       // Handle different file formats
-      if (filePath.toLowerCase().endsWith('.csv')) {
+      if (safeFilePath.toLowerCase().endsWith('.csv')) {
         return ['Sheet1']; // CSV files have only one "sheet"
       }
       
-      await workbook.xlsx.readFile(filePath);
+      await workbook.xlsx.readFile(safeFilePath);
       
       const sheetNames: string[] = [];
       workbook.eachSheet((worksheet) => {
@@ -35,6 +40,10 @@ export class ExcelService {
       
       return sheetNames;
     } catch (error) {
+      if (error instanceof PathSecurityError) {
+        console.error('Security violation in getSheetNames:', error.message);
+        throw new Error(`Security error: ${error.message}`);
+      }
       console.error('Error getting sheet names:', error);
       const errorMessage = error instanceof Error ? error.message : 'Unknown error';
       throw new Error(`Failed to read Excel file: ${errorMessage}`);
@@ -47,16 +56,20 @@ export class ExcelService {
    */
   async loadSheetData(filePath: string, sheetName: string): Promise<SheetData> {
     try {
-      if (!fs.existsSync(filePath)) {
-        throw new Error('File does not exist');
+      // Sanitize the file path to prevent path traversal
+      const safeFilePath = sanitizePath(filePath);
+      
+      // Validate file access
+      if (!(await validateFileAccess(safeFilePath))) {
+        throw new Error('File does not exist or is not accessible');
       }
 
-      if (filePath.toLowerCase().endsWith('.csv')) {
-        return this.loadCSVData(filePath);
+      if (safeFilePath.toLowerCase().endsWith('.csv')) {
+        return this.loadCSVData(safeFilePath);
       }
 
       const workbook = new ExcelJS.Workbook();
-      await workbook.xlsx.readFile(filePath);
+      await workbook.xlsx.readFile(safeFilePath);
       
       const worksheet = workbook.getWorksheet(sheetName);
       if (!worksheet) {
@@ -65,6 +78,10 @@ export class ExcelService {
 
       return this.parseWorksheet(worksheet);
     } catch (error) {
+      if (error instanceof PathSecurityError) {
+        console.error('Security violation in loadSheetData:', error.message);
+        throw new Error(`Security error: ${error.message}`);
+      }
       console.error('Error loading sheet data:', error);
       const errorMessage = error instanceof Error ? error.message : 'Unknown error';
       throw new Error(`Failed to load sheet data: ${errorMessage}`);
