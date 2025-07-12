@@ -27,6 +27,8 @@ export class DownloadService extends EventEmitter {
   private isDownloading = false;
   private cancelled = false;
   private startTime = 0;
+  private operationLock: Promise<void> | null = null;
+  private pendingOperations: Array<{ type: 'start' | 'cancel'; resolve: () => void; reject: (reason?: any) => void }> = [];
   private progress: DownloadProgress = {
     currentFile: '',
     successful: 0,
@@ -543,14 +545,61 @@ export class DownloadService extends EventEmitter {
   }
 
   /**
-   * Start downloads with given configuration
+   * Acquire operation lock to prevent concurrent operations
+   */
+  private async acquireOperationLock(): Promise<() => void> {
+    while (this.operationLock) {
+      await this.operationLock;
+    }
+    
+    let lockResolve: (() => void) | undefined;
+    this.operationLock = new Promise<void>((resolve) => {
+      lockResolve = resolve;
+    });
+    
+    return lockResolve!;
+  }
+
+  /**
+   * Release operation lock
+   */
+  private releaseOperationLock(): void {
+    this.operationLock = null;
+    this.processNextOperation();
+  }
+
+  /**
+   * Process next pending operation if any
+   */
+  private processNextOperation(): void {
+    if (this.pendingOperations.length > 0) {
+      const operation = this.pendingOperations.shift()!;
+      
+      if (operation.type === 'start') {
+        // Don't auto-start pending downloads - just resolve the promise
+        // This prevents unwanted automatic restarts
+        operation.resolve();
+      } else if (operation.type === 'cancel') {
+        this.executeCancelOperation()
+          .then(operation.resolve)
+          .catch(operation.reject);
+      }
+    }
+  }
+
+  /**
+   * Start downloads with given configuration (with atomic operation protection)
    */
   async startDownloads(config: DownloadConfig, data: any[]): Promise<void> {
-    if (this.isDownloading) {
-      throw new Error('Downloads already in progress');
-    }
+    // Atomic check and lock acquisition
+    const unlock = await this.acquireOperationLock();
+    
+      try {
+        if (this.isDownloading) {
+          throw new Error('Downloads already in progress');
+        }
 
-    this.isDownloading = true;
+        this.isDownloading = true;
     this.cancelled = false;
     this.startTime = Date.now();
     
@@ -606,10 +655,16 @@ export class DownloadService extends EventEmitter {
         cancelled: this.cancelled
       });
 
+      } catch (error) {
+        this.emit('error', error);
+        throw error;
+      } finally {
+        this.isDownloading = false;
+        this.releaseOperationLock();
+      }
     } catch (error) {
-      this.emit('error', error);
-    } finally {
-      this.isDownloading = false;
+      unlock();
+      throw error;
     }
   }
 
@@ -772,12 +827,32 @@ export class DownloadService extends EventEmitter {
   }
 
   /**
-   * Cancel ongoing downloads
+   * Execute cancel operation (internal method)
    */
-  cancelDownloads(): void {
+  private async executeCancelOperation(): Promise<void> {
     this.cancelled = true;
     this.isDownloading = false;
     this.emit('cancelled');
+  }
+
+  /**
+   * Cancel ongoing downloads (with atomic operation protection)
+   */
+  async cancelDownloads(): Promise<void> {
+    // If we can't get the lock immediately, queue the cancel operation
+    if (this.operationLock) {
+      return new Promise<void>((resolve, reject) => {
+        this.pendingOperations.push({ type: 'cancel', resolve, reject });
+      });
+    }
+
+    const unlock = await this.acquireOperationLock();
+    
+    try {
+      await this.executeCancelOperation();
+    } finally {
+      this.releaseOperationLock();
+    }
   }
 
   /**

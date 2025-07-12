@@ -8,6 +8,7 @@ interface ProcessTabProps {
 
 const ProcessTab: React.FC<ProcessTabProps> = ({ config, onConfigurationChange }) => {
   const [isDownloading, setIsDownloading] = useState<boolean>(false);
+  const [isOperationPending, setIsOperationPending] = useState<boolean>(false);
   const [workerInputValue, setWorkerInputValue] = useState<string>(config.maxWorkers.toString());
   const [progress, setProgress] = useState<DownloadProgress>({
     currentFile: '',
@@ -64,24 +65,34 @@ const ProcessTab: React.FC<ProcessTabProps> = ({ config, onConfigurationChange }
   }, []);
 
   const handleStartDownloads = useCallback(async () => {
-    if (isDownloading) return;
+    // Atomic check - prevent multiple simultaneous start attempts
+    if (isDownloading || isOperationPending) {
+      setLogs(prev => [...prev, 'Downloads already in progress - please wait']);
+      return;
+    }
+
+    setIsOperationPending(true);
 
     // Validate configuration
     if (!config.partNoColumn) {
       setLogs(prev => [...prev, 'Error: Please select a Part Number column']);
+      setIsOperationPending(false);
       return;
     }
 
     if (!config.imageColumns.length && !config.pdfColumn) {
       setLogs(prev => [...prev, 'Error: Please select at least one Image URL column or PDF column']);
+      setIsOperationPending(false);
       return;
     }
 
     if (!config.imageFolder && !config.pdfFolder) {
       setLogs(prev => [...prev, 'Error: Please select download folders']);
+      setIsOperationPending(false);
       return;
     }
 
+    // Set downloading state immediately to prevent race conditions
     setIsDownloading(true);
     setStartTime(Date.now());
     setProgress({
@@ -107,13 +118,27 @@ const ProcessTab: React.FC<ProcessTabProps> = ({ config, onConfigurationChange }
     } catch (error) {
       console.error('Error starting downloads:', error);
       const errorMessage = error instanceof Error ? error.message : 'Unknown error';
-      setLogs(prev => [...prev, `Error starting downloads: ${errorMessage}`]);
+      
+      // Handle specific race condition errors
+      if (errorMessage.includes('Downloads already in progress')) {
+        setLogs(prev => [...prev, 'Downloads already in progress - operation prevented']);
+      } else {
+        setLogs(prev => [...prev, `Error starting downloads: ${errorMessage}`]);
+      }
       setIsDownloading(false);
+    } finally {
+      setIsOperationPending(false);
     }
-  }, [config, isDownloading]);
+  }, [config, isDownloading, isOperationPending]);
 
   const handleCancelDownloads = useCallback(async () => {
-    if (!isDownloading) return;
+    if (!isDownloading || isOperationPending) {
+      setLogs(prev => [...prev, 'No downloads currently running']);
+      return;
+    }
+
+    setIsOperationPending(true);
+    setLogs(prev => [...prev, 'Cancelling downloads...']);
 
     try {
       await window.electronAPI.cancelDownloads();
@@ -121,8 +146,13 @@ const ProcessTab: React.FC<ProcessTabProps> = ({ config, onConfigurationChange }
       setLogs(prev => [...prev, 'Downloads cancelled by user']);
     } catch (error) {
       console.error('Error cancelling downloads:', error);
+      const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+      setLogs(prev => [...prev, `Error cancelling downloads: ${errorMessage}`]);
+      setIsDownloading(false);
+    } finally {
+      setIsOperationPending(false);
     }
-  }, [isDownloading]);
+  }, [isDownloading, isOperationPending]);
 
   const handleFolderSelect = useCallback(async (setter: (value: string) => void, currentValue: string) => {
     try {
@@ -404,10 +434,10 @@ const ProcessTab: React.FC<ProcessTabProps> = ({ config, onConfigurationChange }
                 type="button"
                 className="btn btn-success"
                 onClick={handleStartDownloads}
-                disabled={isDownloading || !isConfigValid}
+                disabled={isDownloading || isOperationPending || !isConfigValid}
                 title={!isConfigValid ? 'Please fix configuration issues before starting downloads' : ''}
               >
-                {isDownloading ? 'Downloading...' : 'Start Downloads'}
+                {isOperationPending ? 'Starting...' : isDownloading ? 'Downloading...' : 'Start Downloads'}
               </button>
               
               {isDownloading && (
@@ -415,8 +445,9 @@ const ProcessTab: React.FC<ProcessTabProps> = ({ config, onConfigurationChange }
                   type="button"
                   className="btn btn-danger"
                   onClick={handleCancelDownloads}
+                  disabled={isOperationPending}
                 >
-                  Cancel Downloads
+                  {isOperationPending ? 'Cancelling...' : 'Cancel Downloads'}
                 </button>
               )}
             </div>
