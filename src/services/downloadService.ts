@@ -7,6 +7,7 @@ import { pipeline } from 'stream/promises';
 import { DownloadConfig, DownloadItem, DownloadResult, DownloadProgress } from '@/shared/types';
 import { EventEmitter } from 'events';
 import { sanitizePath, safeJoin, safeReadDir, PathSecurityError, validateFileAccess } from './pathSecurity';
+import { isImageFile, isPdfFile } from './fileUtils';
 // Import Sharp with error handling
 let sharp: any = null;
 try {
@@ -317,10 +318,9 @@ export class DownloadService extends EventEmitter {
       } else if (urlStat.isDirectory()) {
         // Handle local directory - look for image files
         const filePaths = await safeReadDir(safeUrl, safeUrl);
-        const imageExtensions = ['.jpg', '.jpeg', '.png', '.gif', '.bmp'];
         
         const imageFiles = filePaths.filter(filePath => 
-          imageExtensions.some(ext => path.basename(filePath).toLowerCase().endsWith(ext))
+          isImageFile(path.basename(filePath))
         );
         
         if (imageFiles.length > 0) {
@@ -383,7 +383,7 @@ export class DownloadService extends EventEmitter {
         let processedContent = content;
         let backgroundProcessed = false;
         
-        if (contentType.startsWith('image/') && !filepath.toLowerCase().endsWith('.pdf')) {
+        if (contentType.startsWith('image/') && !isPdfFile(filepath)) {
           try {
             const result = await this.convertToJpg(content, 95, config);
             processedContent = result.buffer;
