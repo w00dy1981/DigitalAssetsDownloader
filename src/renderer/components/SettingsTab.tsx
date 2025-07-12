@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useCallback } from 'react';
-import { UserSettings } from '@/shared/types';
+import { UserSettings, IPC_CHANNELS } from '@/shared/types';
 
 interface SettingsTabProps {
   onSettingsChange?: (settings: UserSettings) => void;
@@ -195,10 +195,10 @@ const SettingsTab: React.FC<SettingsTabProps> = ({ onSettingsChange }) => {
     window.electronAPI.onUpdateAvailable(handleUpdateAvailable);
     window.electronAPI.onUpdateNotAvailable(handleUpdateNotAvailable);
 
-    // Cleanup
+    // Cleanup - remove all listeners for these channels when component unmounts
     return () => {
-      window.electronAPI.removeAllListeners('update-available');
-      window.electronAPI.removeAllListeners('update-not-available');
+      window.electronAPI.removeAllListeners(IPC_CHANNELS.UPDATE_AVAILABLE as any);
+      window.electronAPI.removeAllListeners(IPC_CHANNELS.UPDATE_NOT_AVAILABLE as any);
     };
   }, []);
 
