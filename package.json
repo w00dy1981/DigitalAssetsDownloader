@@ -87,7 +87,19 @@
       "target": "dmg"
     },
     "win": {
-      "target": "nsis"
+      "target": {
+        "target": "nsis",
+        "arch": ["x64"]
+      },
+      "artifactName": "${productName}-Setup-${version}.${ext}",
+      "requestedExecutionLevel": "asInvoker"
+    },
+    "nsis": {
+      "oneClick": false,
+      "allowToChangeInstallationDirectory": true,
+      "createDesktopShortcut": true,
+      "createStartMenuShortcut": true,
+      "shortcutName": "Digital Asset Downloader"
     },
     "linux": {
       "target": [
