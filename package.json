@@ -1,6 +1,6 @@
 {
   "name": "digital-asset-downloader",
-  "version": "1.0.9",
+  "version": "1.0.10",
   "description": "Modern desktop application for bulk downloading and processing digital assets",
   "main": "dist/main/main.js",
   "scripts": {
