@@ -4,36 +4,68 @@ import { DownloadConfig, DownloadProgress, IPC_CHANNELS } from '@/shared/types';
 interface ProcessTabProps {
   config: DownloadConfig;
   onConfigurationChange: (config: DownloadConfig) => void;
-  isDownloading: boolean;
-  setIsDownloading: (value: boolean) => void;
-  isStartPending: boolean;
-  setIsStartPending: (value: boolean) => void;
-  isCancelPending: boolean;
-  setIsCancelPending: (value: boolean) => void;
-  progress: DownloadProgress;
-  setProgress: (value: DownloadProgress) => void;
-  logs: string[];
-  setLogs: (value: string[] | ((prev: string[]) => string[])) => void;
 }
 
-const ProcessTab: React.FC<ProcessTabProps> = ({ 
-  config, 
-  onConfigurationChange,
-  isDownloading,
-  setIsDownloading,
-  isStartPending,
-  setIsStartPending,
-  isCancelPending,
-  setIsCancelPending,
-  progress,
-  setProgress,
-  logs,
-  setLogs
-}) => {
+const ProcessTab: React.FC<ProcessTabProps> = ({ config, onConfigurationChange }) => {
+  const [isDownloading, setIsDownloading] = useState<boolean>(false);
+  const [isStartPending, setIsStartPending] = useState<boolean>(false);
+  const [isCancelPending, setIsCancelPending] = useState<boolean>(false);
+  const [progress, setProgress] = useState<DownloadProgress>({
+    currentFile: '',
+    successful: 0,
+    failed: 0,
+    total: 0,
+    percentage: 0,
+    elapsedTime: 0,
+    estimatedTimeRemaining: 0,
+    backgroundProcessed: 0
+  });
+  const [logs, setLogs] = useState<string[]>([]);
   const [workerInputValue, setWorkerInputValue] = useState<string>(config.maxWorkers.toString());
   const [startTime, setStartTime] = useState<number>(0);
 
-  // IPC listeners are now handled at App.tsx level, no need for local listeners
+  // IPC event listeners for download progress and completion
+  useEffect(() => {
+    const handleProgress = (data: DownloadProgress) => {
+      console.log('Progress update received:', data);
+      setProgress(data);
+    };
+
+    const handleComplete = (data: any) => {
+      console.log('Download complete:', data);
+      setIsDownloading(false);
+      setIsStartPending(false);
+      setIsCancelPending(false);
+      
+      if (data.error) {
+        setLogs(prev => [...prev, `Download error: ${data.error}`]);
+      } else if (data.cancelled) {
+        setLogs(prev => [...prev, `Downloads cancelled: ${data.successful || 0} successful, ${data.failed || 0} failed`]);
+      } else {
+        const messages = [
+          `Downloads complete: ${data.successful || 0} successful, ${data.failed || 0} failed`
+        ];
+        
+        if (data.backgroundProcessed > 0) {
+          messages.push(`Background processing: ${data.backgroundProcessed} images had backgrounds fixed`);
+        }
+        
+        if (data.logFile) {
+          messages.push(`Log file saved: ${data.logFile}`);
+        }
+        
+        setLogs(prev => [...prev, ...messages]);
+      }
+    };
+
+    window.electronAPI.onDownloadProgress(handleProgress);
+    window.electronAPI.onDownloadComplete(handleComplete);
+
+    return () => {
+      window.electronAPI.removeAllListeners(IPC_CHANNELS.DOWNLOAD_PROGRESS as any);
+      window.electronAPI.removeAllListeners(IPC_CHANNELS.DOWNLOAD_COMPLETE as any);
+    };
+  }, []);
 
   const handleStartDownloads = useCallback(async () => {
     // Atomic check - prevent multiple simultaneous start attempts
