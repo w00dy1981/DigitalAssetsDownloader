@@ -1,6 +1,6 @@
 {
   "name": "digital-asset-downloader",
-  "version": "1.0.7",
+  "version": "1.0.8",
   "description": "Modern desktop application for bulk downloading and processing digital assets",
   "main": "dist/main/main.js",
   "scripts": {
@@ -106,16 +106,11 @@
       "requestedExecutionLevel": "asInvoker"
     },
     "nsis": {
-      "oneClick": false,
+      "oneClick": true,
       "allowToChangeInstallationDirectory": false,
       "createDesktopShortcut": true,
       "createStartMenuShortcut": true,
-      "shortcutName": "Digital Asset Downloader",
-      "perMachine": false,
-      "deleteAppDataOnUninstall": true,
-      "runAfterFinish": false,
-      "uninstallDisplayName": "Digital Asset Downloader",
-      "menuCategory": "Productivity"
+      "runAfterFinish": false
     },
     "linux": {
       "target": [

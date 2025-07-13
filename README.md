@@ -4,7 +4,7 @@ A modern, cross-platform desktop application for bulk downloading and processing
 
 ![Digital Asset Downloader](https://img.shields.io/badge/platform-Windows%20%7C%20macOS%20%7C%20Linux-blue)
 ![License](https://img.shields.io/badge/license-MIT-green)
-![Version](https://img.shields.io/badge/version-1.0.7-orange)
+![Version](https://img.shields.io/badge/version-1.0.8-orange)
 
 ---
 
