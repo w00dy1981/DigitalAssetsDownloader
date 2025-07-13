@@ -61,6 +61,15 @@ body {
   transform: translateY(-1px);
 }
 
+/* Update notification badge - Issue #14 */
+.update-badge {
+  margin-left: 8px;
+  color: #ff6b35;
+  font-size: 0.75rem;
+  font-weight: 600;
+  text-shadow: 0 1px 2px rgba(0, 0, 0, 0.2);
+}
+
 .tab-navigation {
   display: flex;
   background: rgba(52, 73, 94, 0.95);

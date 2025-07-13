@@ -13,6 +13,8 @@ const App: React.FC = () => {
   const [activeTab, setActiveTab] = useState<number>(0);
   const [spreadsheetData, setSpreadsheetData] = useState<SpreadsheetData | null>(null);
   const [downloadConfig, setDownloadConfig] = useState<DownloadConfig | null>(null);
+  // Simple update notification state - Issue #14
+  const [hasUpdateAvailable, setHasUpdateAvailable] = useState<boolean>(false);
 
   useEffect(() => {
     // Listen for menu events
@@ -41,6 +43,27 @@ const App: React.FC = () => {
       window.electronAPI.removeAllListeners('menu-open-settings' as any);
     };
   }, [downloadConfig]);
+
+  // Update notification listeners - Issue #14
+  useEffect(() => {
+    // Listen for update events from auto-updater
+    const handleUpdateAvailable = () => {
+      setHasUpdateAvailable(true);
+    };
+
+    const handleUpdateNotAvailable = () => {
+      setHasUpdateAvailable(false);
+    };
+
+    window.electronAPI.onUpdateAvailable(handleUpdateAvailable);
+    window.electronAPI.onUpdateNotAvailable(handleUpdateNotAvailable);
+
+    return () => {
+      // Cleanup listeners on unmount
+      window.electronAPI.removeAllListeners('update-available' as any);
+      window.electronAPI.removeAllListeners('update-not-available' as any);
+    };
+  }, []);
 
   const saveConfiguration = async () => {
     if (!downloadConfig) return;
@@ -82,7 +105,10 @@ const App: React.FC = () => {
     <div className="app">
       <header className="app-header">
         <h1>Digital Asset Downloader</h1>
-        <div className="version-info">v{packageJson.version}</div>
+        <div className="version-info">
+          v{packageJson.version}
+          {hasUpdateAvailable && <span className="update-badge">Update Available</span>}
+        </div>
       </header>
       
       <nav className="tab-navigation">
