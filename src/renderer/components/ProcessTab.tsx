@@ -4,91 +4,62 @@ import { DownloadConfig, DownloadProgress, IPC_CHANNELS } from '@/shared/types';
 interface ProcessTabProps {
   config: DownloadConfig;
   onConfigurationChange: (config: DownloadConfig) => void;
+  isDownloading: boolean;
+  setIsDownloading: (value: boolean) => void;
+  isStartPending: boolean;
+  setIsStartPending: (value: boolean) => void;
+  isCancelPending: boolean;
+  setIsCancelPending: (value: boolean) => void;
+  progress: DownloadProgress;
+  setProgress: (value: DownloadProgress) => void;
+  logs: string[];
+  setLogs: (value: string[] | ((prev: string[]) => string[])) => void;
 }
 
-const ProcessTab: React.FC<ProcessTabProps> = ({ config, onConfigurationChange }) => {
-  const [isDownloading, setIsDownloading] = useState<boolean>(false);
-  const [isOperationPending, setIsOperationPending] = useState<boolean>(false);
+const ProcessTab: React.FC<ProcessTabProps> = ({ 
+  config, 
+  onConfigurationChange,
+  isDownloading,
+  setIsDownloading,
+  isStartPending,
+  setIsStartPending,
+  isCancelPending,
+  setIsCancelPending,
+  progress,
+  setProgress,
+  logs,
+  setLogs
+}) => {
   const [workerInputValue, setWorkerInputValue] = useState<string>(config.maxWorkers.toString());
-  const [progress, setProgress] = useState<DownloadProgress>({
-    currentFile: '',
-    successful: 0,
-    failed: 0,
-    total: 0,
-    percentage: 0,
-    elapsedTime: 0,
-    estimatedTimeRemaining: 0,
-    backgroundProcessed: 0
-  });
-  const [logs, setLogs] = useState<string[]>([]);
   const [startTime, setStartTime] = useState<number>(0);
 
-  useEffect(() => {
-    const handleProgress = (data: DownloadProgress) => {
-      console.log('Progress update received:', data); // Debug log
-      setProgress(data);
-    };
-
-    const handleComplete = (data: any) => {
-      console.log('Download complete:', data); // Debug log
-      setIsDownloading(false);
-      
-      if (data.error) {
-        setLogs(prev => [...prev, `Download error: ${data.error}`]);
-      } else if (data.cancelled) {
-        setLogs(prev => [...prev, `Downloads cancelled: ${data.successful || 0} successful, ${data.failed || 0} failed`]);
-      } else {
-        const messages = [
-          `Downloads complete: ${data.successful || 0} successful, ${data.failed || 0} failed`
-        ];
-        
-        if (data.backgroundProcessed > 0) {
-          messages.push(`Background processing: ${data.backgroundProcessed} images had backgrounds fixed`);
-        }
-        
-        if (data.logFile) {
-          messages.push(`Log file saved: ${data.logFile}`);
-        }
-        
-        setLogs(prev => [...prev, ...messages]);
-      }
-    };
-
-    window.electronAPI.onDownloadProgress(handleProgress);
-    window.electronAPI.onDownloadComplete(handleComplete);
-
-    return () => {
-      // Remove all listeners for these channels when component unmounts
-      window.electronAPI.removeAllListeners(IPC_CHANNELS.DOWNLOAD_PROGRESS as any);
-      window.electronAPI.removeAllListeners(IPC_CHANNELS.DOWNLOAD_COMPLETE as any);
-    };
-  }, []);
+  // IPC listeners are now handled at App.tsx level, no need for local listeners
 
   const handleStartDownloads = useCallback(async () => {
     // Atomic check - prevent multiple simultaneous start attempts
-    if (isDownloading || isOperationPending) {
+    if (isDownloading || isStartPending) {
       setLogs(prev => [...prev, 'Downloads already in progress - please wait']);
       return;
     }
 
-    setIsOperationPending(true);
+    setIsStartPending(true);
 
     // Validate configuration
     if (!config.partNoColumn) {
       setLogs(prev => [...prev, 'Error: Please select a Part Number column']);
-      setIsOperationPending(false);
+      setIsStartPending(false);
       return;
     }
 
     if (!config.imageColumns.length && !config.pdfColumn) {
       setLogs(prev => [...prev, 'Error: Please select at least one Image URL column or PDF column']);
-      setIsOperationPending(false);
+      setIsStartPending(false);
       return;
     }
 
     if (!config.imageFolder && !config.pdfFolder) {
       setLogs(prev => [...prev, 'Error: Please select download folders']);
-      setIsOperationPending(false);
+      setIsStartPending(false);
       return;
     }
 
@@ -127,32 +98,31 @@ const ProcessTab: React.FC<ProcessTabProps> = ({ config, onConfigurationChange }
       }
       setIsDownloading(false);
     } finally {
-      setIsOperationPending(false);
+      setIsStartPending(false);
     }
-  }, [config, isDownloading, isOperationPending]);
+  }, [config, isDownloading, isStartPending]);
 
   const handleCancelDownloads = useCallback(async () => {
-    if (!isDownloading || isOperationPending) {
+    if (!isDownloading || isCancelPending) {
       setLogs(prev => [...prev, 'No downloads currently running']);
       return;
     }
 
-    setIsOperationPending(true);
+    setIsCancelPending(true);
     setLogs(prev => [...prev, 'Cancelling downloads...']);
 
     try {
       await window.electronAPI.cancelDownloads();
-      setIsDownloading(false);
-      setLogs(prev => [...prev, 'Downloads cancelled by user']);
+      setLogs(prev => [...prev, 'Downloads cancellation requested']);
     } catch (error) {
       console.error('Error cancelling downloads:', error);
       const errorMessage = error instanceof Error ? error.message : 'Unknown error';
       setLogs(prev => [...prev, `Error cancelling downloads: ${errorMessage}`]);
       setIsDownloading(false);
     } finally {
-      setIsOperationPending(false);
+      setIsCancelPending(false);
     }
-  }, [isDownloading, isOperationPending]);
+  }, [isDownloading, isCancelPending]);
 
   const handleFolderSelect = useCallback(async (setter: (value: string) => void, currentValue: string) => {
     try {
@@ -434,20 +404,20 @@ const ProcessTab: React.FC<ProcessTabProps> = ({ config, onConfigurationChange }
                 type="button"
                 className="btn btn-success"
                 onClick={handleStartDownloads}
-                disabled={isDownloading || isOperationPending || !isConfigValid}
+                disabled={isDownloading || isStartPending || !isConfigValid}
                 title={!isConfigValid ? 'Please fix configuration issues before starting downloads' : ''}
               >
-                {isOperationPending ? 'Starting...' : isDownloading ? 'Downloading...' : 'Start Downloads'}
+                {isStartPending ? 'Starting...' : isDownloading ? 'Downloading...' : 'Start Downloads'}
               </button>
               
-              {isDownloading && (
+              {(isDownloading || isCancelPending) && (
                 <button
                   type="button"
                   className="btn btn-danger"
                   onClick={handleCancelDownloads}
-                  disabled={isOperationPending}
+                  disabled={isCancelPending}
                 >
-                  {isOperationPending ? 'Cancelling...' : 'Cancel Downloads'}
+                  {isCancelPending ? 'Cancelling...' : 'Cancel Downloads'}
                 </button>
               )}
             </div>

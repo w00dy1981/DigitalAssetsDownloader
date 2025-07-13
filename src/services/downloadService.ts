@@ -27,6 +27,7 @@ export class DownloadService extends EventEmitter {
   private isDownloading = false;
   private cancelled = false;
   private startTime = 0;
+  private currentAbortController: AbortController | null = null;
   private operationLock: Promise<void> | null = null;
   private pendingOperations: Array<{ type: 'start' | 'cancel'; resolve: () => void; reject: (reason?: any) => void }> = [];
   private progress: DownloadProgress = {
@@ -103,6 +104,11 @@ export class DownloadService extends EventEmitter {
    * Convert image to JPEG format with smart background processing
    */
   private async convertToJpg(imageBuffer: Buffer, quality = 95, config?: DownloadConfig): Promise<{buffer: Buffer, backgroundProcessed: boolean}> {
+    // Check for cancellation before processing
+    if (this.cancelled || this.currentAbortController?.signal.aborted) {
+      throw new Error('Image processing cancelled');
+    }
+    
     if (!sharp) {
       console.warn('Sharp not available - returning original image buffer');
       return { buffer: imageBuffer, backgroundProcessed: false };
@@ -115,6 +121,11 @@ export class DownloadService extends EventEmitter {
       const needsProcessing = backgroundProcessingEnabled && await this.needsBackgroundProcessing(imageBuffer);
       
       if (needsProcessing) {
+        // Check for cancellation before Sharp processing
+        if (this.cancelled || this.currentAbortController?.signal.aborted) {
+          throw new Error('Image processing cancelled');
+        }
+        
         // Apply white background to handle transparency
         const processedBuffer = await sharp(imageBuffer)
           .flatten({ background: { r: 255, g: 255, b: 255 } }) // White background
@@ -210,7 +221,8 @@ export class DownloadService extends EventEmitter {
     partNo?: string,
     sourceFolder?: string,
     specificFilename?: string,
-    config?: DownloadConfig
+    config?: DownloadConfig,
+    abortSignal?: AbortSignal
   ): Promise<DownloadResult> {
     // Create download result object
     const createResult = (
@@ -231,6 +243,11 @@ export class DownloadService extends EventEmitter {
       error: success ? undefined : message,
       backgroundProcessed
     });
+
+    // Check for abort signal
+    if (abortSignal?.aborted || this.cancelled) {
+      return createResult(false, 0, '', 0, 'Download cancelled');
+    }
 
     // Check source folder first (Lines 340-362)
     if (sourceFolder) {
@@ -257,6 +274,11 @@ export class DownloadService extends EventEmitter {
               console.warn(`Image processing failed for ${sourceFile}:`, error);
               // Continue with original content if processing fails
             }
+          }
+          
+          // Check for cancellation before file write
+          if (this.cancelled || this.currentAbortController?.signal.aborted) {
+            throw new Error('File write cancelled');
           }
           
           // Write processed content
@@ -365,7 +387,7 @@ export class DownloadService extends EventEmitter {
     };
 
     for (let attempt = 0; attempt < retryCount; attempt++) {
-      if (this.cancelled) {
+      if (this.cancelled || abortSignal?.aborted) {
         return createResult(false, 0, '', 0, 'Download cancelled');
       }
 
@@ -375,7 +397,8 @@ export class DownloadService extends EventEmitter {
           url,
           headers,
           timeout: 30000, // 30 second timeout
-          responseType: 'arraybuffer'
+          responseType: 'arraybuffer',
+          signal: abortSignal
         });
 
         const content = Buffer.from(response.data);
@@ -404,6 +427,11 @@ export class DownloadService extends EventEmitter {
           }
         }
 
+        // Check for cancellation before file operations
+        if (this.cancelled || this.currentAbortController?.signal.aborted) {
+          throw new Error('File write cancelled');
+        }
+        
         // Create directory and write file
         await fs.mkdir(path.dirname(filepath), { recursive: true });
         await fs.writeFile(filepath, processedContent);
@@ -601,6 +629,7 @@ export class DownloadService extends EventEmitter {
 
         this.isDownloading = true;
     this.cancelled = false;
+    this.currentAbortController = new AbortController();
     this.startTime = Date.now();
     
     // Reset progress
@@ -676,32 +705,25 @@ export class DownloadService extends EventEmitter {
     config: DownloadConfig, 
     logFile: string
   ): Promise<void> {
-    const downloadPromises: Promise<void>[] = [];
-
     for (const item of batch) {
-      if (this.cancelled) break;
+      if (this.cancelled || this.currentAbortController?.signal.aborted) break;
 
-      // Download images
+      // Download images sequentially with cancellation checks
       for (let i = 0; i < item.imageFilePaths.length; i++) {
+        if (this.cancelled || this.currentAbortController?.signal.aborted) break;
+        
         const url = item.urls[i];
         const filePath = item.imageFilePaths[i];
         const networkPath = item.networkImagePaths[i];
 
-        downloadPromises.push(
-          this.downloadSingleFile(item, url, filePath, networkPath, 'image', config, logFile)
-        );
+        await this.downloadSingleFile(item, url, filePath, networkPath, 'image', config, logFile);
       }
 
-      // Download PDF
-      if (item.pdfFilePath && item.pdfUrl) {
-        downloadPromises.push(
-          this.downloadSingleFile(item, item.pdfUrl, item.pdfFilePath, item.networkPdfPath!, 'pdf', config, logFile)
-        );
+      // Download PDF if not cancelled
+      if (!this.cancelled && !this.currentAbortController?.signal.aborted && item.pdfFilePath && item.pdfUrl) {
+        await this.downloadSingleFile(item, item.pdfUrl, item.pdfFilePath, item.networkPdfPath!, 'pdf', config, logFile);
       }
     }
-
-    // Wait for batch to complete
-    await Promise.allSettled(downloadPromises);
   }
 
   /**
@@ -729,7 +751,8 @@ export class DownloadService extends EventEmitter {
         item.partNumber,
         config.sourceImageFolder,
         item.customFilename,
-        config
+        config,
+        this.currentAbortController?.signal
       );
 
       // Update network path in result
@@ -836,23 +859,20 @@ export class DownloadService extends EventEmitter {
   }
 
   /**
-   * Cancel ongoing downloads (with atomic operation protection)
+   * Cancel ongoing downloads immediately
    */
   async cancelDownloads(): Promise<void> {
-    // If we can't get the lock immediately, queue the cancel operation
-    if (this.operationLock) {
-      return new Promise<void>((resolve, reject) => {
-        this.pendingOperations.push({ type: 'cancel', resolve, reject });
-      });
-    }
-
-    const unlock = await this.acquireOperationLock();
+    // Immediate cancellation - no waiting for locks
+    this.cancelled = true;
+    this.isDownloading = false;
     
-    try {
-      await this.executeCancelOperation();
-    } finally {
-      this.releaseOperationLock();
+    // Abort all HTTP requests immediately
+    if (this.currentAbortController) {
+      this.currentAbortController.abort();
     }
+    
+    // Emit cancelled event for UI update
+    this.emit('cancelled');
   }
 
   /**
