@@ -15,7 +15,7 @@
     "dist:mac": "npm run build && electron-builder --mac",
     "dist:win": "npm run build && electron-builder --win",
     "dist:linux": "npm run build && electron-builder --linux",
-    "publish": "npm run build && electron-builder --mac --win --linux --publish=always",
+    "publish": "npm run build && electron-builder --mac --win --publish=always",
     "publish:win": "npm run build && electron-builder --win --publish=always",
     "lint": "eslint src --ext .ts,.tsx",
     "lint:fix": "eslint src --ext .ts,.tsx --fix",

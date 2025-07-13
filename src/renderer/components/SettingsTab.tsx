@@ -180,6 +180,12 @@ const SettingsTab: React.FC<SettingsTabProps> = ({ onSettingsChange }) => {
 
   // Set up update event listeners
   useEffect(() => {
+    const handleUpdateChecking = () => {
+      // This is fired when autoUpdater.checkForUpdates() actually starts
+      setIsCheckingForUpdates(true);
+      setSaveStatus('Checking for updates...');
+    };
+
     const handleUpdateAvailable = (updateInfo: any) => {
       // Clear timeout if update check completed successfully
       if (updateCheckTimeoutId) {
@@ -202,14 +208,29 @@ const SettingsTab: React.FC<SettingsTabProps> = ({ onSettingsChange }) => {
       setTimeout(() => setSaveStatus(''), 5000);
     };
 
+    const handleUpdateError = (error: string) => {
+      // Clear timeout on error
+      if (updateCheckTimeoutId) {
+        clearTimeout(updateCheckTimeoutId);
+        setUpdateCheckTimeoutId(null);
+      }
+      setIsCheckingForUpdates(false);
+      setSaveStatus(`Update check failed: ${error}`);
+      setTimeout(() => setSaveStatus(''), 8000);
+    };
+
     // Set up listeners
+    window.electronAPI.onUpdateChecking?.(handleUpdateChecking);
     window.electronAPI.onUpdateAvailable(handleUpdateAvailable);
     window.electronAPI.onUpdateNotAvailable(handleUpdateNotAvailable);
+    window.electronAPI.onUpdateError?.(handleUpdateError);
 
     // Cleanup - remove all listeners for these channels when component unmounts
     return () => {
+      window.electronAPI.removeAllListeners?.('update-checking' as any);
       window.electronAPI.removeAllListeners(IPC_CHANNELS.UPDATE_AVAILABLE as any);
       window.electronAPI.removeAllListeners(IPC_CHANNELS.UPDATE_NOT_AVAILABLE as any);
+      window.electronAPI.removeAllListeners?.('update-error' as any);
       
       // Clear any pending timeout
       if (updateCheckTimeoutId) {
@@ -229,8 +250,9 @@ const SettingsTab: React.FC<SettingsTabProps> = ({ onSettingsChange }) => {
                          !window.electronAPI;
     
     try {
-      setIsCheckingForUpdates(true);
-      setSaveStatus('Checking for updates...');
+      // Don't set status here - let the 'update-checking' event handle it
+      // setIsCheckingForUpdates(true);
+      // setSaveStatus('Checking for updates...');
       
       // Add shorter timeout for development mode
       const timeoutDuration = isDevelopment ? 10000 : 30000; // 10s for dev, 30s for prod

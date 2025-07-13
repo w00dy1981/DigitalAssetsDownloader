@@ -45,8 +45,10 @@ declare global {
       onMenuOpenSettings: (callback: () => void) => void;
       
       // Auto-updater event listeners
+      onUpdateChecking?: (callback: () => void) => void;
       onUpdateAvailable: (callback: (updateInfo: any) => void) => void;
       onUpdateNotAvailable: (callback: (updateInfo: any) => void) => void;
+      onUpdateError?: (callback: (error: string) => void) => void;
       onUpdateDownloaded: (callback: (updateInfo: any) => void) => void;
       onUpdateDownloadProgress: (callback: (progressInfo: any) => void) => void;
       

@@ -54,11 +54,17 @@ contextBridge.exposeInMainWorld('electronAPI', {
   },
 
   // Auto-updater event listeners
+  onUpdateChecking: (callback: () => void) => {
+    ipcRenderer.on('update-checking', callback);
+  },
   onUpdateAvailable: (callback: (updateInfo: any) => void) => {
     ipcRenderer.on(IPC_CHANNELS.UPDATE_AVAILABLE, (_, updateInfo) => callback(updateInfo));
   },
   onUpdateNotAvailable: (callback: (updateInfo: any) => void) => {
     ipcRenderer.on(IPC_CHANNELS.UPDATE_NOT_AVAILABLE, (_, updateInfo) => callback(updateInfo));
+  },
+  onUpdateError: (callback: (error: string) => void) => {
+    ipcRenderer.on('update-error', (_, error) => callback(error));
   },
   onUpdateDownloaded: (callback: (updateInfo: any) => void) => {
     ipcRenderer.on(IPC_CHANNELS.UPDATE_DOWNLOADED, (_, updateInfo) => callback(updateInfo));
@@ -100,8 +106,10 @@ declare global {
       onMenuOpenFile: (callback: () => void) => void;
       onMenuSaveConfig: (callback: () => void) => void;
       onMenuOpenSettings: (callback: () => void) => void;
+      onUpdateChecking: (callback: () => void) => void;
       onUpdateAvailable: (callback: (updateInfo: any) => void) => void;
       onUpdateNotAvailable: (callback: (updateInfo: any) => void) => void;
+      onUpdateError: (callback: (error: string) => void) => void;
       onUpdateDownloaded: (callback: (updateInfo: any) => void) => void;
       onUpdateDownloadProgress: (callback: (progressInfo: any) => void) => void;
       removeAllListeners: (channel: IpcChannelType) => void;
