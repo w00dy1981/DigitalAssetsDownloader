@@ -1,5 +1,6 @@
 import { app, BrowserWindow, ipcMain, dialog, Menu, MenuItem } from 'electron';
 import { autoUpdater } from 'electron-updater';
+import log from 'electron-log';
 import * as path from 'path';
 import Store from 'electron-store';
 import { IPC_CHANNELS, WindowState, AppConfig, DownloadConfig } from '@/shared/types';
@@ -14,6 +15,20 @@ class DigitalAssetDownloaderApp {
   private currentSpreadsheetData: any[] | null = null;
 
   constructor() {
+    // Initialize electron-log as early as possible with fallback
+    try {
+      log.transports.file.level = 'info';
+      log.transports.console.level = 'warn';
+      log.initialize();
+      log.info('Application starting', {
+        version: app.getVersion(),
+        electron: process.versions.electron,
+        platform: process.platform
+      });
+    } catch (error) {
+      console.error('Failed to initialize logging:', error);
+    }
+    
     this.store = new Store<AppConfig>({
       defaults: {
         windowState: {
@@ -27,6 +42,8 @@ class DigitalAssetDownloaderApp {
     this.excelService = new ExcelService();
     this.downloadService = new DownloadService();
     this.currentSpreadsheetData = null;
+    
+    log.info('Application constructor completed successfully');
   }
 
   async createWindow(): Promise<void> {
@@ -409,56 +426,134 @@ class DigitalAssetDownloaderApp {
   }
 
   private setupAutoUpdater(): void {
+    // Configure auto-updater logging
+    log.transports.file.maxSize = 5 * 1024 * 1024; // 5MB
+    autoUpdater.logger = log;
+    log.info('Auto-updater initialized');
+
     // Configure auto-updater behavior
     autoUpdater.autoDownload = false; // Let user control download
     autoUpdater.autoInstallOnAppQuit = false; // Let user control install
+    log.info('Auto-updater configuration:', {
+      autoDownload: false,
+      autoInstallOnAppQuit: false,
+      version: app.getVersion()
+    });
 
     // Auto-updater event handlers
     autoUpdater.on('checking-for-update', () => {
-      console.log('Checking for update...');
+      log.info('Checking for updates');
       this.mainWindow?.webContents.send('update-checking');
     });
 
     autoUpdater.on('update-available', (info) => {
-      console.log('Update available:', info);
+      log.info('Update available', { version: info.version });
       this.mainWindow?.webContents.send(IPC_CHANNELS.UPDATE_AVAILABLE, info);
     });
 
     autoUpdater.on('update-not-available', (info) => {
-      console.log('Update not available:', info);
+      log.info('Update not available', { currentVersion: info.version });
       this.mainWindow?.webContents.send(IPC_CHANNELS.UPDATE_NOT_AVAILABLE, info);
     });
 
     autoUpdater.on('error', (err) => {
-      console.error('Auto-updater error:', err);
+      log.error('Auto-updater error', err);
       this.mainWindow?.webContents.send('update-error', err.message);
     });
 
     autoUpdater.on('download-progress', (progressObj) => {
+      log.info('Download progress', { percent: progressObj.percent });
       this.mainWindow?.webContents.send(IPC_CHANNELS.UPDATE_DOWNLOAD_PROGRESS, progressObj);
     });
 
     autoUpdater.on('update-downloaded', (info) => {
-      console.log('Update downloaded:', info);
+      log.info('Update downloaded', { version: info.version });
       this.mainWindow?.webContents.send(IPC_CHANNELS.UPDATE_DOWNLOADED, info);
     });
 
-    // Set up IPC handlers for auto-updater
+    // Enhanced IPC handler with comprehensive error handling and timeout
     ipcMain.handle(IPC_CHANNELS.CHECK_FOR_UPDATES, async () => {
-      try {
-        const result = await autoUpdater.checkForUpdates();
-        return result;
-      } catch (error) {
-        console.error('Check for updates error:', error);
-        throw error;
-      }
+      log.info('Manual update check requested');
+      
+      // Create a promise that resolves with all possible outcomes
+      return new Promise((resolve, reject) => {
+        let resolved = false;
+        
+        // Set up one-time listeners for this specific check
+        const cleanup = () => {
+          autoUpdater.removeAllListeners('update-available');
+          autoUpdater.removeAllListeners('update-not-available');
+          autoUpdater.removeAllListeners('error');
+        };
+        
+        const handleResponse = (type: string, data?: any) => {
+          if (!resolved) {
+            resolved = true;
+            cleanup();
+            log.info(`Update check completed with result: ${type}`, data);
+            resolve({ type, data });
+          }
+        };
+        
+        // Set up temporary event listeners for this check
+        autoUpdater.once('update-available', (info) => {
+          handleResponse('available', info);
+        });
+        
+        autoUpdater.once('update-not-available', (info) => {
+          handleResponse('not-available', info);
+        });
+        
+        autoUpdater.once('error', (err) => {
+          handleResponse('error', err.message);
+        });
+        
+        // Add timeout to catch silent failures (30 seconds)
+        const timeoutId = setTimeout(() => {
+          if (!resolved) {
+            cleanup();
+            log.error('Update check timed out after 30 seconds - this indicates a silent failure');
+            reject(new Error('Update check timed out - possible GitHub API issues or rate limiting'));
+          }
+        }, 30000);
+        
+        // Clear timeout when resolved
+        const originalResolve = resolve;
+        resolve = (value: any) => {
+          clearTimeout(timeoutId);
+          originalResolve(value);
+        };
+        
+        const originalReject = reject;
+        reject = (reason: any) => {
+          clearTimeout(timeoutId);
+          originalReject(reason);
+        };
+        
+        // Trigger the actual update check
+        autoUpdater.checkForUpdates()
+          .then((result) => {
+            if (!result && !resolved) {
+              log.warn('Update check returned null - possible rate limiting or API issue');
+              handleResponse('error', 'Update check returned null - possible rate limiting or GitHub API issue');
+            }
+          })
+          .catch((error) => {
+            log.error('Update check failed', error);
+            if (!resolved) {
+              handleResponse('error', error.message);
+            }
+          });
+      });
     });
 
     ipcMain.handle(IPC_CHANNELS.INSTALL_UPDATE, () => {
+      log.info('Install update requested');
       autoUpdater.quitAndInstall();
     });
 
     ipcMain.handle('download-update', () => {
+      log.info('Download update requested');
       return autoUpdater.downloadUpdate();
     });
 
@@ -474,13 +569,14 @@ class DigitalAssetDownloaderApp {
       if (userSettings?.updateSettings?.enableAutoUpdates && 
           userSettings?.updateSettings?.checkForUpdatesOnStartup) {
         
+        log.info('Auto-updates enabled, scheduling startup check');
         // Wait a bit for the app to fully load
         setTimeout(() => {
           autoUpdater.checkForUpdatesAndNotify();
         }, 3000);
       }
     } catch (error) {
-      console.error('Error checking startup settings:', error);
+      log.error('Error checking startup settings', error);
     }
   }
 
