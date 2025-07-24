@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { UserSettings, IPC_CHANNELS } from '@/shared/types';
+import { useStatusMessage } from '../hooks/useStatusMessage';
 
 interface SettingsTabProps {
   onSettingsChange?: (settings: UserSettings) => void;
@@ -44,7 +45,7 @@ const SettingsTab: React.FC<SettingsTabProps> = ({ onSettingsChange }) => {
   // State for all settings
   const [settings, setSettings] = useState<UserSettings>(defaultSettings);
   const [hasChanges, setHasChanges] = useState<boolean>(false);
-  const [saveStatus, setSaveStatus] = useState<string>('');
+  const [saveStatus, showSaveStatus] = useStatusMessage();
 
   // Load settings on component mount
   useEffect(() => {
@@ -91,16 +92,12 @@ const SettingsTab: React.FC<SettingsTabProps> = ({ onSettingsChange }) => {
   const saveSettings = useCallback(async () => {
     try {
       await window.electronAPI.saveSettings(settings);
-      setSaveStatus('Settings saved successfully');
+      showSaveStatus('Settings saved successfully', 2000);
       setHasChanges(false);
       onSettingsChange?.(settings);
-      
-      // Clear status after 2 seconds
-      setTimeout(() => setSaveStatus(''), 2000);
     } catch (error) {
       console.error('Error saving settings:', error);
-      setSaveStatus('Error saving settings');
-      setTimeout(() => setSaveStatus(''), 2000);
+      showSaveStatus('Error saving settings', 2000);
     }
   }, [settings, onSettingsChange]);
 
@@ -183,7 +180,7 @@ const SettingsTab: React.FC<SettingsTabProps> = ({ onSettingsChange }) => {
     const handleUpdateChecking = () => {
       // This is fired when autoUpdater.checkForUpdates() actually starts
       setIsCheckingForUpdates(true);
-      setSaveStatus('Checking for updates...');
+      showSaveStatus('Checking for updates...');
     };
 
     const handleUpdateAvailable = (updateInfo: any) => {
@@ -193,8 +190,7 @@ const SettingsTab: React.FC<SettingsTabProps> = ({ onSettingsChange }) => {
         setUpdateCheckTimeoutId(null);
       }
       setIsCheckingForUpdates(false);
-      setSaveStatus(`Update available: v${updateInfo.version}`);
-      setTimeout(() => setSaveStatus(''), 8000);
+      showSaveStatus(`Update available: v${updateInfo.version}`, 8000);
     };
 
     const handleUpdateNotAvailable = () => {
@@ -204,8 +200,7 @@ const SettingsTab: React.FC<SettingsTabProps> = ({ onSettingsChange }) => {
         setUpdateCheckTimeoutId(null);
       }
       setIsCheckingForUpdates(false);
-      setSaveStatus('You are running the latest version');
-      setTimeout(() => setSaveStatus(''), 5000);
+      showSaveStatus('You are running the latest version', 5000);
     };
 
     const handleUpdateError = (error: string) => {
@@ -215,8 +210,7 @@ const SettingsTab: React.FC<SettingsTabProps> = ({ onSettingsChange }) => {
         setUpdateCheckTimeoutId(null);
       }
       setIsCheckingForUpdates(false);
-      setSaveStatus(`Update check failed: ${error}`);
-      setTimeout(() => setSaveStatus(''), 8000);
+      showSaveStatus(`Update check failed: ${error}`, 8000);
     };
 
     // Set up listeners
@@ -262,8 +256,7 @@ const SettingsTab: React.FC<SettingsTabProps> = ({ onSettingsChange }) => {
         const message = isDevelopment 
           ? 'Update checks may not work in development mode - try again in production build'
           : 'Update check timed out - try again later';
-        setSaveStatus(message);
-        setTimeout(() => setSaveStatus(''), 8000);
+        showSaveStatus(message, 8000);
       }, timeoutDuration);
       setUpdateCheckTimeoutId(timeoutId);
       
@@ -282,8 +275,7 @@ const SettingsTab: React.FC<SettingsTabProps> = ({ onSettingsChange }) => {
       const message = isDevelopment 
         ? 'Update checks are limited in development mode - build and test in production'
         : 'Update check failed - Please try again later';
-      setSaveStatus(message);
-      setTimeout(() => setSaveStatus(''), 8000);
+      showSaveStatus(message, 8000);
     }
   }, [isCheckingForUpdates, updateCheckTimeoutId]);
 
