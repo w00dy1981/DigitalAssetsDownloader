@@ -4,6 +4,7 @@ import FileSelectionTab from './components/FileSelectionTab';
 import ColumnSelectionTab from './components/ColumnSelectionTab';
 import ProcessTab from './components/ProcessTab';
 import SettingsTab from './components/SettingsTab';
+import { useEventListeners } from './hooks/useEventListeners';
 import './App.css';
 
 // Get version from package.json
@@ -16,54 +17,38 @@ const App: React.FC = () => {
   // Simple update notification state - Issue #14
   const [hasUpdateAvailable, setHasUpdateAvailable] = useState<boolean>(false);
 
-  useEffect(() => {
-    // Listen for menu events
-    const handleMenuOpenFile = () => {
-      setActiveTab(0); // Switch to file selection tab
-    };
-
-    const handleMenuSaveConfig = () => {
-      if (downloadConfig) {
-        saveConfiguration();
-      }
-    };
-
-    const handleMenuOpenSettings = () => {
-      setActiveTab(3); // Switch to settings tab
-    };
-
-    window.electronAPI.onMenuOpenFile(handleMenuOpenFile);
-    window.electronAPI.onMenuSaveConfig(handleMenuSaveConfig);
-    window.electronAPI.onMenuOpenSettings(handleMenuOpenSettings);
-
-    return () => {
-      // Remove all listeners for these channels when component unmounts
-      window.electronAPI.removeAllListeners('menu-open-file' as any);
-      window.electronAPI.removeAllListeners('menu-save-config' as any);
-      window.electronAPI.removeAllListeners('menu-open-settings' as any);
-    };
-  }, [downloadConfig]);
-
-  // Update notification listeners - Issue #14
-  useEffect(() => {
-    // Listen for update events from auto-updater
-    const handleUpdateAvailable = () => {
-      setHasUpdateAvailable(true);
-    };
-
-    const handleUpdateNotAvailable = () => {
-      setHasUpdateAvailable(false);
-    };
-
-    window.electronAPI.onUpdateAvailable(handleUpdateAvailable);
-    window.electronAPI.onUpdateNotAvailable(handleUpdateNotAvailable);
-
-    return () => {
-      // Cleanup listeners on unmount
-      window.electronAPI.removeAllListeners('update-available' as any);
-      window.electronAPI.removeAllListeners('update-not-available' as any);
-    };
-  }, []);
+  // Event listeners using custom hook
+  useEventListeners([
+    {
+      channel: 'menu-open-file',
+      handler: () => setActiveTab(0),
+      dependencies: []
+    },
+    {
+      channel: 'menu-save-config',
+      handler: () => {
+        if (downloadConfig) {
+          saveConfiguration();
+        }
+      },
+      dependencies: [downloadConfig]
+    },
+    {
+      channel: 'menu-open-settings',
+      handler: () => setActiveTab(3),
+      dependencies: []
+    },
+    {
+      channel: 'update-available',
+      handler: () => setHasUpdateAvailable(true),
+      dependencies: []
+    },
+    {
+      channel: 'update-not-available',
+      handler: () => setHasUpdateAvailable(false),
+      dependencies: []
+    }
+  ]);
 
   const saveConfiguration = async () => {
     if (!downloadConfig) return;
