@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { UserSettings, IPC_CHANNELS } from '@/shared/types';
 import { useStatusMessage } from '../hooks/useStatusMessage';
+import { NumberInput, StatusMessage } from './ui';
 
 interface SettingsTabProps {
   onSettingsChange?: (settings: UserSettings) => void;
@@ -549,18 +550,13 @@ const SettingsTab: React.FC<SettingsTabProps> = ({ onSettingsChange }) => {
             
             <div className="form-group">
               <label htmlFor="concurrent-downloads">Concurrent Downloads</label>
-              <div className="number-input-group">
-                <input
-                  id="concurrent-downloads"
-                  type="number"
-                  min="1"
-                  max="20"
-                  value={settings.downloadBehavior.defaultConcurrentDownloads}
-                  onChange={(e) => updateSetting('downloadBehavior.defaultConcurrentDownloads', parseInt(e.target.value))}
-                  className="form-control number-input"
-                />
-                <span className="input-suffix">workers</span>
-              </div>
+              <NumberInput
+                value={settings.downloadBehavior.defaultConcurrentDownloads}
+                onChange={(value) => updateSetting('downloadBehavior.defaultConcurrentDownloads', value)}
+                min={1}
+                max={20}
+                suffix="workers"
+              />
               <small className="text-muted">
                 Number of simultaneous downloads (1-20)
               </small>
@@ -568,50 +564,35 @@ const SettingsTab: React.FC<SettingsTabProps> = ({ onSettingsChange }) => {
 
             <div className="form-group">
               <label htmlFor="connection-timeout">Connection Timeout</label>
-              <div className="number-input-group">
-                <input
-                  id="connection-timeout"
-                  type="number"
-                  min="1"
-                  max="60"
-                  value={settings.downloadBehavior.connectionTimeout}
-                  onChange={(e) => updateSetting('downloadBehavior.connectionTimeout', parseInt(e.target.value))}
-                  className="form-control number-input"
-                />
-                <span className="input-suffix">seconds</span>
-              </div>
+              <NumberInput
+                value={settings.downloadBehavior.connectionTimeout}
+                onChange={(value) => updateSetting('downloadBehavior.connectionTimeout', value)}
+                min={1}
+                max={60}
+                suffix="seconds"
+              />
             </div>
 
             <div className="form-group">
               <label htmlFor="read-timeout">Read Timeout</label>
-              <div className="number-input-group">
-                <input
-                  id="read-timeout"
-                  type="number"
-                  min="10"
-                  max="300"
-                  value={settings.downloadBehavior.readTimeout}
-                  onChange={(e) => updateSetting('downloadBehavior.readTimeout', parseInt(e.target.value))}
-                  className="form-control number-input"
-                />
-                <span className="input-suffix">seconds</span>
-              </div>
+              <NumberInput
+                value={settings.downloadBehavior.readTimeout}
+                onChange={(value) => updateSetting('downloadBehavior.readTimeout', value)}
+                min={10}
+                max={300}
+                suffix="seconds"
+              />
             </div>
 
             <div className="form-group">
               <label htmlFor="retry-attempts">Retry Attempts</label>
-              <div className="number-input-group">
-                <input
-                  id="retry-attempts"
-                  type="number"
-                  min="1"
-                  max="10"
-                  value={settings.downloadBehavior.retryAttempts}
-                  onChange={(e) => updateSetting('downloadBehavior.retryAttempts', parseInt(e.target.value))}
-                  className="form-control number-input"
-                />
-                <span className="input-suffix">attempts</span>
-              </div>
+              <NumberInput
+                value={settings.downloadBehavior.retryAttempts}
+                onChange={(value) => updateSetting('downloadBehavior.retryAttempts', value)}
+                min={1}
+                max={10}
+                suffix="attempts"
+              />
             </div>
           </div>
 
