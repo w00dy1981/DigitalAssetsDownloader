@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { DownloadConfig, DownloadProgress, IPC_CHANNELS } from '@/shared/types';
+import { NumberInput, Select } from './ui';
 
 interface ProcessTabProps {
   config: DownloadConfig;
@@ -21,7 +22,6 @@ const ProcessTab: React.FC<ProcessTabProps> = ({ config, onConfigurationChange }
     backgroundProcessed: 0
   });
   const [logs, setLogs] = useState<string[]>([]);
-  const [workerInputValue, setWorkerInputValue] = useState<string>(config.maxWorkers.toString());
   const [startTime, setStartTime] = useState<number>(0);
 
   // IPC event listeners for download progress and completion
@@ -175,10 +175,6 @@ const ProcessTab: React.FC<ProcessTabProps> = ({ config, onConfigurationChange }
     onConfigurationChange({ ...config, ...updates });
   }, [config, onConfigurationChange]);
 
-  // Sync worker input value when config changes
-  useEffect(() => {
-    setWorkerInputValue(config.maxWorkers.toString());
-  }, [config.maxWorkers]);
 
   // Initialize default ERP paths when component mounts (only if empty)
   useEffect(() => {
@@ -315,41 +311,11 @@ const ProcessTab: React.FC<ProcessTabProps> = ({ config, onConfigurationChange }
               {/* Concurrent Downloads */}
               <div className="form-group">
                 <label htmlFor="workers-quick">Concurrent Downloads</label>
-                <input
-                  id="workers-quick"
-                  type="number"
-                  min="1"
-                  max="20"
-                  value={workerInputValue}
-                  onChange={(e) => {
-                    const value = e.target.value;
-                    setWorkerInputValue(value);
-                    
-                    // Only update config if it's a valid number
-                    if (value !== '') {
-                      const numValue = parseInt(value);
-                      if (!isNaN(numValue) && numValue >= 1 && numValue <= 20) {
-                        updateConfig({ maxWorkers: numValue });
-                      }
-                    }
-                  }}
-                  onBlur={(e) => {
-                    const value = e.target.value;
-                    if (value === '' || isNaN(parseInt(value))) {
-                      // Reset to current config value if invalid
-                      setWorkerInputValue(config.maxWorkers.toString());
-                    } else {
-                      const numValue = parseInt(value);
-                      if (numValue < 1) {
-                        setWorkerInputValue('1');
-                        updateConfig({ maxWorkers: 1 });
-                      } else if (numValue > 20) {
-                        setWorkerInputValue('20');
-                        updateConfig({ maxWorkers: 20 });
-                      }
-                    }
-                  }}
-                  className="form-control number-input"
+                <NumberInput
+                  value={config.maxWorkers}
+                  onChange={(value) => updateConfig({ maxWorkers: value })}
+                  min={1}
+                  max={20}
                   style={{ maxWidth: '120px' }}
                 />
                 <small className="form-text">Number of simultaneous downloads (1-20)</small>
@@ -407,19 +373,17 @@ const ProcessTab: React.FC<ProcessTabProps> = ({ config, onConfigurationChange }
                     
                     <div className="form-group">
                       <label htmlFor="quality">JPEG Quality (%)</label>
-                      <input
-                        id="quality"
-                        type="number"
-                        min="60"
-                        max="100"
+                      <NumberInput
                         value={config.backgroundProcessing.quality}
-                        onChange={(e) => updateConfig({ 
+                        onChange={(value) => updateConfig({ 
                           backgroundProcessing: { 
                             ...config.backgroundProcessing, 
-                            quality: parseInt(e.target.value) || 95 
+                            quality: value 
                           } 
                         })}
-                        className="form-control number-input"
+                        min={60}
+                        max={100}
+                        suffix="%"
                         style={{ maxWidth: '120px' }}
                       />
                     </div>
