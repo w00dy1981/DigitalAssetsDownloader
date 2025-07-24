@@ -1,5 +1,6 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import { SpreadsheetData, DownloadConfig } from '@/shared/types';
+import { Select, FolderSelector } from './ui';
 
 interface ColumnSelectionTabProps {
   data: SpreadsheetData;
@@ -29,6 +30,12 @@ const ColumnSelectionTab: React.FC<ColumnSelectionTabProps> = ({
   const [backgroundMethod, setBackgroundMethod] = useState<'smart_detect' | 'ai_removal' | 'color_replace' | 'edge_detection'>('smart_detect');
   const [quality, setQuality] = useState<number>(95);
   const [edgeThreshold, setEdgeThreshold] = useState<number>(30);
+
+  // Memoized column options for Select components
+  const columnOptions = useMemo(() => 
+    data.columns.map(column => ({ value: column, label: column })),
+    [data.columns]
+  );
 
   // Load saved settings on component mount
   useEffect(() => {
@@ -80,20 +87,6 @@ const ColumnSelectionTab: React.FC<ColumnSelectionTabProps> = ({
     }
   }, [initialConfig, imageFilePath, pdfFilePath]);
 
-  const handleFolderSelect = useCallback(async (setter: (value: string) => void) => {
-    try {
-      const result = await window.electronAPI.openFolderDialog({
-        title: 'Select Folder'
-      });
-      
-      if (!result.canceled && result.filePaths.length > 0) {
-        setter(result.filePaths[0]);
-      }
-    } catch (err) {
-      setError('Failed to open folder dialog.');
-      console.error('Error opening folder dialog:', err);
-    }
-  }, []);
 
   // Save settings whenever network paths change
   const saveNetworkPathSettings = useCallback(async () => {
@@ -206,37 +199,23 @@ const ColumnSelectionTab: React.FC<ColumnSelectionTabProps> = ({
           {/* Part Number Column (Required) */}
           <div className="form-group">
             <label htmlFor="part-column">Part Number Column *</label>
-            <select
-              id="part-column"
+            <Select
               value={partNoColumn}
-              onChange={(e) => setPartNoColumn(e.target.value)}
-              className="form-control"
-            >
-              <option value="">Choose a column...</option>
-              {data.columns.map(column => (
-                <option key={column} value={column}>
-                  {column}
-                </option>
-              ))}
-            </select>
+              onChange={setPartNoColumn}
+              options={columnOptions}
+              placeholder="Choose a column..."
+            />
           </div>
           
           {/* Image URL Columns */}
           <div className="form-group">
             <label htmlFor="image-column">Image URL Column</label>
-            <select
-              id="image-column"
+            <Select
               value={imageColumns[0] || ''}
-              onChange={(e) => setImageColumns(e.target.value ? [e.target.value] : [])}
-              className="form-control"
-            >
-              <option value="">Choose a column...</option>
-              {data.columns.map(column => (
-                <option key={column} value={column}>
-                  {column}
-                </option>
-              ))}
-            </select>
+              onChange={(value) => setImageColumns(value ? [value] : [])}
+              options={columnOptions}
+              placeholder="Choose a column..."
+            />
             <small className="text-muted">
               Select the column containing image URLs
             </small>
@@ -245,37 +224,23 @@ const ColumnSelectionTab: React.FC<ColumnSelectionTabProps> = ({
           {/* PDF Column */}
           <div className="form-group">
             <label htmlFor="pdf-column">PDF URL Column</label>
-            <select
-              id="pdf-column"
+            <Select
               value={pdfColumn}
-              onChange={(e) => setPdfColumn(e.target.value)}
-              className="form-control"
-            >
-              <option value="">Choose a column...</option>
-              {data.columns.map(column => (
-                <option key={column} value={column}>
-                  {column}
-                </option>
-              ))}
-            </select>
+              onChange={setPdfColumn}
+              options={columnOptions}
+              placeholder="Choose a column..."
+            />
           </div>
           
           {/* Filename Column */}
           <div className="form-group">
             <label htmlFor="filename-column">Custom Filename Column (Optional)</label>
-            <select
-              id="filename-column"
+            <Select
               value={filenameColumn}
-              onChange={(e) => setFilenameColumn(e.target.value)}
-              className="form-control"
-            >
-              <option value="">Choose a column...</option>
-              {data.columns.map(column => (
-                <option key={column} value={column}>
-                  {column}
-                </option>
-              ))}
-            </select>
+              onChange={setFilenameColumn}
+              options={columnOptions}
+              placeholder="Choose a column..."
+            />
             <small className="text-muted">
               Used for filename matching when searching source folders
             </small>
@@ -289,67 +254,34 @@ const ColumnSelectionTab: React.FC<ColumnSelectionTabProps> = ({
           {/* Image Download Folder */}
           <div className="form-group">
             <label htmlFor="image-folder">Image Download Folder</label>
-            <div className="folder-input-group">
-              <input
-                id="image-folder"
-                type="text"
-                value={imageFolder}
-                onChange={(e) => setImageFolder(e.target.value)}
-                placeholder="Select folder for downloaded images"
-                className="form-control"
-              />
-              <button
-                type="button"
-                className="btn btn-secondary"
-                onClick={() => handleFolderSelect(setImageFolder)}
-              >
-                Browse
-              </button>
-            </div>
+            <FolderSelector
+              value={imageFolder}
+              onChange={setImageFolder}
+              placeholder="Select folder for downloaded images"
+              onError={(error) => setError(error)}
+            />
           </div>
           
           {/* PDF Download Folder */}
           <div className="form-group">
             <label htmlFor="pdf-folder">PDF Download Folder</label>
-            <div className="folder-input-group">
-              <input
-                id="pdf-folder"
-                type="text"
-                value={pdfFolder}
-                onChange={(e) => setPdfFolder(e.target.value)}
-                placeholder="Select folder for downloaded PDFs"
-                className="form-control"
-              />
-              <button
-                type="button"
-                className="btn btn-secondary"
-                onClick={() => handleFolderSelect(setPdfFolder)}
-              >
-                Browse
-              </button>
-            </div>
+            <FolderSelector
+              value={pdfFolder}
+              onChange={setPdfFolder}
+              placeholder="Select folder for downloaded PDFs"
+              onError={(error) => setError(error)}
+            />
           </div>
           
           {/* Source Image Folder */}
           <div className="form-group">
             <label htmlFor="source-folder">Source Image Folder (Optional)</label>
-            <div className="folder-input-group">
-              <input
-                id="source-folder"
-                type="text"
-                value={sourceImageFolder}
-                onChange={(e) => setSourceImageFolder(e.target.value)}
-                placeholder="Folder to search for existing images"
-                className="form-control"
-              />
-              <button
-                type="button"
-                className="btn btn-secondary"
-                onClick={() => handleFolderSelect(setSourceImageFolder)}
-              >
-                Browse
-              </button>
-            </div>
+            <FolderSelector
+              value={sourceImageFolder}
+              onChange={setSourceImageFolder}
+              placeholder="Folder to search for existing images"
+              onError={(error) => setError(error)}
+            />
             <small className="text-muted">
               If specified, the system will search this folder for images matching part numbers
             </small>
@@ -358,23 +290,12 @@ const ColumnSelectionTab: React.FC<ColumnSelectionTabProps> = ({
           {/* Network Path Configuration */}
           <div className="form-group">
             <label htmlFor="image-network-path">Image Network Path (for CSV logging)</label>
-            <div className="folder-input-group">
-              <input
-                id="image-network-path"
-                type="text"
-                value={imageFilePath}
-                onChange={(e) => setImageFilePath(e.target.value)}
-                placeholder="Network path for image files in CSV log (e.g., \\server\images\)"
-                className="form-control"
-              />
-              <button
-                type="button"
-                className="btn btn-secondary"
-                onClick={() => handleFolderSelect(setImageFilePath)}
-              >
-                Browse
-              </button>
-            </div>
+            <FolderSelector
+              value={imageFilePath}
+              onChange={setImageFilePath}
+              placeholder="Network path for image files in CSV log (e.g., \\server\images\)"
+              onError={(error) => setError(error)}
+            />
             <small className="text-muted">
               Network path that will be logged in CSV reports (separate from local download path)
             </small>
@@ -382,23 +303,12 @@ const ColumnSelectionTab: React.FC<ColumnSelectionTabProps> = ({
           
           <div className="form-group">
             <label htmlFor="pdf-network-path">PDF Network Path (for CSV logging)</label>
-            <div className="folder-input-group">
-              <input
-                id="pdf-network-path"
-                type="text"
-                value={pdfFilePath}
-                onChange={(e) => setPdfFilePath(e.target.value)}
-                placeholder="Network path for PDF files in CSV log (e.g., \\server\pdfs\)"
-                className="form-control"
-              />
-              <button
-                type="button"
-                className="btn btn-secondary"
-                onClick={() => handleFolderSelect(setPdfFilePath)}
-              >
-                Browse
-              </button>
-            </div>
+            <FolderSelector
+              value={pdfFilePath}
+              onChange={setPdfFilePath}
+              placeholder="Network path for PDF files in CSV log (e.g., \\server\pdfs\)"
+              onError={(error) => setError(error)}
+            />
             <small className="text-muted">
               Network path that will be logged in CSV reports (separate from local download path)
             </small>
