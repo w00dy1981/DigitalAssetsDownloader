@@ -170,7 +170,7 @@ const ProcessTab: React.FC<ProcessTabProps> = ({
     setLogs(['Starting downloads...']);
 
     try {
-      await window.electronAPI.startDownloads(config);
+      const result = await window.electronAPI.startDownloads(config);
       if (result.success) {
         logger.info('ProcessTab: Download startup successful', 'ProcessTab', {
           message: result.message,
