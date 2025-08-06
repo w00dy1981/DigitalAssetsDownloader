@@ -1,9 +1,28 @@
 const path = require('path');
 const HtmlWebpackPlugin = require('html-webpack-plugin');
+const webpack = require('webpack');
+const packageJson = require('./package.json');
 
 module.exports = {
   target: 'electron-renderer',
   entry: './src/renderer/index.tsx',
+  externals: {
+    // Exclude Node.js built-ins from renderer bundle
+    'fs': 'commonjs fs',
+    'fs/promises': 'commonjs fs/promises',
+    'path': 'commonjs path',
+    'os': 'commonjs os',
+    'crypto': 'commonjs crypto',
+    'stream': 'commonjs stream',
+    'events': 'commonjs events',
+    'util': 'commonjs util',
+    'url': 'commonjs url',
+    'querystring': 'commonjs querystring',
+    'child_process': 'commonjs child_process',
+    // Exclude native modules
+    'electron': 'commonjs electron',
+    'sharp': 'commonjs sharp',
+  },
   module: {
     rules: [
       {
@@ -42,6 +61,9 @@ module.exports = {
   plugins: [
     new HtmlWebpackPlugin({
       template: './src/renderer/index.html',
+    }),
+    new webpack.DefinePlugin({
+      'process.env.APP_VERSION': JSON.stringify(packageJson.version),
     }),
   ],
   devServer: {

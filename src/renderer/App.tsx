@@ -1,73 +1,62 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState } from 'react';
 import { SpreadsheetData, DownloadConfig } from '@/shared/types';
 import FileSelectionTab from './components/FileSelectionTab';
 import ColumnSelectionTab from './components/ColumnSelectionTab';
 import ProcessTab from './components/ProcessTab';
 import SettingsTab from './components/SettingsTab';
+import { useEventListeners } from './hooks/useEventListeners';
 import './App.css';
 
-// Get version from package.json
-const packageJson = require('../../package.json');
+// Version injected by webpack at build time (KISS - single source of truth)
+const APP_VERSION = process.env.APP_VERSION || 'development';
 
 const App: React.FC = () => {
+  console.log('[App] Component initializing');
   const [activeTab, setActiveTab] = useState<number>(0);
-  const [spreadsheetData, setSpreadsheetData] = useState<SpreadsheetData | null>(null);
-  const [downloadConfig, setDownloadConfig] = useState<DownloadConfig | null>(null);
+  const [spreadsheetData, setSpreadsheetData] =
+    useState<SpreadsheetData | null>(null);
+  const [downloadConfig, setDownloadConfig] = useState<DownloadConfig | null>(
+    null
+  );
   // Simple update notification state - Issue #14
   const [hasUpdateAvailable, setHasUpdateAvailable] = useState<boolean>(false);
 
-  useEffect(() => {
-    // Listen for menu events
-    const handleMenuOpenFile = () => {
-      setActiveTab(0); // Switch to file selection tab
-    };
-
-    const handleMenuSaveConfig = () => {
-      if (downloadConfig) {
-        saveConfiguration();
-      }
-    };
-
-    const handleMenuOpenSettings = () => {
-      setActiveTab(3); // Switch to settings tab
-    };
-
-    window.electronAPI.onMenuOpenFile(handleMenuOpenFile);
-    window.electronAPI.onMenuSaveConfig(handleMenuSaveConfig);
-    window.electronAPI.onMenuOpenSettings(handleMenuOpenSettings);
-
-    return () => {
-      // Remove all listeners for these channels when component unmounts
-      window.electronAPI.removeAllListeners('menu-open-file' as any);
-      window.electronAPI.removeAllListeners('menu-save-config' as any);
-      window.electronAPI.removeAllListeners('menu-open-settings' as any);
-    };
-  }, [downloadConfig]);
-
-  // Update notification listeners - Issue #14
-  useEffect(() => {
-    // Listen for update events from auto-updater
-    const handleUpdateAvailable = () => {
-      setHasUpdateAvailable(true);
-    };
-
-    const handleUpdateNotAvailable = () => {
-      setHasUpdateAvailable(false);
-    };
-
-    window.electronAPI.onUpdateAvailable(handleUpdateAvailable);
-    window.electronAPI.onUpdateNotAvailable(handleUpdateNotAvailable);
-
-    return () => {
-      // Cleanup listeners on unmount
-      window.electronAPI.removeAllListeners('update-available' as any);
-      window.electronAPI.removeAllListeners('update-not-available' as any);
-    };
-  }, []);
+  // Event listeners using custom hook
+  useEventListeners([
+    {
+      channel: 'menu-open-file',
+      handler: () => setActiveTab(0),
+      dependencies: [],
+    },
+    {
+      channel: 'menu-save-config',
+      handler: () => {
+        if (downloadConfig) {
+          saveConfiguration();
+        }
+      },
+      dependencies: [downloadConfig],
+    },
+    {
+      channel: 'menu-open-settings',
+      handler: () => setActiveTab(3),
+      dependencies: [],
+    },
+    {
+      channel: 'update-available',
+      handler: () => setHasUpdateAvailable(true),
+      dependencies: [],
+    },
+    {
+      channel: 'update-not-available',
+      handler: () => setHasUpdateAvailable(false),
+      dependencies: [],
+    },
+  ]);
 
   const saveConfiguration = async () => {
     if (!downloadConfig) return;
-    
+
     try {
       await window.electronAPI.saveConfig(downloadConfig);
       alert('Configuration saved successfully!');
@@ -106,33 +95,35 @@ const App: React.FC = () => {
       <header className="app-header">
         <h1>Digital Asset Downloader</h1>
         <div className="version-info">
-          v{packageJson.version}
-          {hasUpdateAvailable && <span className="update-badge">Update Available</span>}
+          v{APP_VERSION}
+          {hasUpdateAvailable && (
+            <span className="update-badge">Update Available</span>
+          )}
         </div>
       </header>
-      
+
       <nav className="tab-navigation">
-        <button 
+        <button
           className={`tab-button ${activeTab === 0 ? 'active' : ''}`}
           onClick={() => handleTabChange(0)}
         >
           1. File Selection
         </button>
-        <button 
+        <button
           className={`tab-button ${activeTab === 1 ? 'active' : ''}`}
           onClick={() => handleTabChange(1)}
           disabled={!spreadsheetData}
         >
           2. Column Selection
         </button>
-        <button 
+        <button
           className={`tab-button ${activeTab === 2 ? 'active' : ''}`}
           onClick={() => handleTabChange(2)}
           disabled={!downloadConfig}
         >
           3. Process & Download
         </button>
-        <button 
+        <button
           className={`tab-button ${activeTab === 3 ? 'active' : ''}`}
           onClick={() => handleTabChange(3)}
         >
@@ -142,27 +133,25 @@ const App: React.FC = () => {
 
       <main className="tab-content">
         {activeTab === 0 && (
-          <FileSelectionTab 
+          <FileSelectionTab
             onDataLoaded={handleDataLoaded}
             currentData={spreadsheetData}
           />
         )}
         {activeTab === 1 && spreadsheetData && (
-          <ColumnSelectionTab 
+          <ColumnSelectionTab
             data={spreadsheetData}
             onConfigurationComplete={handleConfigurationComplete}
             initialConfig={downloadConfig}
           />
         )}
         {activeTab === 2 && downloadConfig && (
-          <ProcessTab 
+          <ProcessTab
             config={downloadConfig}
             onConfigurationChange={setDownloadConfig}
           />
         )}
-        {activeTab === 3 && (
-          <SettingsTab />
-        )}
+        {activeTab === 3 && <SettingsTab />}
       </main>
     </div>
   );
