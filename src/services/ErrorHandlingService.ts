@@ -11,9 +11,12 @@ import { LoggingService, logger } from './LoggingService';
 
 // Browser-safe error class (avoiding pathSecurity import)
 export class PathSecurityError extends Error {
-  constructor(message: string) {
+  public readonly attemptedPath: string;
+  
+  constructor(message: string, attemptedPath: string = '') {
     super(message);
     this.name = 'PathSecurityError';
+    this.attemptedPath = attemptedPath;
   }
 }
 
