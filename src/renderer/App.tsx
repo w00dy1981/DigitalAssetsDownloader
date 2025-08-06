@@ -7,10 +7,11 @@ import SettingsTab from './components/SettingsTab';
 import { useEventListeners } from './hooks/useEventListeners';
 import './App.css';
 
-// Get version from package.json
-const packageJson = require('../../package.json');
+// Version injected by webpack at build time (KISS - single source of truth)
+const APP_VERSION = process.env.APP_VERSION || 'development';
 
 const App: React.FC = () => {
+  console.log('[App] Component initializing');
   const [activeTab, setActiveTab] = useState<number>(0);
   const [spreadsheetData, setSpreadsheetData] = useState<SpreadsheetData | null>(null);
   const [downloadConfig, setDownloadConfig] = useState<DownloadConfig | null>(null);
@@ -91,7 +92,7 @@ const App: React.FC = () => {
       <header className="app-header">
         <h1>Digital Asset Downloader</h1>
         <div className="version-info">
-          v{packageJson.version}
+          v{APP_VERSION}
           {hasUpdateAvailable && <span className="update-badge">Update Available</span>}
         </div>
       </header>

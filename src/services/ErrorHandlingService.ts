@@ -8,7 +8,14 @@
  */
 
 import { LoggingService, logger } from './LoggingService';
-import { PathSecurityError } from './pathSecurity';
+
+// Browser-safe error class (avoiding pathSecurity import)
+export class PathSecurityError extends Error {
+  constructor(message: string) {
+    super(message);
+    this.name = 'PathSecurityError';
+  }
+}
 
 // Base error types found in the codebase
 export abstract class BaseApplicationError extends Error {

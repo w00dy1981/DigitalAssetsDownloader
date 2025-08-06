@@ -1,7 +1,6 @@
 import React, { useCallback } from 'react';
 import { SpreadsheetData } from '@/shared/types';
 import { Select } from '@/renderer/components/ui';
-import { ValidationService } from '@/services/ValidationService';
 
 interface ColumnMappingPanelProps {
   data: SpreadsheetData;
@@ -30,7 +29,7 @@ const ColumnMappingPanel: React.FC<ColumnMappingPanelProps> = ({
   columnOptions,
   onValidationError
 }) => {
-  // Validate URL values in selected column
+  // Simple browser-safe URL validation
   const validateColumnUrls = useCallback((columnName: string): boolean => {
     if (!columnName || !data.rows.length) return true;
     
@@ -45,9 +44,16 @@ const ColumnMappingPanel: React.FC<ColumnMappingPanelProps> = ({
       .slice(0, 5); // Only validate first 5 URLs for performance
     
     for (const url of sampleUrls) {
-      const result = ValidationService.validateUrl(url as string, 'URL');
-      if (!result.isValid) {
-        onValidationError?.(`Selected column contains invalid URLs. Example: "${url}" - ${result.errors[0]}`);
+      // Simple browser-safe URL validation using native URL constructor
+      try {
+        const urlObj = new URL(url as string);
+        // Check for valid protocols
+        if (!['http:', 'https:', 'ftp:', 'ftps:'].includes(urlObj.protocol)) {
+          onValidationError?.(`Selected column contains invalid URLs. Example: "${url}" - Invalid protocol`);
+          return false;
+        }
+      } catch (error) {
+        onValidationError?.(`Selected column contains invalid URLs. Example: "${url}" - Invalid URL format`);
         return false;
       }
     }

@@ -7,6 +7,19 @@ import { IPC_CHANNELS, WindowState, AppConfig, DownloadConfig } from '@/shared/t
 import { ExcelService } from '@/services/excelService';
 import { DownloadService } from '@/services/downloadService';
 
+// Global error handlers to catch crashes
+process.on('uncaughtException', (error) => {
+  console.error('Uncaught Exception:', error);
+  log.error('Uncaught Exception:', error);
+  // Don't exit, try to recover
+});
+
+process.on('unhandledRejection', (reason, promise) => {
+  console.error('Unhandled Rejection at:', promise, 'reason:', reason);
+  log.error('Unhandled Rejection:', reason);
+  // Don't exit, try to recover
+});
+
 class DigitalAssetDownloaderApp {
   private mainWindow: BrowserWindow | null = null;
   private store: Store<AppConfig>;
@@ -47,6 +60,7 @@ class DigitalAssetDownloaderApp {
   }
 
   async createWindow(): Promise<void> {
+    log.info('[Main] Creating application window');
     const windowState = this.store.get('windowState');
 
     // Create the browser window with saved bounds
@@ -76,7 +90,7 @@ class DigitalAssetDownloaderApp {
     const isDev = process.env.NODE_ENV === 'development';
     if (isDev) {
       await this.mainWindow.loadFile(path.join(__dirname, '../renderer/index.html'));
-      // this.mainWindow.webContents.openDevTools(); // Uncomment to open DevTools
+      this.mainWindow.webContents.openDevTools(); // Enable DevTools for debugging
     } else {
       await this.mainWindow.loadFile(path.join(__dirname, '../renderer/index.html'));
     }
@@ -582,8 +596,9 @@ class DigitalAssetDownloaderApp {
 
   async initialize(): Promise<void> {
     await app.whenReady();
-    await this.createWindow();
+    // Setup IPC handlers BEFORE creating window to avoid race conditions
     this.setupIpcHandlers();
+    await this.createWindow();
     this.setupAutoUpdater();
 
     app.on('activate', async () => {

@@ -1,6 +1,5 @@
 import React, { useCallback } from 'react';
 import { FolderSelector } from '@/renderer/components/ui';
-import { ValidationService } from '@/services/ValidationService';
 
 interface FolderConfigurationPanelProps {
   imageFolder: string;
@@ -21,7 +20,7 @@ const FolderConfigurationPanel: React.FC<FolderConfigurationPanelProps> = ({
   onSourceImageFolderChange,
   onError
 }) => {
-  // Validate folder path for download folders
+  // Simple browser-safe folder path validation
   const validateFolderPath = useCallback((path: string, isRequired: boolean = true): boolean => {
     if (!path || path.trim() === '') {
       if (isRequired) {
@@ -31,9 +30,15 @@ const FolderConfigurationPanel: React.FC<FolderConfigurationPanelProps> = ({
       return true; // Allow empty paths for optional folders
     }
     
-    const pathResult = ValidationService.validateFolderPath(path, 'Folder Path', { required: isRequired });
-    if (!pathResult.isValid) {
-      onError(pathResult.errors[0]);
+    // Basic browser-safe validation (no file system access)
+    if (path.trim().length === 0) {
+      onError('Folder path cannot be empty');
+      return false;
+    }
+    
+    // Check for obviously invalid characters (basic validation)
+    if (path.includes('\0') || path.length > 260) {
+      onError('Invalid folder path format');
       return false;
     }
     

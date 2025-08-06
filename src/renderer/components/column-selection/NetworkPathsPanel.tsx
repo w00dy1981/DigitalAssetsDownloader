@@ -1,6 +1,5 @@
 import React, { useCallback } from 'react';
 import { FolderSelector } from '@/renderer/components/ui';
-import { ValidationService } from '@/services/ValidationService';
 
 interface NetworkPathsPanelProps {
   imageFilePath: string;
@@ -17,18 +16,18 @@ const NetworkPathsPanel: React.FC<NetworkPathsPanelProps> = ({
   onPdfFilePathChange,
   onError
 }) => {
-  // Validate UNC path format for network paths
+  // Simple browser-safe network path validation
   const validateNetworkPath = useCallback((path: string): boolean => {
     if (!path || path.trim() === '') return true; // Allow empty paths
     
-    const pathResult = ValidationService.validateFolderPath(path, 'Network Path', { required: false });
-    if (!pathResult.isValid) {
-      onError(pathResult.errors[0]);
+    // Basic browser-safe validation
+    const trimmedPath = path.trim();
+    if (trimmedPath.includes('\0') || trimmedPath.length > 260) {
+      onError('Invalid network path format');
       return false;
     }
     
-    // Additional UNC path validation
-    const trimmedPath = path.trim();
+    // UNC path validation (Windows network paths)
     if (trimmedPath.length > 0 && !trimmedPath.startsWith('\\\\')) {
       onError('Network paths should use UNC format (\\\\server\\share) for network accessibility');
       return false;

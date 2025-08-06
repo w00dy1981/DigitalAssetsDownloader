@@ -18,11 +18,24 @@ export class ExcelService {
    */
   async getSheetNames(filePath: string): Promise<string[]> {
     try {
+      logger.info(`[ExcelService] Getting sheet names for: ${filePath}`);
+      
       // Sanitize the file path to prevent path traversal
       const safeFilePath = sanitizePath(filePath);
+      logger.info(`[ExcelService] Sanitized path: ${safeFilePath}`);
       
-      // Validate file access
-      if (!(await validateFileAccess(safeFilePath))) {
+      // Validate file access with timeout
+      const validateWithTimeout = async (timeout: number = 5000) => {
+        return Promise.race([
+          validateFileAccess(safeFilePath),
+          new Promise<boolean>((_, reject) => 
+            setTimeout(() => reject(new Error('Network or file system timeout - please check the file location and try again')), timeout)
+          )
+        ]);
+      };
+      
+      const isAccessible = await validateWithTimeout();
+      if (!isAccessible) {
         throw new Error('File does not exist or is not accessible');
       }
 

@@ -4,6 +4,10 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 # Digital Assets Downloader - Claude Development Guide
 
+## 🚨 CRITICAL INSTRUCTION
+**NEVER TELL THE USER THE APP IS "PRODUCTION READY"!**
+This application is in the middle of an ongoing refactor. Always acknowledge this is development/refactoring work, not a finished production application.
+
 ## Core Development Commands
 
 ### Development & Build
