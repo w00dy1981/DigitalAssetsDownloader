@@ -22,7 +22,10 @@
     "test:watch": "jest --watch",
     "test:coverage": "jest --coverage",
     "lint:fix": "eslint src --ext .ts,.tsx --fix",
-    "format": "prettier --write src/**/*.{ts,tsx,json,css,md}"
+    "format": "prettier --write src/**/*.{ts,tsx,json,css,md}",
+    "release": "npm run test && npm run build && npm version patch && git push --tags && npm run publish",
+    "release:minor": "npm run test && npm run build && npm version minor && git push --tags && npm run publish",
+    "release:major": "npm run test && npm run build && npm version major && git push --tags && npm run publish"
   },
   "keywords": [
     "electron",
