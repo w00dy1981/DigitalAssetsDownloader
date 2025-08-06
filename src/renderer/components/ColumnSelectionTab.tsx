@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import { SpreadsheetData, DownloadConfig } from '@/shared/types';
-import { Select, FolderSelector } from './ui';
+import { ColumnMappingPanel, FolderConfigurationPanel, NetworkPathsPanel } from './column-selection';
 
 interface ColumnSelectionTabProps {
   data: SpreadsheetData;
@@ -192,128 +192,37 @@ const ColumnSelectionTab: React.FC<ColumnSelectionTabProps> = ({
       )}
       
       <div className="configuration-sections">
-        {/* Column Mapping Section */}
-        <div className="config-section">
-          <h3>Column Mapping</h3>
-          
-          {/* Part Number Column (Required) */}
-          <div className="form-group">
-            <label htmlFor="part-column">Part Number Column *</label>
-            <Select
-              value={partNoColumn}
-              onChange={setPartNoColumn}
-              options={columnOptions}
-              placeholder="Choose a column..."
-            />
-          </div>
-          
-          {/* Image URL Columns */}
-          <div className="form-group">
-            <label htmlFor="image-column">Image URL Column</label>
-            <Select
-              value={imageColumns[0] || ''}
-              onChange={(value) => setImageColumns(value ? [value] : [])}
-              options={columnOptions}
-              placeholder="Choose a column..."
-            />
-            <small className="text-muted">
-              Select the column containing image URLs
-            </small>
-          </div>
-          
-          {/* PDF Column */}
-          <div className="form-group">
-            <label htmlFor="pdf-column">PDF URL Column</label>
-            <Select
-              value={pdfColumn}
-              onChange={setPdfColumn}
-              options={columnOptions}
-              placeholder="Choose a column..."
-            />
-          </div>
-          
-          {/* Filename Column */}
-          <div className="form-group">
-            <label htmlFor="filename-column">Custom Filename Column (Optional)</label>
-            <Select
-              value={filenameColumn}
-              onChange={setFilenameColumn}
-              options={columnOptions}
-              placeholder="Choose a column..."
-            />
-            <small className="text-muted">
-              Used for filename matching when searching source folders
-            </small>
-          </div>
-        </div>
+        <ColumnMappingPanel
+          data={data}
+          partNoColumn={partNoColumn}
+          onPartNoColumnChange={setPartNoColumn}
+          imageColumns={imageColumns}
+          onImageColumnsChange={setImageColumns}
+          pdfColumn={pdfColumn}
+          onPdfColumnChange={setPdfColumn}
+          filenameColumn={filenameColumn}
+          onFilenameColumnChange={setFilenameColumn}
+          columnOptions={columnOptions}
+          onValidationError={setError}
+        />
         
-        {/* Download Folders Section */}
-        <div className="config-section">
-          <h3>Download Folders</h3>
-          
-          {/* Image Download Folder */}
-          <div className="form-group">
-            <label htmlFor="image-folder">Image Download Folder</label>
-            <FolderSelector
-              value={imageFolder}
-              onChange={setImageFolder}
-              placeholder="Select folder for downloaded images"
-              onError={(error) => setError(error)}
-            />
-          </div>
-          
-          {/* PDF Download Folder */}
-          <div className="form-group">
-            <label htmlFor="pdf-folder">PDF Download Folder</label>
-            <FolderSelector
-              value={pdfFolder}
-              onChange={setPdfFolder}
-              placeholder="Select folder for downloaded PDFs"
-              onError={(error) => setError(error)}
-            />
-          </div>
-          
-          {/* Source Image Folder */}
-          <div className="form-group">
-            <label htmlFor="source-folder">Source Image Folder (Optional)</label>
-            <FolderSelector
-              value={sourceImageFolder}
-              onChange={setSourceImageFolder}
-              placeholder="Folder to search for existing images"
-              onError={(error) => setError(error)}
-            />
-            <small className="text-muted">
-              If specified, the system will search this folder for images matching part numbers
-            </small>
-          </div>
-          
-          {/* Network Path Configuration */}
-          <div className="form-group">
-            <label htmlFor="image-network-path">Image Network Path (for CSV logging)</label>
-            <FolderSelector
-              value={imageFilePath}
-              onChange={setImageFilePath}
-              placeholder="Network path for image files in CSV log (e.g., \\server\images\)"
-              onError={(error) => setError(error)}
-            />
-            <small className="text-muted">
-              Network path that will be logged in CSV reports (separate from local download path)
-            </small>
-          </div>
-          
-          <div className="form-group">
-            <label htmlFor="pdf-network-path">PDF Network Path (for CSV logging)</label>
-            <FolderSelector
-              value={pdfFilePath}
-              onChange={setPdfFilePath}
-              placeholder="Network path for PDF files in CSV log (e.g., \\server\pdfs\)"
-              onError={(error) => setError(error)}
-            />
-            <small className="text-muted">
-              Network path that will be logged in CSV reports (separate from local download path)
-            </small>
-          </div>
-        </div>
+        <FolderConfigurationPanel
+          imageFolder={imageFolder}
+          onImageFolderChange={setImageFolder}
+          pdfFolder={pdfFolder}
+          onPdfFolderChange={setPdfFolder}
+          sourceImageFolder={sourceImageFolder}
+          onSourceImageFolderChange={setSourceImageFolder}
+          onError={setError}
+        />
+        
+        <NetworkPathsPanel
+          imageFilePath={imageFilePath}
+          onImageFilePathChange={setImageFilePath}
+          pdfFilePath={pdfFilePath}
+          onPdfFilePathChange={setPdfFilePath}
+          onError={setError}
+        />
       </div>
       
       <div className="btn-group mt-4">

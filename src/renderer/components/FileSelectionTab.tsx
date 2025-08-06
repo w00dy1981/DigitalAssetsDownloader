@@ -1,5 +1,6 @@
 import React, { useState, useCallback } from 'react';
 import { SpreadsheetData } from '@/shared/types';
+import { logger } from '@/services/LoggingService';
 
 interface FileSelectionTabProps {
   onDataLoaded: (data: SpreadsheetData) => void;
@@ -35,7 +36,7 @@ const FileSelectionTab: React.FC<FileSelectionTabProps> = ({ onDataLoaded, curre
       }
     } catch (err) {
       setError('Failed to open file dialog.');
-      console.error('Error opening file dialog:', err);
+      logger.error('Error opening file dialog', err instanceof Error ? err : new Error(String(err)), 'FileSelectionTab');
     }
   }, []);
 
@@ -70,7 +71,7 @@ const FileSelectionTab: React.FC<FileSelectionTabProps> = ({ onDataLoaded, curre
       onDataLoaded(spreadsheetData);
     } catch (err) {
       setError('Failed to load sheet data. Please check the file format and try again.');
-      console.error('Error loading sheet data:', err);
+      logger.error('Error loading sheet data', err instanceof Error ? err : new Error(String(err)), 'FileSelectionTab');
     } finally {
       setIsLoading(false);
     }
@@ -150,7 +151,7 @@ const FileSelectionTab: React.FC<FileSelectionTabProps> = ({ onDataLoaded, curre
         setSelectedSheet(sheets[0] || '');
       } catch (err) {
         setError('Failed to load sheet names from the Excel file.');
-        console.error('Error loading sheet names:', err);
+        logger.error('Error loading sheet names', err instanceof Error ? err : new Error(String(err)), 'FileSelectionTab');
       } finally {
         setIsLoading(false);
       }

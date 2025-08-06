@@ -1,7 +1,14 @@
 import React, { useState, useEffect, useCallback } from 'react';
-import { UserSettings, IPC_CHANNELS } from '@/shared/types';
+import { UserSettings } from '@/shared/types';
 import { useStatusMessage } from '../hooks/useStatusMessage';
-import { NumberInput, StatusMessage } from './ui';
+import { StatusMessage } from './ui';
+import {
+  DefaultPathsSection,
+  DownloadBehaviorSection,
+  ImageProcessingSection,
+  UIPreferencesSection,
+  UpdateSettingsSection,
+} from './settings';
 
 interface SettingsTabProps {
   onSettingsChange?: (settings: UserSettings) => void;
@@ -119,38 +126,6 @@ const SettingsTab: React.FC<SettingsTabProps> = ({ onSettingsChange }) => {
     setHasChanges(true);
   }, []);
 
-  // Browse for folder
-  const browseForFolder = useCallback(async (settingPath: string) => {
-    try {
-      const result = await window.electronAPI.openFolderDialog({
-        title: 'Select Folder',
-        properties: ['openDirectory'],
-      });
-      
-      if (result.filePaths && result.filePaths.length > 0) {
-        const selectedPath = result.filePaths[0];
-        
-        // Update the appropriate setting
-        setSettings(prev => {
-          const newSettings = { ...prev };
-          const pathParts = settingPath.split('.');
-          
-          if (pathParts.length === 2 && pathParts[0] === 'defaultPaths') {
-            newSettings.defaultPaths = {
-              ...newSettings.defaultPaths,
-              [pathParts[1]]: selectedPath,
-            };
-          }
-          
-          return newSettings;
-        });
-        setHasChanges(true);
-      }
-    } catch (error) {
-      console.error('Error browsing for folder:', error);
-    }
-  }, []);
-
   // Update setting helper
   const updateSetting = useCallback((path: string, value: any) => {
     setSettings(prev => {
@@ -172,114 +147,6 @@ const SettingsTab: React.FC<SettingsTabProps> = ({ onSettingsChange }) => {
     setHasChanges(true);
   }, []);
 
-  // State for update checking
-  const [isCheckingForUpdates, setIsCheckingForUpdates] = useState(false);
-  const [updateCheckTimeoutId, setUpdateCheckTimeoutId] = useState<NodeJS.Timeout | null>(null);
-
-  // Set up update event listeners
-  useEffect(() => {
-    const handleUpdateChecking = () => {
-      // This is fired when autoUpdater.checkForUpdates() actually starts
-      setIsCheckingForUpdates(true);
-      showSaveStatus('Checking for updates...');
-    };
-
-    const handleUpdateAvailable = (updateInfo: any) => {
-      // Clear timeout if update check completed successfully
-      if (updateCheckTimeoutId) {
-        clearTimeout(updateCheckTimeoutId);
-        setUpdateCheckTimeoutId(null);
-      }
-      setIsCheckingForUpdates(false);
-      showSaveStatus(`Update available: v${updateInfo.version}`, 8000);
-    };
-
-    const handleUpdateNotAvailable = () => {
-      // Clear timeout if update check completed successfully
-      if (updateCheckTimeoutId) {
-        clearTimeout(updateCheckTimeoutId);
-        setUpdateCheckTimeoutId(null);
-      }
-      setIsCheckingForUpdates(false);
-      showSaveStatus('You are running the latest version', 5000);
-    };
-
-    const handleUpdateError = (error: string) => {
-      // Clear timeout on error
-      if (updateCheckTimeoutId) {
-        clearTimeout(updateCheckTimeoutId);
-        setUpdateCheckTimeoutId(null);
-      }
-      setIsCheckingForUpdates(false);
-      showSaveStatus(`Update check failed: ${error}`, 8000);
-    };
-
-    // Set up listeners
-    window.electronAPI.onUpdateChecking?.(handleUpdateChecking);
-    window.electronAPI.onUpdateAvailable(handleUpdateAvailable);
-    window.electronAPI.onUpdateNotAvailable(handleUpdateNotAvailable);
-    window.electronAPI.onUpdateError?.(handleUpdateError);
-
-    // Cleanup - remove all listeners for these channels when component unmounts
-    return () => {
-      window.electronAPI.removeAllListeners?.('update-checking' as any);
-      window.electronAPI.removeAllListeners(IPC_CHANNELS.UPDATE_AVAILABLE as any);
-      window.electronAPI.removeAllListeners(IPC_CHANNELS.UPDATE_NOT_AVAILABLE as any);
-      window.electronAPI.removeAllListeners?.('update-error' as any);
-      
-      // Clear any pending timeout
-      if (updateCheckTimeoutId) {
-        clearTimeout(updateCheckTimeoutId);
-        setUpdateCheckTimeoutId(null);
-      }
-    };
-  }, [updateCheckTimeoutId]);
-
-  // Manual update check with timeout mechanism and development mode detection
-  const checkForUpdatesManually = useCallback(async () => {
-    if (isCheckingForUpdates) return; // Prevent multiple clicks
-    
-    // Detect development mode (when running with npm run dev)
-    const isDevelopment = process.env.NODE_ENV === 'development' || 
-                         window.location.protocol === 'file:' ||
-                         !window.electronAPI;
-    
-    try {
-      // Don't set status here - let the 'update-checking' event handle it
-      // setIsCheckingForUpdates(true);
-      // setSaveStatus('Checking for updates...');
-      
-      // Add shorter timeout for development mode
-      const timeoutDuration = isDevelopment ? 10000 : 30000; // 10s for dev, 30s for prod
-      const timeoutId = setTimeout(() => {
-        setIsCheckingForUpdates(false);
-        setUpdateCheckTimeoutId(null);
-        const message = isDevelopment 
-          ? 'Update checks may not work in development mode - try again in production build'
-          : 'Update check timed out - try again later';
-        showSaveStatus(message, 8000);
-      }, timeoutDuration);
-      setUpdateCheckTimeoutId(timeoutId);
-      
-      await window.electronAPI.checkForUpdates();
-      // Don't clear timeout here - let the event listeners handle it
-      // Don't set status here - let the event listeners handle it
-    } catch (error) {
-      console.error('Manual update check failed:', error);
-      // Clear timeout on error
-      if (updateCheckTimeoutId) {
-        clearTimeout(updateCheckTimeoutId);
-        setUpdateCheckTimeoutId(null);
-      }
-      setIsCheckingForUpdates(false);
-      
-      const message = isDevelopment 
-        ? 'Update checks are limited in development mode - build and test in production'
-        : 'Update check failed - Please try again later';
-      showSaveStatus(message, 8000);
-    }
-  }, [isCheckingForUpdates, updateCheckTimeoutId]);
-
   return (
     <div className="tab-content settings-tab">
       <div className="tab-header">
@@ -300,366 +167,35 @@ const SettingsTab: React.FC<SettingsTabProps> = ({ onSettingsChange }) => {
       </div>
       
       <div className="configuration-sections">
-        {/* Default Paths Section - Takes first column */}
-        <div className="config-section default-paths">
-          <h3>Default Paths</h3>
+        {/* First column - Default Paths, UI Preferences, and Update Settings */}
+        <div className="default-paths">
+          <DefaultPathsSection 
+            settings={settings} 
+            onSettingUpdate={updateSetting} 
+          />
           
-          <div className="form-group">
-            <label htmlFor="image-download-folder">Image Download Folder</label>
-            <div className="folder-input-group">
-              <input
-                id="image-download-folder"
-                type="text"
-                value={settings.defaultPaths.imageDownloadFolder}
-                onChange={(e) => updateSetting('defaultPaths.imageDownloadFolder', e.target.value)}
-                className="form-control"
-                placeholder="Choose folder for downloading images..."
-              />
-              <button
-                className="btn btn-secondary browse-btn"
-                onClick={() => browseForFolder('defaultPaths.imageDownloadFolder')}
-              >
-                Browse
-              </button>
-            </div>
-          </div>
-
-          <div className="form-group">
-            <label htmlFor="pdf-download-folder">PDF Download Folder</label>
-            <div className="folder-input-group">
-              <input
-                id="pdf-download-folder"
-                type="text"
-                value={settings.defaultPaths.pdfDownloadFolder}
-                onChange={(e) => updateSetting('defaultPaths.pdfDownloadFolder', e.target.value)}
-                className="form-control"
-                placeholder="Choose folder for downloading PDFs..."
-              />
-              <button
-                className="btn btn-secondary browse-btn"
-                onClick={() => browseForFolder('defaultPaths.pdfDownloadFolder')}
-              >
-                Browse
-              </button>
-            </div>
-          </div>
-
-          <div className="form-group">
-            <label htmlFor="source-image-folder">Source Image Folder</label>
-            <div className="folder-input-group">
-              <input
-                id="source-image-folder"
-                type="text"
-                value={settings.defaultPaths.sourceImageFolder}
-                onChange={(e) => updateSetting('defaultPaths.sourceImageFolder', e.target.value)}
-                className="form-control"
-                placeholder="Choose folder to search for existing images..."
-              />
-              <button
-                className="btn btn-secondary browse-btn"
-                onClick={() => browseForFolder('defaultPaths.sourceImageFolder')}
-              >
-                Browse
-              </button>
-            </div>
-            <small className="text-muted">
-              Optional: Folder to search for existing images by part number
-            </small>
-          </div>
-
-          <div className="form-group">
-            <label htmlFor="image-network-path">Image Network Path (for CSV logging)</label>
-            <div className="folder-input-group">
-              <input
-                id="image-network-path"
-                type="text"
-                value={settings.defaultPaths.imageNetworkPath}
-                onChange={(e) => updateSetting('defaultPaths.imageNetworkPath', e.target.value)}
-                className="form-control"
-                placeholder="Network path for image file logging..."
-              />
-              <button
-                className="btn btn-secondary browse-btn"
-                onClick={() => browseForFolder('defaultPaths.imageNetworkPath')}
-              >
-                Browse
-              </button>
-            </div>
-            <small className="text-muted">
-              Network path used for CSV logging (separate from download location)
-            </small>
-          </div>
-
-          <div className="form-group">
-            <label htmlFor="pdf-network-path">PDF Network Path (for CSV logging)</label>
-            <div className="folder-input-group">
-              <input
-                id="pdf-network-path"
-                type="text"
-                value={settings.defaultPaths.pdfNetworkPath}
-                onChange={(e) => updateSetting('defaultPaths.pdfNetworkPath', e.target.value)}
-                className="form-control"
-                placeholder="Network path for PDF file logging..."
-              />
-              <button
-                className="btn btn-secondary browse-btn"
-                onClick={() => browseForFolder('defaultPaths.pdfNetworkPath')}
-              >
-                Browse
-              </button>
-            </div>
-            <small className="text-muted">
-              Network path used for PDF CSV logging (separate from download location)
-            </small>
-          </div>
-
-          {/* UI Preferences Section */}
-          <div className="config-section">
-            <h3>UI Preferences</h3>
-            
-            <div className="form-group">
-              <label>
-                <input
-                  type="checkbox"
-                  checked={settings.uiPreferences.rememberFileDialogPath}
-                  onChange={(e) => updateSetting('uiPreferences.rememberFileDialogPath', e.target.checked)}
-                />
-                Remember file dialog location
-              </label>
-              <small className="text-muted">
-                File dialogs will open to the last used location
-              </small>
-            </div>
-
-            <div className="form-group">
-              <label>
-                <input
-                  type="checkbox"
-                  checked={settings.uiPreferences.showAdvancedOptions}
-                  onChange={(e) => updateSetting('uiPreferences.showAdvancedOptions', e.target.checked)}
-                />
-                Show advanced options
-              </label>
-              <small className="text-muted">
-                Display advanced configuration options in other tabs
-              </small>
-            </div>
-
-            <div className="form-group">
-              <label htmlFor="startup-tab">Default startup tab</label>
-              <select
-                id="startup-tab"
-                value={settings.uiPreferences.startupTab}
-                onChange={(e) => updateSetting('uiPreferences.startupTab', e.target.value)}
-                className="form-control"
-              >
-                <option value="file">File Selection</option>
-                <option value="column">Column Selection</option>
-                <option value="process">Process & Download</option>
-                <option value="settings">Settings</option>
-              </select>
-            </div>
-          </div>
-
-          {/* Update Settings Section */}
-          <div className="config-section">
-            <h3>Update Settings</h3>
-            
-            <div className="form-group">
-              <label>
-                <input
-                  type="checkbox"
-                  checked={settings.updateSettings.enableAutoUpdates}
-                  onChange={(e) => updateSetting('updateSettings.enableAutoUpdates', e.target.checked)}
-                />
-                Enable automatic updates
-              </label>
-              <small className="text-muted">
-                Allow the application to automatically check for and install updates
-              </small>
-            </div>
-
-            <div className="form-group">
-              <label>
-                <input
-                  type="checkbox"
-                  checked={settings.updateSettings.checkForUpdatesOnStartup}
-                  onChange={(e) => updateSetting('updateSettings.checkForUpdatesOnStartup', e.target.checked)}
-                  disabled={!settings.updateSettings.enableAutoUpdates}
-                />
-                Check for updates on startup
-              </label>
-              <small className="text-muted">
-                Automatically check for updates when the application starts
-              </small>
-            </div>
-
-            <div className="form-group">
-              <label htmlFor="update-channel">Update channel</label>
-              <select
-                id="update-channel"
-                value={settings.updateSettings.updateChannel}
-                onChange={(e) => updateSetting('updateSettings.updateChannel', e.target.value)}
-                className="form-control"
-                disabled={!settings.updateSettings.enableAutoUpdates}
-              >
-                <option value="stable">Stable (recommended)</option>
-                <option value="beta">Beta (early access)</option>
-              </select>
-              <small className="text-muted">
-                Stable releases are tested and recommended for production use
-              </small>
-            </div>
-
-            <div className="form-group">
-              <label>
-                <input
-                  type="checkbox"
-                  checked={settings.updateSettings.downloadUpdatesAutomatically}
-                  onChange={(e) => updateSetting('updateSettings.downloadUpdatesAutomatically', e.target.checked)}
-                  disabled={!settings.updateSettings.enableAutoUpdates}
-                />
-                Download updates automatically
-              </label>
-              <small className="text-muted">
-                Download updates in background vs. prompting user first
-              </small>
-            </div>
-
-            <div className="form-group">
-              <button 
-                className={`btn btn-primary ${isCheckingForUpdates ? 'loading' : ''}`}
-                onClick={checkForUpdatesManually}
-                disabled={isCheckingForUpdates}
-                style={{ marginRight: '10px' }}
-              >
-                {isCheckingForUpdates ? 'Checking...' : 'Check for Updates Now'}
-              </button>
-              <small className="text-muted">
-                Manually check for available updates
-              </small>
-            </div>
-          </div>
+          <UIPreferencesSection 
+            settings={settings} 
+            onSettingUpdate={updateSetting} 
+          />
+          
+          <UpdateSettingsSection 
+            settings={settings} 
+            onSettingUpdate={updateSetting} 
+          />
         </div>
 
-        {/* Second column - stacked sections */}
+        {/* Second column - Download Behavior and Image Processing */}
         <div className="other-settings">
-          {/* Download Behavior Section */}
-          <div className="config-section">
-            <h3>Download Behavior</h3>
-            
-            <div className="form-group">
-              <label htmlFor="concurrent-downloads">Concurrent Downloads</label>
-              <NumberInput
-                value={settings.downloadBehavior.defaultConcurrentDownloads}
-                onChange={(value) => updateSetting('downloadBehavior.defaultConcurrentDownloads', value)}
-                min={1}
-                max={20}
-                suffix="workers"
-              />
-              <small className="text-muted">
-                Number of simultaneous downloads (1-20)
-              </small>
-            </div>
-
-            <div className="form-group">
-              <label htmlFor="connection-timeout">Connection Timeout</label>
-              <NumberInput
-                value={settings.downloadBehavior.connectionTimeout}
-                onChange={(value) => updateSetting('downloadBehavior.connectionTimeout', value)}
-                min={1}
-                max={60}
-                suffix="seconds"
-              />
-            </div>
-
-            <div className="form-group">
-              <label htmlFor="read-timeout">Read Timeout</label>
-              <NumberInput
-                value={settings.downloadBehavior.readTimeout}
-                onChange={(value) => updateSetting('downloadBehavior.readTimeout', value)}
-                min={10}
-                max={300}
-                suffix="seconds"
-              />
-            </div>
-
-            <div className="form-group">
-              <label htmlFor="retry-attempts">Retry Attempts</label>
-              <NumberInput
-                value={settings.downloadBehavior.retryAttempts}
-                onChange={(value) => updateSetting('downloadBehavior.retryAttempts', value)}
-                min={1}
-                max={10}
-                suffix="attempts"
-              />
-            </div>
-          </div>
-
-          {/* Image Processing Section */}
-          <div className="config-section">
-            <h3>Image Processing</h3>
-            
-            <div className="form-group">
-              <label>
-                <input
-                  type="checkbox"
-                  checked={settings.imageProcessing.enabledByDefault}
-                  onChange={(e) => updateSetting('imageProcessing.enabledByDefault', e.target.checked)}
-                />
-                Enable background processing by default
-              </label>
-              <small className="text-muted">
-                Automatically enable background processing for new configurations
-              </small>
-            </div>
-
-            <div className="form-group">
-              <label htmlFor="processing-method">Default Processing Method</label>
-              <select
-                id="processing-method"
-                value={settings.imageProcessing.defaultMethod}
-                onChange={(e) => updateSetting('imageProcessing.defaultMethod', e.target.value)}
-                className="form-control"
-              >
-                <option value="smart_detect">Smart Detection</option>
-                <option value="ai_removal">AI Removal</option>
-                <option value="color_replace">Color Replacement</option>
-                <option value="edge_detection">Edge Detection</option>
-              </select>
-            </div>
-
-            <div className="form-group">
-              <label htmlFor="jpeg-quality">JPEG Quality</label>
-              <div className="number-input-group">
-                <input
-                  id="jpeg-quality"
-                  type="number"
-                  min="60"
-                  max="100"
-                  value={settings.imageProcessing.defaultQuality}
-                  onChange={(e) => updateSetting('imageProcessing.defaultQuality', parseInt(e.target.value))}
-                  className="form-control number-input"
-                />
-                <span className="input-suffix">%</span>
-              </div>
-            </div>
-
-            <div className="form-group">
-              <label htmlFor="edge-threshold">Edge Detection Threshold</label>
-              <div className="number-input-group">
-                <input
-                  id="edge-threshold"
-                  type="number"
-                  min="10"
-                  max="100"
-                  value={settings.imageProcessing.defaultEdgeThreshold}
-                  onChange={(e) => updateSetting('imageProcessing.defaultEdgeThreshold', parseInt(e.target.value))}
-                  className="form-control number-input"
-                />
-              </div>
-            </div>
-          </div>
+          <DownloadBehaviorSection 
+            settings={settings} 
+            onSettingUpdate={updateSetting} 
+          />
+          
+          <ImageProcessingSection 
+            settings={settings} 
+            onSettingUpdate={updateSetting} 
+          />
         </div>
       </div>
     </div>

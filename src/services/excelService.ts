@@ -4,6 +4,7 @@ import * as path from 'path';
 import * as csv from 'fast-csv';
 import { sanitizePath, PathSecurityError, validateFileAccess } from './pathSecurity';
 import { isCsvFile, isExcelFile, getExtension } from './fileUtils';
+import { logger } from './LoggingService';
 
 export interface SheetData {
   columns: string[];
@@ -58,10 +59,10 @@ export class ExcelService {
       return sheetNames;
     } catch (error) {
       if (error instanceof PathSecurityError) {
-        console.error('Security violation in getSheetNames:', error.message);
+        logger.error('Security violation in getSheetNames', error, 'ExcelService');
         throw new Error(`Security error: ${error.message}`);
       }
-      console.error('Error getting sheet names:', error);
+      logger.error('Error getting sheet names', error instanceof Error ? error : new Error(String(error)), 'ExcelService');
       const errorMessage = error instanceof Error ? error.message : 'Unknown error';
       
       // More specific error messages
@@ -121,10 +122,10 @@ export class ExcelService {
       return this.parseWorksheet(worksheet);
     } catch (error) {
       if (error instanceof PathSecurityError) {
-        console.error('Security violation in loadSheetData:', error.message);
+        logger.error('Security violation in loadSheetData', error, 'ExcelService');
         throw new Error(`Security error: ${error.message}`);
       }
-      console.error('Error loading sheet data:', error);
+      logger.error('Error loading sheet data', error instanceof Error ? error : new Error(String(error)), 'ExcelService');
       const errorMessage = error instanceof Error ? error.message : 'Unknown error';
       
       // More specific error messages
