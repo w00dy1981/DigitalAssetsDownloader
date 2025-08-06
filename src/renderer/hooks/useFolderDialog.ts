@@ -1,4 +1,5 @@
 import { useCallback } from 'react';
+import { ipcService } from '@/services/IPCService';
 
 interface FolderDialogOptions {
   title?: string;
@@ -6,6 +7,12 @@ interface FolderDialogOptions {
   properties?: string[];
 }
 
+/**
+ * Legacy useFolderDialog hook - now powered by IPCService
+ * Maintained for backward compatibility with existing components
+ * 
+ * New components can use ipcService.openFolderDialog() directly for more control
+ */
 export const useFolderDialog = () => {
   const openFolderDialog = useCallback(async (
     onSelect: (path: string) => void,
@@ -13,7 +20,7 @@ export const useFolderDialog = () => {
     onError?: (error: string) => void
   ) => {
     try {
-      const result = await window.electronAPI.openFolderDialog({
+      const result = await ipcService.openFolderDialog({
         title: options.title || 'Select Folder',
         defaultPath: options.defaultPath,
         properties: options.properties || ['openDirectory'],

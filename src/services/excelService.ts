@@ -25,19 +25,35 @@ export class ExcelService {
         throw new Error('File does not exist or is not accessible');
       }
 
-      const workbook = new ExcelJS.Workbook();
-      
       // Handle different file formats
       if (isCsvFile(safeFilePath)) {
         return ['Sheet1']; // CSV files have only one "sheet"
       }
+
+      const workbook = new ExcelJS.Workbook();
       
-      await workbook.xlsx.readFile(safeFilePath);
+      // Add timeout wrapper for Excel file reading
+      const readWithTimeout = (timeout: number = 30000) => {
+        return Promise.race([
+          workbook.xlsx.readFile(safeFilePath),
+          new Promise((_, reject) => 
+            setTimeout(() => reject(new Error(`File read timeout after ${timeout}ms`)), timeout)
+          )
+        ]);
+      };
+      
+      await readWithTimeout();
       
       const sheetNames: string[] = [];
       workbook.eachSheet((worksheet) => {
-        sheetNames.push(worksheet.name);
+        if (worksheet.name) {
+          sheetNames.push(worksheet.name);
+        }
       });
+      
+      if (sheetNames.length === 0) {
+        throw new Error('No worksheets found in the Excel file');
+      }
       
       return sheetNames;
     } catch (error) {
@@ -47,6 +63,15 @@ export class ExcelService {
       }
       console.error('Error getting sheet names:', error);
       const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+      
+      // More specific error messages
+      if (errorMessage.includes('timeout')) {
+        throw new Error('File reading timed out - the Excel file may be too large or corrupted');
+      }
+      if (errorMessage.includes('ETIMEDOUT')) {
+        throw new Error('Network or file system timeout - please check the file location and try again');
+      }
+      
       throw new Error(`Failed to read Excel file: ${errorMessage}`);
     }
   }
@@ -70,11 +95,27 @@ export class ExcelService {
       }
 
       const workbook = new ExcelJS.Workbook();
-      await workbook.xlsx.readFile(safeFilePath);
+      
+      // Add timeout wrapper for Excel file reading
+      const readWithTimeout = (timeout: number = 30000) => {
+        return Promise.race([
+          workbook.xlsx.readFile(safeFilePath),
+          new Promise((_, reject) => 
+            setTimeout(() => reject(new Error(`File read timeout after ${timeout}ms`)), timeout)
+          )
+        ]);
+      };
+      
+      await readWithTimeout();
       
       const worksheet = workbook.getWorksheet(sheetName);
       if (!worksheet) {
         throw new Error(`Sheet "${sheetName}" not found in the workbook`);
+      }
+
+      // Check if worksheet has any data
+      if (worksheet.rowCount === 0) {
+        throw new Error('The selected sheet is empty');
       }
 
       return this.parseWorksheet(worksheet);
@@ -85,6 +126,18 @@ export class ExcelService {
       }
       console.error('Error loading sheet data:', error);
       const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+      
+      // More specific error messages
+      if (errorMessage.includes('timeout')) {
+        throw new Error('File reading timed out - the Excel file may be too large or corrupted');
+      }
+      if (errorMessage.includes('ETIMEDOUT')) {
+        throw new Error('Network or file system timeout - please check the file location and try again');
+      }
+      if (errorMessage.includes('No valid column headers')) {
+        throw new Error('The first row of the sheet does not contain valid column headers. Please ensure the first row has column names.');
+      }
+      
       throw new Error(`Failed to load sheet data: ${errorMessage}`);
     }
   }
@@ -140,36 +193,59 @@ export class ExcelService {
     const rows: Record<string, any>[] = [];
     let columns: string[] = [];
     
-    // Get column headers from the first row
+    // Check if worksheet has enough rows
+    if (worksheet.rowCount < 1) {
+      throw new Error('The worksheet is empty or has no data');
+    }
+    
+    // Get column headers from the first row with improved parsing
     const headerRow = worksheet.getRow(1);
-    headerRow.eachCell((cell, colNumber) => {
+    const columnMap: Map<number, string> = new Map();
+    
+    headerRow.eachCell({ includeEmpty: false }, (cell, colNumber) => {
       const value = cell.value;
       let columnName = '';
       
       if (value !== null && value !== undefined) {
-        // Handle different cell value types
+        // Handle different cell value types more robustly
         if (typeof value === 'string') {
           columnName = value;
         } else if (typeof value === 'number') {
           columnName = value.toString();
-        } else if (value && typeof value === 'object' && 'text' in value) {
-          columnName = (value as any).text;
+        } else if (value instanceof Date) {
+          columnName = value.toISOString();
+        } else if (value && typeof value === 'object') {
+          // Handle rich text and formula results
+          if ('text' in value) {
+            columnName = (value as any).text;
+          } else if ('result' in value) {
+            columnName = String((value as any).result || '');
+          } else if ('richText' in value && Array.isArray((value as any).richText)) {
+            columnName = (value as any).richText.map((rt: any) => rt.text || '').join('');
+          } else {
+            columnName = String(value);
+          }
         } else {
           columnName = String(value);
         }
       }
       
       columnName = columnName.trim();
-      if (columnName) {
-        columns[colNumber - 1] = columnName;
+      if (columnName && columnName !== '') {
+        columnMap.set(colNumber, columnName);
       }
     });
 
-    // Filter out empty columns
-    columns = columns.filter(Boolean);
+    // Convert map to array, maintaining column order
+    const maxCol = Math.max(...columnMap.keys());
+    for (let i = 1; i <= maxCol; i++) {
+      if (columnMap.has(i)) {
+        columns.push(columnMap.get(i)!);
+      }
+    }
     
     if (columns.length === 0) {
-      throw new Error('No valid column headers found in the first row');
+      throw new Error('No valid column headers found in the first row. Please ensure the first row contains column names.');
     }
 
     // Process data rows (starting from row 2)
