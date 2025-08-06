@@ -17,8 +17,10 @@ const hideLoadingScreen = () => {
 
 try {
   console.log('[Renderer] Creating React root');
-  const root = ReactDOM.createRoot(document.getElementById('root') as HTMLElement);
-  
+  const root = ReactDOM.createRoot(
+    document.getElementById('root') as HTMLElement
+  );
+
   console.log('[Renderer] Rendering React app');
   root.render(
     <React.StrictMode>

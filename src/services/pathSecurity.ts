@@ -13,7 +13,10 @@ export interface PathValidationOptions {
 }
 
 export class PathSecurityError extends Error {
-  constructor(message: string, public readonly attemptedPath: string) {
+  constructor(
+    message: string,
+    public readonly attemptedPath: string
+  ) {
     super(message);
     this.name = 'PathSecurityError';
   }
@@ -28,8 +31,8 @@ export class PathSecurityError extends Error {
  * @throws PathSecurityError if path is malicious or outside allowed boundaries
  */
 export function sanitizePath(
-  inputPath: string, 
-  allowedRoot?: string, 
+  inputPath: string,
+  allowedRoot?: string,
   options: PathValidationOptions = {}
 ): string {
   if (!inputPath || typeof inputPath !== 'string') {
@@ -43,10 +46,13 @@ export function sanitizePath(
 
   // Normalize the path to resolve any relative components
   const normalizedPath = path.normalize(inputPath);
-  
+
   // Check for traversal attempts in normalized path
   if (normalizedPath.includes('..')) {
-    throw new PathSecurityError('Path traversal attempt detected after normalization', inputPath);
+    throw new PathSecurityError(
+      'Path traversal attempt detected after normalization',
+      inputPath
+    );
   }
 
   // If no allowed root specified, return normalized path
@@ -59,10 +65,12 @@ export function sanitizePath(
   const resolvedPath = path.resolve(resolvedAllowedRoot, normalizedPath);
 
   // Ensure the resolved path is within the allowed root
-  if (!resolvedPath.startsWith(resolvedAllowedRoot + path.sep) && 
-      resolvedPath !== resolvedAllowedRoot) {
+  if (
+    !resolvedPath.startsWith(resolvedAllowedRoot + path.sep) &&
+    resolvedPath !== resolvedAllowedRoot
+  ) {
     throw new PathSecurityError(
-      `Path outside allowed directory: ${resolvedPath} not within ${resolvedAllowedRoot}`, 
+      `Path outside allowed directory: ${resolvedPath} not within ${resolvedAllowedRoot}`,
       inputPath
     );
   }
@@ -71,12 +79,15 @@ export function sanitizePath(
   if (options.allowedRoots && options.allowedRoots.length > 0) {
     const isAllowed = options.allowedRoots.some(root => {
       const resolvedRoot = path.resolve(root);
-      return resolvedPath.startsWith(resolvedRoot + path.sep) || resolvedPath === resolvedRoot;
+      return (
+        resolvedPath.startsWith(resolvedRoot + path.sep) ||
+        resolvedPath === resolvedRoot
+      );
     });
 
     if (!isAllowed) {
       throw new PathSecurityError(
-        `Path not in any allowed directory: ${resolvedPath}`, 
+        `Path not in any allowed directory: ${resolvedPath}`,
         inputPath
       );
     }
@@ -121,8 +132,12 @@ export function safeJoin(basePath: string, ...components: string[]): string {
     if (!component || typeof component !== 'string') {
       throw new PathSecurityError('Invalid path component', component);
     }
-    
-    if (component.includes('..') || component.includes('\0') || path.isAbsolute(component)) {
+
+    if (
+      component.includes('..') ||
+      component.includes('\0') ||
+      path.isAbsolute(component)
+    ) {
       throw new PathSecurityError('Unsafe path component detected', component);
     }
   }
@@ -138,15 +153,15 @@ export function safeJoin(basePath: string, ...components: string[]): string {
  * @returns Promise resolving to true if file is safe and accessible
  */
 export async function validateFileAccess(
-  filePath: string, 
+  filePath: string,
   allowedRoot?: string
 ): Promise<boolean> {
   try {
     const safePath = sanitizePath(filePath, allowedRoot);
-    
+
     // Check if file exists and is accessible
     const stats = await fs.stat(safePath);
-    
+
     // Additional security check: ensure it's actually a file
     if (!stats.isFile()) {
       console.warn(`Path is not a file: ${safePath}`);
@@ -171,11 +186,11 @@ export async function validateFileAccess(
  * @returns Promise resolving to array of safe file paths
  */
 export async function safeReadDir(
-  dirPath: string, 
+  dirPath: string,
   allowedRoot?: string
 ): Promise<string[]> {
   const safeDirPath = sanitizePath(dirPath, allowedRoot);
-  
+
   try {
     const stats = await fs.stat(safeDirPath);
     if (!stats.isDirectory()) {
@@ -203,6 +218,9 @@ export async function safeReadDir(
     if (error instanceof PathSecurityError) {
       throw error;
     }
-    throw new PathSecurityError(`Failed to read directory: ${error instanceof Error ? error.message : 'Unknown error'}`, dirPath);
+    throw new PathSecurityError(
+      `Failed to read directory: ${error instanceof Error ? error.message : 'Unknown error'}`,
+      dirPath
+    );
   }
 }

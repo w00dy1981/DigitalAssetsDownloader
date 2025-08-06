@@ -1,20 +1,20 @@
 /**
  * IPCService - Centralized IPC communication wrapper
  * Following KISS, DRY, and SOLID principles
- * 
+ *
  * KISS: Simple wrapper around electronAPI with type safety
  * DRY: Single place for all IPC communication
  * SOLID: Single responsibility - IPC communication only
  */
 
 import { logger } from './LoggingService';
-import { 
-  DownloadConfig, 
-  UserSettings, 
-  AppConfig, 
-  SpreadsheetData, 
-  DownloadProgress, 
-  IPC_CHANNELS 
+import {
+  DownloadConfig,
+  UserSettings,
+  AppConfig,
+  SpreadsheetData,
+  DownloadProgress,
+  IPC_CHANNELS,
 } from '@/shared/types';
 
 // Type definitions for IPC operations
@@ -85,7 +85,7 @@ export class IPCService {
     context?: string
   ): Promise<T> {
     const logContext = context || 'IPC';
-    
+
     try {
       if (!this.isElectronAvailable()) {
         const error = new Error('Electron API not available');
@@ -96,7 +96,7 @@ export class IPCService {
       logger.debug(`Starting IPC call: ${operation}`, logContext);
       const result = await ipcCall();
       logger.debug(`IPC call completed: ${operation}`, logContext, result);
-      
+
       return result;
     } catch (error) {
       logger.error(`IPC call failed: ${operation}`, error as Error, logContext);
@@ -116,9 +116,11 @@ export class IPCService {
     );
   }
 
-  async openFolderDialog(options?: FileDialogOptions): Promise<FileDialogResult> {
+  async openFolderDialog(
+    options?: FileDialogOptions
+  ): Promise<FileDialogResult> {
     return this.safeIPC(
-      'openFolderDialog', 
+      'openFolderDialog',
       () => window.electronAPI.openFolderDialog(options),
       'FileDialog'
     );
@@ -152,7 +154,10 @@ export class IPCService {
     );
   }
 
-  async loadSheetData(filePath: string, sheetName: string): Promise<SpreadsheetData> {
+  async loadSheetData(
+    filePath: string,
+    sheetName: string
+  ): Promise<SpreadsheetData> {
     return this.safeIPC(
       'loadSheetData',
       () => window.electronAPI.loadSheetData(filePath, sheetName),
@@ -285,16 +290,22 @@ export class IPCService {
    */
   onDownloadProgress(callback: ProgressCallback): void {
     if (!this.isElectronAvailable()) {
-      logger.warn('Cannot register download progress listener - Electron API not available');
+      logger.warn(
+        'Cannot register download progress listener - Electron API not available'
+      );
       return;
     }
 
-    const wrappedCallback: ProgressCallback = (data) => {
+    const wrappedCallback: ProgressCallback = data => {
       try {
         logger.debug('Download progress event received', 'Downloads', data);
         callback(data);
       } catch (error) {
-        logger.error('Error in download progress callback', error as Error, 'Downloads');
+        logger.error(
+          'Error in download progress callback',
+          error as Error,
+          'Downloads'
+        );
       }
     };
 
@@ -307,16 +318,22 @@ export class IPCService {
    */
   onDownloadComplete(callback: DownloadCompleteCallback): void {
     if (!this.isElectronAvailable()) {
-      logger.warn('Cannot register download complete listener - Electron API not available');
+      logger.warn(
+        'Cannot register download complete listener - Electron API not available'
+      );
       return;
     }
 
-    const wrappedCallback: DownloadCompleteCallback = (data) => {
+    const wrappedCallback: DownloadCompleteCallback = data => {
       try {
         logger.debug('Download complete event received', 'Downloads', data);
         callback(data);
       } catch (error) {
-        logger.error('Error in download complete callback', error as Error, 'Downloads');
+        logger.error(
+          'Error in download complete callback',
+          error as Error,
+          'Downloads'
+        );
       }
     };
 
@@ -349,7 +366,8 @@ export class IPCService {
    * Register update event callbacks
    */
   onUpdateChecking(callback: MenuCallback): void {
-    if (!this.isElectronAvailable() || !window.electronAPI.onUpdateChecking) return;
+    if (!this.isElectronAvailable() || !window.electronAPI.onUpdateChecking)
+      return;
     window.electronAPI.onUpdateChecking(callback);
     logger.debug('Registered update checking listener', 'Updates');
   }
@@ -367,7 +385,8 @@ export class IPCService {
   }
 
   onUpdateError(callback: UpdateErrorCallback): void {
-    if (!this.isElectronAvailable() || !window.electronAPI.onUpdateError) return;
+    if (!this.isElectronAvailable() || !window.electronAPI.onUpdateError)
+      return;
     window.electronAPI.onUpdateError(callback);
     logger.debug('Registered update error listener', 'Updates');
   }
@@ -393,19 +412,25 @@ export class IPCService {
    */
   removeAllListeners(channel: keyof typeof IPC_CHANNELS | string): void {
     if (!this.isElectronAvailable()) return;
-    
+
     try {
       window.electronAPI.removeAllListeners(channel as any);
       logger.debug(`Removed all listeners for channel: ${channel}`, 'IPC');
     } catch (error) {
-      logger.error(`Failed to remove listeners for channel: ${channel}`, error as Error, 'IPC');
+      logger.error(
+        `Failed to remove listeners for channel: ${channel}`,
+        error as Error,
+        'IPC'
+      );
     }
   }
 
   /**
    * Remove all listeners for multiple channels
    */
-  removeMultipleListeners(channels: Array<keyof typeof IPC_CHANNELS | string>): void {
+  removeMultipleListeners(
+    channels: Array<keyof typeof IPC_CHANNELS | string>
+  ): void {
     channels.forEach(channel => this.removeAllListeners(channel));
   }
 
@@ -423,7 +448,7 @@ export class IPCService {
         IPC_CHANNELS.UPDATE_AVAILABLE,
         IPC_CHANNELS.UPDATE_NOT_AVAILABLE,
         'update-checking',
-        'update-error'
+        'update-error',
       ];
       this.removeMultipleListeners(commonChannels);
     }
@@ -440,34 +465,37 @@ export interface IPCHookMethods {
   openFileDialog: (options?: FileDialogOptions) => Promise<FileDialogResult>;
   openFolderDialog: (options?: FileDialogOptions) => Promise<FileDialogResult>;
   saveFileDialog: (options?: FileDialogOptions) => Promise<FileDialogResult>;
-  
+
   // Excel operations
   loadExcelFile: (filePath: string) => Promise<any>;
   getSheetNames: (filePath: string) => Promise<string[]>;
-  loadSheetData: (filePath: string, sheetName: string) => Promise<SpreadsheetData>;
-  
+  loadSheetData: (
+    filePath: string,
+    sheetName: string
+  ) => Promise<SpreadsheetData>;
+
   // Configuration
   saveConfig: (config: DownloadConfig) => Promise<IPCResponse>;
   loadConfig: () => Promise<AppConfig | null>;
-  
+
   // Settings
   saveSettings: (settings: UserSettings) => Promise<IPCResponse>;
   loadSettings: () => Promise<UserSettings | null>;
-  
+
   // Updates
   checkForUpdates: () => Promise<any>;
   installUpdate: () => Promise<void>;
   downloadUpdate: () => Promise<any>;
-  
+
   // Window operations
   minimizeWindow: () => Promise<void>;
   maximizeWindow: () => Promise<void>;
   closeWindow: () => Promise<void>;
-  
+
   // Downloads
   startDownloads: (config: DownloadConfig) => Promise<DownloadStartResult>;
   cancelDownloads: () => Promise<void>;
-  
+
   // Event management
   onDownloadProgress: (callback: ProgressCallback) => void;
   onDownloadComplete: (callback: DownloadCompleteCallback) => void;
@@ -487,34 +515,34 @@ export const useIPCService = (): IPCHookMethods => {
     openFileDialog: service.openFileDialog.bind(service),
     openFolderDialog: service.openFolderDialog.bind(service),
     saveFileDialog: service.saveFileDialog.bind(service),
-    
+
     // Excel operations
     loadExcelFile: service.loadExcelFile.bind(service),
     getSheetNames: service.getSheetNames.bind(service),
     loadSheetData: service.loadSheetData.bind(service),
-    
+
     // Configuration
     saveConfig: service.saveConfig.bind(service),
     loadConfig: service.loadConfig.bind(service),
-    
+
     // Settings
     saveSettings: service.saveSettings.bind(service),
     loadSettings: service.loadSettings.bind(service),
-    
+
     // Updates
     checkForUpdates: service.checkForUpdates.bind(service),
     installUpdate: service.installUpdate.bind(service),
     downloadUpdate: service.downloadUpdate.bind(service),
-    
+
     // Window operations
     minimizeWindow: service.minimizeWindow.bind(service),
     maximizeWindow: service.maximizeWindow.bind(service),
     closeWindow: service.closeWindow.bind(service),
-    
+
     // Downloads
     startDownloads: service.startDownloads.bind(service),
     cancelDownloads: service.cancelDownloads.bind(service),
-    
+
     // Event management
     onDownloadProgress: service.onDownloadProgress.bind(service),
     onDownloadComplete: service.onDownloadComplete.bind(service),

@@ -6,10 +6,10 @@ interface FormSectionProps {
   className?: string;
 }
 
-export const FormSection: React.FC<FormSectionProps> = ({ 
-  title, 
-  children, 
-  className = '' 
+export const FormSection: React.FC<FormSectionProps> = ({
+  title,
+  children,
+  className = '',
 }) => {
   return (
     <div className={`form-section ${className}`.trim()}>

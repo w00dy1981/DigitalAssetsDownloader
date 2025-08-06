@@ -42,7 +42,13 @@ export class LoggingService {
     return this.currentLogLevel;
   }
 
-  private log(level: LogLevel, message: string, context?: string, data?: any, error?: Error): void {
+  private log(
+    level: LogLevel,
+    message: string,
+    context?: string,
+    data?: any,
+    error?: Error
+  ): void {
     if (level < this.currentLogLevel) {
       return;
     }
@@ -64,7 +70,7 @@ export class LoggingService {
 
     // Format and output
     const formattedMessage = this.formatMessage(entry);
-    
+
     switch (level) {
       case LogLevel.DEBUG:
         console.log(formattedMessage, data || '');
@@ -85,7 +91,7 @@ export class LoggingService {
     const timestamp = entry.timestamp.toISOString();
     const level = LogLevel[entry.level];
     const context = entry.context ? `[${entry.context}]` : '';
-    
+
     return `[${timestamp}] [${level}]${context} ${entry.message}`;
   }
 
@@ -130,7 +136,12 @@ export class LoggingService {
   }
 
   // Convenience method for file operations
-  fileOperation(operation: string, filePath: string, success: boolean, error?: Error): void {
+  fileOperation(
+    operation: string,
+    filePath: string,
+    success: boolean,
+    error?: Error
+  ): void {
     const message = `${operation}: ${filePath}`;
     if (success) {
       this.info(message, 'FileSystem');

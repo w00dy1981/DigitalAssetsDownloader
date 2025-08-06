@@ -1,13 +1,13 @@
 /**
  * ConfigurationService - Centralized configuration management
- * 
+ *
  * Following KISS principle: Simple configuration management
  * Following DRY principle: Single source for configuration logic
- * Following SOLID principle: Single responsibility - configuration management  
+ * Following SOLID principle: Single responsibility - configuration management
  * Following YAGNI principle: Only what's currently used
  */
 
-import { DownloadConfig, UserSettings, IPC_CHANNELS } from '@/shared/types';
+import { DownloadConfig, UserSettings } from '@/shared/types';
 import { logger } from './LoggingService';
 import { ValidationService } from './ValidationService';
 import { IPCService } from './IPCService';
@@ -29,7 +29,7 @@ export interface ConfigurationState {
 export class ConfigurationService {
   private static instance: ConfigurationService;
   private ipcService: IPCService;
-  
+
   // Default user settings - centralized from SettingsTab
   private readonly defaultUserSettings: UserSettings = {
     defaultPaths: {
@@ -84,18 +84,29 @@ export class ConfigurationService {
     try {
       logger.debug('Loading user settings', 'ConfigurationService');
       const savedSettings = await this.ipcService.loadSettings();
-      
+
       if (savedSettings) {
         // Deep merge with defaults to ensure all properties exist
         const mergedSettings = this.mergeUserSettings(savedSettings);
-        logger.info('User settings loaded successfully', 'ConfigurationService', { hasCustomSettings: true });
+        logger.info(
+          'User settings loaded successfully',
+          'ConfigurationService',
+          { hasCustomSettings: true }
+        );
         return mergedSettings;
       } else {
-        logger.info('No saved settings found, using defaults', 'ConfigurationService');
+        logger.info(
+          'No saved settings found, using defaults',
+          'ConfigurationService'
+        );
         return this.defaultUserSettings;
       }
     } catch (error) {
-      logger.error('Error loading user settings', error instanceof Error ? error : new Error(String(error)), 'ConfigurationService');
+      logger.error(
+        'Error loading user settings',
+        error instanceof Error ? error : new Error(String(error)),
+        'ConfigurationService'
+      );
       return this.defaultUserSettings;
     }
   }
@@ -103,10 +114,12 @@ export class ConfigurationService {
   /**
    * Save user settings with validation
    */
-  async saveUserSettings(settings: UserSettings): Promise<{ success: boolean; message: string }> {
+  async saveUserSettings(
+    settings: UserSettings
+  ): Promise<{ success: boolean; message: string }> {
     try {
       logger.debug('Saving user settings', 'ConfigurationService');
-      
+
       // Validate settings before saving
       const validation = this.validateUserSettings(settings);
       if (!validation.isValid) {
@@ -120,13 +133,28 @@ export class ConfigurationService {
         logger.info('User settings saved successfully', 'ConfigurationService');
         return { success: true, message: 'Settings saved successfully' };
       } else {
-        logger.error('Error saving user settings', undefined, 'ConfigurationService');
-        return { success: false, message: `Error saving settings: ${result.message || 'Unknown error'}` };
+        logger.error(
+          'Error saving user settings',
+          undefined,
+          'ConfigurationService'
+        );
+        return {
+          success: false,
+          message: `Error saving settings: ${result.message || 'Unknown error'}`,
+        };
       }
     } catch (error) {
-      const errorMessage = error instanceof Error ? error.message : String(error);
-      logger.error('Error saving user settings', error instanceof Error ? error : new Error(errorMessage), 'ConfigurationService');
-      return { success: false, message: `Error saving settings: ${errorMessage}` };
+      const errorMessage =
+        error instanceof Error ? error.message : String(error);
+      logger.error(
+        'Error saving user settings',
+        error instanceof Error ? error : new Error(errorMessage),
+        'ConfigurationService'
+      );
+      return {
+        success: false,
+        message: `Error saving settings: ${errorMessage}`,
+      };
     }
   }
 
@@ -137,16 +165,23 @@ export class ConfigurationService {
     try {
       logger.debug('Loading download configuration', 'ConfigurationService');
       const result = await this.ipcService.loadConfig();
-      
+
       if (result && result.lastConfiguration) {
-        logger.info('Download configuration loaded successfully', 'ConfigurationService');
+        logger.info(
+          'Download configuration loaded successfully',
+          'ConfigurationService'
+        );
         return result.lastConfiguration;
       } else {
         logger.info('No saved configuration found', 'ConfigurationService');
         return null;
       }
     } catch (error) {
-      logger.error('Error loading download configuration', error instanceof Error ? error : new Error(String(error)), 'ConfigurationService');
+      logger.error(
+        'Error loading download configuration',
+        error instanceof Error ? error : new Error(String(error)),
+        'ConfigurationService'
+      );
       return null;
     }
   }
@@ -154,10 +189,12 @@ export class ConfigurationService {
   /**
    * Save download configuration with validation
    */
-  async saveDownloadConfig(config: DownloadConfig): Promise<{ success: boolean; message: string }> {
+  async saveDownloadConfig(
+    config: DownloadConfig
+  ): Promise<{ success: boolean; message: string }> {
     try {
       logger.debug('Saving download configuration', 'ConfigurationService');
-      
+
       // Validate configuration before saving
       const validation = this.validateDownloadConfig(config);
       if (!validation.isValid) {
@@ -168,25 +205,45 @@ export class ConfigurationService {
 
       const result = await this.ipcService.saveConfig(config);
       if (result.success) {
-        logger.info('Download configuration saved successfully', 'ConfigurationService');
+        logger.info(
+          'Download configuration saved successfully',
+          'ConfigurationService'
+        );
         return { success: true, message: 'Configuration saved successfully' };
       } else {
-        logger.error('Error saving download configuration', undefined, 'ConfigurationService');
-        return { success: false, message: `Error saving configuration: ${result.message || 'Unknown error'}` };
+        logger.error(
+          'Error saving download configuration',
+          undefined,
+          'ConfigurationService'
+        );
+        return {
+          success: false,
+          message: `Error saving configuration: ${result.message || 'Unknown error'}`,
+        };
       }
     } catch (error) {
-      const errorMessage = error instanceof Error ? error.message : String(error);
-      logger.error('Error saving download configuration', error instanceof Error ? error : new Error(errorMessage), 'ConfigurationService');
-      return { success: false, message: `Error saving configuration: ${errorMessage}` };
+      const errorMessage =
+        error instanceof Error ? error.message : String(error);
+      logger.error(
+        'Error saving download configuration',
+        error instanceof Error ? error : new Error(errorMessage),
+        'ConfigurationService'
+      );
+      return {
+        success: false,
+        message: `Error saving configuration: ${errorMessage}`,
+      };
     }
   }
 
   /**
    * Validate download configuration - delegates to ValidationService
    */
-  validateDownloadConfig(config: DownloadConfig): ConfigurationValidationResult {
+  validateDownloadConfig(
+    config: DownloadConfig
+  ): ConfigurationValidationResult {
     const result = ValidationService.validateDownloadConfig(config);
-    
+
     if (result.isValid) {
       logger.validation('DownloadConfig', true);
     } else {
@@ -201,7 +258,7 @@ export class ConfigurationService {
    */
   validateUserSettings(settings: UserSettings): ConfigurationValidationResult {
     const result = ValidationService.validateUserSettings(settings);
-    
+
     if (result.isValid) {
       logger.validation('UserSettings', true);
     } else {
@@ -244,7 +301,11 @@ export class ConfigurationService {
   /**
    * Update specific user setting path safely
    */
-  updateUserSetting(settings: UserSettings, path: string, value: any): UserSettings {
+  updateUserSetting(
+    settings: UserSettings,
+    path: string,
+    value: any
+  ): UserSettings {
     const newSettings = { ...settings };
     const pathParts = path.split('.');
 
@@ -264,7 +325,10 @@ export class ConfigurationService {
   /**
    * Update download configuration safely
    */
-  updateDownloadConfig(config: DownloadConfig, updates: Partial<DownloadConfig>): DownloadConfig {
+  updateDownloadConfig(
+    config: DownloadConfig,
+    updates: Partial<DownloadConfig>
+  ): DownloadConfig {
     return {
       ...config,
       ...updates,

@@ -12,7 +12,8 @@ export const UpdateSettingsSection: React.FC<UpdateSettingsSectionProps> = ({
   onSettingUpdate,
 }) => {
   const [isCheckingForUpdates, setIsCheckingForUpdates] = useState(false);
-  const [updateCheckTimeoutId, setUpdateCheckTimeoutId] = useState<NodeJS.Timeout | null>(null);
+  const [updateCheckTimeoutId, setUpdateCheckTimeoutId] =
+    useState<NodeJS.Timeout | null>(null);
   const [updateStatus, showUpdateStatus] = useStatusMessage();
 
   const handleUpdateSettingChange = (settingKey: string, value: any) => {
@@ -62,10 +63,14 @@ export const UpdateSettingsSection: React.FC<UpdateSettingsSectionProps> = ({
     // Cleanup - remove all listeners for these channels when component unmounts
     return () => {
       window.electronAPI.removeAllListeners?.('update-checking' as any);
-      window.electronAPI.removeAllListeners(IPC_CHANNELS.UPDATE_AVAILABLE as any);
-      window.electronAPI.removeAllListeners(IPC_CHANNELS.UPDATE_NOT_AVAILABLE as any);
+      window.electronAPI.removeAllListeners(
+        IPC_CHANNELS.UPDATE_AVAILABLE as any
+      );
+      window.electronAPI.removeAllListeners(
+        IPC_CHANNELS.UPDATE_NOT_AVAILABLE as any
+      );
       window.electronAPI.removeAllListeners?.('update-error' as any);
-      
+
       // Clear any pending timeout
       if (updateCheckTimeoutId) {
         clearTimeout(updateCheckTimeoutId);
@@ -77,25 +82,26 @@ export const UpdateSettingsSection: React.FC<UpdateSettingsSectionProps> = ({
   // Manual update check with timeout mechanism and development mode detection
   const checkForUpdatesManually = useCallback(async () => {
     if (isCheckingForUpdates) return; // Prevent multiple clicks
-    
+
     // Detect development mode (when running with npm run dev)
-    const isDevelopment = process.env.NODE_ENV === 'development' || 
-                         window.location.protocol === 'file:' ||
-                         !window.electronAPI;
-    
+    const isDevelopment =
+      process.env.NODE_ENV === 'development' ||
+      window.location.protocol === 'file:' ||
+      !window.electronAPI;
+
     try {
       // Add shorter timeout for development mode
       const timeoutDuration = isDevelopment ? 10000 : 30000; // 10s for dev, 30s for prod
       const timeoutId = setTimeout(() => {
         setIsCheckingForUpdates(false);
         setUpdateCheckTimeoutId(null);
-        const message = isDevelopment 
+        const message = isDevelopment
           ? 'Update checks may not work in development mode - try again in production build'
           : 'Update check timed out - try again later';
         showUpdateStatus(message, 8000);
       }, timeoutDuration);
       setUpdateCheckTimeoutId(timeoutId);
-      
+
       await window.electronAPI.checkForUpdates();
     } catch (error) {
       console.error('Manual update check failed:', error);
@@ -105,11 +111,12 @@ export const UpdateSettingsSection: React.FC<UpdateSettingsSectionProps> = ({
         setUpdateCheckTimeoutId(null);
       }
       setIsCheckingForUpdates(false);
-      
-      const isDevelopment = process.env.NODE_ENV === 'development' || 
-                           window.location.protocol === 'file:' ||
-                           !window.electronAPI;
-      const message = isDevelopment 
+
+      const isDevelopment =
+        process.env.NODE_ENV === 'development' ||
+        window.location.protocol === 'file:' ||
+        !window.electronAPI;
+      const message = isDevelopment
         ? 'Update checks are limited in development mode - build and test in production'
         : 'Update check failed - Please try again later';
       showUpdateStatus(message, 8000);
@@ -119,13 +126,15 @@ export const UpdateSettingsSection: React.FC<UpdateSettingsSectionProps> = ({
   return (
     <div className="config-section">
       <h3>Update Settings</h3>
-      
+
       <div className="form-group">
         <label>
           <input
             type="checkbox"
             checked={settings.updateSettings.enableAutoUpdates}
-            onChange={(e) => handleUpdateSettingChange('enableAutoUpdates', e.target.checked)}
+            onChange={e =>
+              handleUpdateSettingChange('enableAutoUpdates', e.target.checked)
+            }
           />
           Enable automatic updates
         </label>
@@ -139,7 +148,12 @@ export const UpdateSettingsSection: React.FC<UpdateSettingsSectionProps> = ({
           <input
             type="checkbox"
             checked={settings.updateSettings.checkForUpdatesOnStartup}
-            onChange={(e) => handleUpdateSettingChange('checkForUpdatesOnStartup', e.target.checked)}
+            onChange={e =>
+              handleUpdateSettingChange(
+                'checkForUpdatesOnStartup',
+                e.target.checked
+              )
+            }
             disabled={!settings.updateSettings.enableAutoUpdates}
           />
           Check for updates on startup
@@ -154,7 +168,9 @@ export const UpdateSettingsSection: React.FC<UpdateSettingsSectionProps> = ({
         <select
           id="update-channel"
           value={settings.updateSettings.updateChannel}
-          onChange={(e) => handleUpdateSettingChange('updateChannel', e.target.value)}
+          onChange={e =>
+            handleUpdateSettingChange('updateChannel', e.target.value)
+          }
           className="form-control"
           disabled={!settings.updateSettings.enableAutoUpdates}
         >
@@ -171,7 +187,12 @@ export const UpdateSettingsSection: React.FC<UpdateSettingsSectionProps> = ({
           <input
             type="checkbox"
             checked={settings.updateSettings.downloadUpdatesAutomatically}
-            onChange={(e) => handleUpdateSettingChange('downloadUpdatesAutomatically', e.target.checked)}
+            onChange={e =>
+              handleUpdateSettingChange(
+                'downloadUpdatesAutomatically',
+                e.target.checked
+              )
+            }
             disabled={!settings.updateSettings.enableAutoUpdates}
           />
           Download updates automatically
@@ -182,7 +203,7 @@ export const UpdateSettingsSection: React.FC<UpdateSettingsSectionProps> = ({
       </div>
 
       <div className="form-group">
-        <button 
+        <button
           className={`btn btn-primary ${isCheckingForUpdates ? 'loading' : ''}`}
           onClick={checkForUpdatesManually}
           disabled={isCheckingForUpdates}
@@ -194,7 +215,10 @@ export const UpdateSettingsSection: React.FC<UpdateSettingsSectionProps> = ({
           Manually check for available updates
         </small>
         {updateStatus && (
-          <div className={`status-message ${updateStatus.includes('failed') || updateStatus.includes('Error') ? 'error' : 'info'}`} style={{ marginTop: '8px' }}>
+          <div
+            className={`status-message ${updateStatus.includes('failed') || updateStatus.includes('Error') ? 'error' : 'info'}`}
+            style={{ marginTop: '8px' }}
+          >
             {updateStatus}
           </div>
         )}

@@ -1,6 +1,6 @@
 /**
  * ConfigurationService Tests
- * 
+ *
  * Testing the centralized configuration management service
  */
 
@@ -48,12 +48,14 @@ jest.mock('./IPCService', () => ({
 describe('ConfigurationService', () => {
   let service: ConfigurationService;
   let mockIPCService: jest.Mocked<IPCService>;
-  const mockValidationService = ValidationService as jest.Mocked<typeof ValidationService>;
+  const mockValidationService = ValidationService as jest.Mocked<
+    typeof ValidationService
+  >;
 
   beforeEach(() => {
     // Reset all mocks
     jest.clearAllMocks();
-    
+
     // Create a fresh mock IPC service for each test
     mockIPCService = {
       loadSettings: jest.fn(),
@@ -64,10 +66,10 @@ describe('ConfigurationService', () => {
 
     // Mock the getInstance call to return our mock
     (IPCService.getInstance as jest.Mock).mockReturnValue(mockIPCService);
-    
+
     // Reset the singleton instance for testing
     (ConfigurationService as any).instance = undefined;
-    
+
     // Get fresh instance for each test
     service = ConfigurationService.getInstance();
   });
@@ -151,10 +153,13 @@ describe('ConfigurationService', () => {
       };
 
       it('should save valid settings successfully', async () => {
-        mockIPCService.saveSettings.mockResolvedValue({ success: true, message: 'Settings saved' });
+        mockIPCService.saveSettings.mockResolvedValue({
+          success: true,
+          message: 'Settings saved',
+        });
         mockValidationService.validateUserSettings.mockReturnValue({
           isValid: true,
-          errors: []
+          errors: [],
         });
 
         const result = await service.saveUserSettings(validSettings);
@@ -175,7 +180,7 @@ describe('ConfigurationService', () => {
 
         mockValidationService.validateUserSettings.mockReturnValue({
           isValid: false,
-          errors: ['Default concurrent downloads must be between 1 and 20']
+          errors: ['Default concurrent downloads must be between 1 and 20'],
         });
 
         const result = await service.saveUserSettings(invalidSettings);
@@ -189,7 +194,7 @@ describe('ConfigurationService', () => {
         mockIPCService.saveSettings.mockRejectedValue(new Error('Save failed'));
         mockValidationService.validateUserSettings.mockReturnValue({
           isValid: true,
-          errors: []
+          errors: [],
         });
 
         const result = await service.saveUserSettings(validSettings);
@@ -201,21 +206,25 @@ describe('ConfigurationService', () => {
 
     describe('validateUserSettings', () => {
       it('should validate correct settings', () => {
-        const baseValidSettings: UserSettings = service.getDefaultUserSettings();
+        const baseValidSettings: UserSettings =
+          service.getDefaultUserSettings();
         mockValidationService.validateUserSettings.mockReturnValue({
           isValid: true,
-          errors: []
+          errors: [],
         });
 
         const result = service.validateUserSettings(baseValidSettings);
-        
+
         expect(result.isValid).toBe(true);
         expect(result.errors).toHaveLength(0);
-        expect(mockValidationService.validateUserSettings).toHaveBeenCalledWith(baseValidSettings);
+        expect(mockValidationService.validateUserSettings).toHaveBeenCalledWith(
+          baseValidSettings
+        );
       });
 
       it('should reject invalid concurrent downloads', () => {
-        const baseValidSettings: UserSettings = service.getDefaultUserSettings();
+        const baseValidSettings: UserSettings =
+          service.getDefaultUserSettings();
         const invalidSettings = {
           ...baseValidSettings,
           downloadBehavior: {
@@ -226,18 +235,23 @@ describe('ConfigurationService', () => {
 
         mockValidationService.validateUserSettings.mockReturnValue({
           isValid: false,
-          errors: ['Default concurrent downloads must be between 1 and 20']
+          errors: ['Default concurrent downloads must be between 1 and 20'],
         });
 
         const result = service.validateUserSettings(invalidSettings);
-        
+
         expect(result.isValid).toBe(false);
-        expect(result.errors).toContain('Default concurrent downloads must be between 1 and 20');
-        expect(mockValidationService.validateUserSettings).toHaveBeenCalledWith(invalidSettings);
+        expect(result.errors).toContain(
+          'Default concurrent downloads must be between 1 and 20'
+        );
+        expect(mockValidationService.validateUserSettings).toHaveBeenCalledWith(
+          invalidSettings
+        );
       });
 
       it('should reject invalid JPEG quality', () => {
-        const baseValidSettings: UserSettings = service.getDefaultUserSettings();
+        const baseValidSettings: UserSettings =
+          service.getDefaultUserSettings();
         const invalidSettings = {
           ...baseValidSettings,
           imageProcessing: {
@@ -248,18 +262,23 @@ describe('ConfigurationService', () => {
 
         mockValidationService.validateUserSettings.mockReturnValue({
           isValid: false,
-          errors: ['Default JPEG quality must be between 60% and 100%']
+          errors: ['Default JPEG quality must be between 60% and 100%'],
         });
 
         const result = service.validateUserSettings(invalidSettings);
-        
+
         expect(result.isValid).toBe(false);
-        expect(result.errors).toContain('Default JPEG quality must be between 60% and 100%');
-        expect(mockValidationService.validateUserSettings).toHaveBeenCalledWith(invalidSettings);
+        expect(result.errors).toContain(
+          'Default JPEG quality must be between 60% and 100%'
+        );
+        expect(mockValidationService.validateUserSettings).toHaveBeenCalledWith(
+          invalidSettings
+        );
       });
 
       it('should reject invalid startup tab', () => {
-        const baseValidSettings: UserSettings = service.getDefaultUserSettings();
+        const baseValidSettings: UserSettings =
+          service.getDefaultUserSettings();
         const invalidSettings = {
           ...baseValidSettings,
           uiPreferences: {
@@ -270,48 +289,68 @@ describe('ConfigurationService', () => {
 
         mockValidationService.validateUserSettings.mockReturnValue({
           isValid: false,
-          errors: ['Invalid startup tab selection']
+          errors: ['Invalid startup tab selection'],
         });
 
         const result = service.validateUserSettings(invalidSettings);
-        
+
         expect(result.isValid).toBe(false);
         expect(result.errors).toContain('Invalid startup tab selection');
-        expect(mockValidationService.validateUserSettings).toHaveBeenCalledWith(invalidSettings);
+        expect(mockValidationService.validateUserSettings).toHaveBeenCalledWith(
+          invalidSettings
+        );
       });
     });
 
     describe('updateUserSetting', () => {
       it('should update nested setting correctly', () => {
         const settings = service.getDefaultUserSettings();
-        const updated = service.updateUserSetting(settings, 'downloadBehavior.defaultConcurrentDownloads', 10);
+        const updated = service.updateUserSetting(
+          settings,
+          'downloadBehavior.defaultConcurrentDownloads',
+          10
+        );
 
         expect(updated.downloadBehavior.defaultConcurrentDownloads).toBe(10);
-        expect(updated.downloadBehavior.connectionTimeout).toBe(settings.downloadBehavior.connectionTimeout);
+        expect(updated.downloadBehavior.connectionTimeout).toBe(
+          settings.downloadBehavior.connectionTimeout
+        );
       });
 
       it('should not modify original settings', () => {
         const settings = service.getDefaultUserSettings();
-        const originalValue = settings.downloadBehavior.defaultConcurrentDownloads;
-        
-        service.updateUserSetting(settings, 'downloadBehavior.defaultConcurrentDownloads', 10);
+        const originalValue =
+          settings.downloadBehavior.defaultConcurrentDownloads;
 
-        expect(settings.downloadBehavior.defaultConcurrentDownloads).toBe(originalValue);
+        service.updateUserSetting(
+          settings,
+          'downloadBehavior.defaultConcurrentDownloads',
+          10
+        );
+
+        expect(settings.downloadBehavior.defaultConcurrentDownloads).toBe(
+          originalValue
+        );
       });
     });
 
     describe('resetUserSettings', () => {
       it('should reset to default settings', async () => {
-        mockIPCService.saveSettings.mockResolvedValue({ success: true, message: 'Reset successful' });
+        mockIPCService.saveSettings.mockResolvedValue({
+          success: true,
+          message: 'Reset successful',
+        });
         mockValidationService.validateUserSettings.mockReturnValue({
           isValid: true,
-          errors: []
+          errors: [],
         });
 
         const result = await service.resetUserSettings();
 
         expect(result.success).toBe(true);
-        expect(mockIPCService.saveSettings).toHaveBeenCalledWith(service.getDefaultUserSettings());
+        expect(mockIPCService.saveSettings).toHaveBeenCalledWith(
+          service.getDefaultUserSettings()
+        );
       });
     });
   });
@@ -342,98 +381,120 @@ describe('ConfigurationService', () => {
       it('should validate correct configuration', () => {
         mockValidationService.validateDownloadConfig.mockReturnValue({
           isValid: true,
-          errors: []
+          errors: [],
         });
 
         const result = service.validateDownloadConfig(baseValidConfig);
-        
+
         expect(result.isValid).toBe(true);
         expect(result.errors).toHaveLength(0);
-        expect(mockValidationService.validateDownloadConfig).toHaveBeenCalledWith(baseValidConfig);
+        expect(
+          mockValidationService.validateDownloadConfig
+        ).toHaveBeenCalledWith(baseValidConfig);
       });
 
       it('should require part number column', () => {
         const invalidConfig = { ...baseValidConfig, partNoColumn: '' };
         mockValidationService.validateDownloadConfig.mockReturnValue({
           isValid: false,
-          errors: ['Part Number column is required']
+          errors: ['Part Number column is required'],
         });
 
         const result = service.validateDownloadConfig(invalidConfig);
-        
+
         expect(result.isValid).toBe(false);
         expect(result.errors).toContain('Part Number column is required');
-        expect(mockValidationService.validateDownloadConfig).toHaveBeenCalledWith(invalidConfig);
+        expect(
+          mockValidationService.validateDownloadConfig
+        ).toHaveBeenCalledWith(invalidConfig);
       });
 
       it('should require at least one URL column', () => {
-        const invalidConfig = { 
-          ...baseValidConfig, 
-          imageColumns: [], 
-          pdfColumn: '' 
+        const invalidConfig = {
+          ...baseValidConfig,
+          imageColumns: [],
+          pdfColumn: '',
         };
         mockValidationService.validateDownloadConfig.mockReturnValue({
           isValid: false,
-          errors: ['At least one Image URL column or PDF column is required']
+          errors: ['At least one Image URL column or PDF column is required'],
         });
 
         const result = service.validateDownloadConfig(invalidConfig);
-        
+
         expect(result.isValid).toBe(false);
-        expect(result.errors).toContain('At least one Image URL column or PDF column is required');
-        expect(mockValidationService.validateDownloadConfig).toHaveBeenCalledWith(invalidConfig);
+        expect(result.errors).toContain(
+          'At least one Image URL column or PDF column is required'
+        );
+        expect(
+          mockValidationService.validateDownloadConfig
+        ).toHaveBeenCalledWith(invalidConfig);
       });
 
       it('should require image folder when image columns selected', () => {
-        const invalidConfig = { 
-          ...baseValidConfig, 
+        const invalidConfig = {
+          ...baseValidConfig,
           imageFolder: '',
-          imageColumns: ['Image URL 1']
+          imageColumns: ['Image URL 1'],
         };
         mockValidationService.validateDownloadConfig.mockReturnValue({
           isValid: false,
-          errors: ['Image download folder is required when image columns are selected']
+          errors: [
+            'Image download folder is required when image columns are selected',
+          ],
         });
 
         const result = service.validateDownloadConfig(invalidConfig);
-        
+
         expect(result.isValid).toBe(false);
-        expect(result.errors).toContain('Image download folder is required when image columns are selected');
-        expect(mockValidationService.validateDownloadConfig).toHaveBeenCalledWith(invalidConfig);
+        expect(result.errors).toContain(
+          'Image download folder is required when image columns are selected'
+        );
+        expect(
+          mockValidationService.validateDownloadConfig
+        ).toHaveBeenCalledWith(invalidConfig);
       });
 
       it('should validate worker count range', () => {
         const invalidConfig = { ...baseValidConfig, maxWorkers: 25 };
         mockValidationService.validateDownloadConfig.mockReturnValue({
           isValid: false,
-          errors: ['Concurrent downloads must be between 1 and 20']
+          errors: ['Concurrent downloads must be between 1 and 20'],
         });
 
         const result = service.validateDownloadConfig(invalidConfig);
-        
+
         expect(result.isValid).toBe(false);
-        expect(result.errors).toContain('Concurrent downloads must be between 1 and 20');
-        expect(mockValidationService.validateDownloadConfig).toHaveBeenCalledWith(invalidConfig);
+        expect(result.errors).toContain(
+          'Concurrent downloads must be between 1 and 20'
+        );
+        expect(
+          mockValidationService.validateDownloadConfig
+        ).toHaveBeenCalledWith(invalidConfig);
       });
 
       it('should validate background processing quality', () => {
-        const invalidConfig = { 
-          ...baseValidConfig, 
+        const invalidConfig = {
+          ...baseValidConfig,
           backgroundProcessing: {
             ...baseValidConfig.backgroundProcessing,
-            quality: 50
-          }
+            quality: 50,
+          },
         };
         mockValidationService.validateDownloadConfig.mockReturnValue({
           isValid: false,
-          errors: ['JPEG quality must be between 60% and 100%']
+          errors: ['JPEG quality must be between 60% and 100%'],
         });
 
         const result = service.validateDownloadConfig(invalidConfig);
-        
+
         expect(result.isValid).toBe(false);
-        expect(result.errors).toContain('JPEG quality must be between 60% and 100%');
-        expect(mockValidationService.validateDownloadConfig).toHaveBeenCalledWith(invalidConfig);
+        expect(result.errors).toContain(
+          'JPEG quality must be between 60% and 100%'
+        );
+        expect(
+          mockValidationService.validateDownloadConfig
+        ).toHaveBeenCalledWith(invalidConfig);
       });
     });
 
@@ -479,10 +540,10 @@ describe('ConfigurationService', () => {
     describe('loadDownloadConfig', () => {
       it('should load existing configuration', async () => {
         const mockConfig = { partNoColumn: 'Part Number' };
-        mockIPCService.loadConfig.mockResolvedValue({ 
+        mockIPCService.loadConfig.mockResolvedValue({
           lastConfiguration: mockConfig,
           recentFiles: [],
-          windowState: { width: 800, height: 600, isMaximized: false }
+          windowState: { width: 800, height: 600, isMaximized: false },
         });
 
         const result = await service.loadDownloadConfig();
@@ -531,10 +592,13 @@ describe('ConfigurationService', () => {
       };
 
       it('should save valid configuration', async () => {
-        mockIPCService.saveConfig.mockResolvedValue({ success: true, message: 'Config saved' });
+        mockIPCService.saveConfig.mockResolvedValue({
+          success: true,
+          message: 'Config saved',
+        });
         mockValidationService.validateDownloadConfig.mockReturnValue({
           isValid: true,
-          errors: []
+          errors: [],
         });
 
         const result = await service.saveDownloadConfig(validConfig);
@@ -548,7 +612,7 @@ describe('ConfigurationService', () => {
         const invalidConfig = { ...validConfig, partNoColumn: '' };
         mockValidationService.validateDownloadConfig.mockReturnValue({
           isValid: false,
-          errors: ['Part Number column is required']
+          errors: ['Part Number column is required'],
         });
 
         const result = await service.saveDownloadConfig(invalidConfig);

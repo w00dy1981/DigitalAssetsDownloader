@@ -19,18 +19,35 @@ const ActivityLog: React.FC<ActivityLogProps> = ({ logs }) => {
   useEffect(() => {
     if (logs.length > 0) {
       const latestLog = logs[logs.length - 1];
-      
+
       // Parse log content and determine appropriate log level
       if (latestLog.toLowerCase().includes('error')) {
-        logger.error('ActivityLog: Download error detected', new Error(latestLog), 'ActivityLog');
+        logger.error(
+          'ActivityLog: Download error detected',
+          new Error(latestLog),
+          'ActivityLog'
+        );
       } else if (latestLog.toLowerCase().includes('warning')) {
-        logger.warn('ActivityLog: Download warning detected', 'ActivityLog', { message: latestLog });
+        logger.warn('ActivityLog: Download warning detected', 'ActivityLog', {
+          message: latestLog,
+        });
       } else if (latestLog.toLowerCase().includes('complete')) {
-        logger.info('ActivityLog: Download operation completed', 'ActivityLog', { message: latestLog });
-      } else if (latestLog.toLowerCase().includes('starting') || latestLog.toLowerCase().includes('cancelling')) {
-        logger.info('ActivityLog: Download state change', 'ActivityLog', { message: latestLog });
+        logger.info(
+          'ActivityLog: Download operation completed',
+          'ActivityLog',
+          { message: latestLog }
+        );
+      } else if (
+        latestLog.toLowerCase().includes('starting') ||
+        latestLog.toLowerCase().includes('cancelling')
+      ) {
+        logger.info('ActivityLog: Download state change', 'ActivityLog', {
+          message: latestLog,
+        });
       } else {
-        logger.debug('ActivityLog: General activity', 'ActivityLog', { message: latestLog });
+        logger.debug('ActivityLog: General activity', 'ActivityLog', {
+          message: latestLog,
+        });
       }
     }
   }, [logs]);
@@ -40,7 +57,9 @@ const ActivityLog: React.FC<ActivityLogProps> = ({ logs }) => {
     return null;
   }
 
-  logger.debug('ActivityLog: Rendering activity log', 'ActivityLog', { logCount: logs.length });
+  logger.debug('ActivityLog: Rendering activity log', 'ActivityLog', {
+    logCount: logs.length,
+  });
 
   return (
     <div className="logs-section">

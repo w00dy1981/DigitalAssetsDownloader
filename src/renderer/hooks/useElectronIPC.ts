@@ -5,7 +5,7 @@ import { UserSettings, DownloadConfig } from '@/shared/types';
 /**
  * Legacy useElectronIPC hook - now powered by IPCService
  * Maintained for backward compatibility with existing components
- * 
+ *
  * New components should use useIPCService from IPCService.ts for full functionality
  */
 export const useElectronIPC = () => {

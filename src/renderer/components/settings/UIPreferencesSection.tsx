@@ -17,13 +17,18 @@ export const UIPreferencesSection: React.FC<UIPreferencesSectionProps> = ({
   return (
     <div className="config-section">
       <h3>UI Preferences</h3>
-      
+
       <div className="form-group">
         <label>
           <input
             type="checkbox"
             checked={settings.uiPreferences.rememberFileDialogPath}
-            onChange={(e) => handleUIPreferenceChange('rememberFileDialogPath', e.target.checked)}
+            onChange={e =>
+              handleUIPreferenceChange(
+                'rememberFileDialogPath',
+                e.target.checked
+              )
+            }
           />
           Remember file dialog location
         </label>
@@ -37,7 +42,9 @@ export const UIPreferencesSection: React.FC<UIPreferencesSectionProps> = ({
           <input
             type="checkbox"
             checked={settings.uiPreferences.showAdvancedOptions}
-            onChange={(e) => handleUIPreferenceChange('showAdvancedOptions', e.target.checked)}
+            onChange={e =>
+              handleUIPreferenceChange('showAdvancedOptions', e.target.checked)
+            }
           />
           Show advanced options
         </label>
@@ -51,7 +58,7 @@ export const UIPreferencesSection: React.FC<UIPreferencesSectionProps> = ({
         <select
           id="startup-tab"
           value={settings.uiPreferences.startupTab}
-          onChange={(e) => handleUIPreferenceChange('startupTab', e.target.value)}
+          onChange={e => handleUIPreferenceChange('startupTab', e.target.value)}
           className="form-control"
         >
           <option value="file">File Selection</option>

@@ -12,7 +12,7 @@ import { LoggingService, logger } from './LoggingService';
 // Browser-safe error class (avoiding pathSecurity import)
 export class PathSecurityError extends Error {
   public readonly attemptedPath: string;
-  
+
   constructor(message: string, attemptedPath: string = '') {
     super(message);
     this.name = 'PathSecurityError';
@@ -32,7 +32,7 @@ export abstract class BaseApplicationError extends Error {
     this.timestamp = new Date();
     this.context = context;
     this.code = code;
-    
+
     // Maintain proper stack trace
     Error.captureStackTrace?.(this, this.constructor);
   }
@@ -41,7 +41,11 @@ export abstract class BaseApplicationError extends Error {
 // Error classes based on patterns found in downloadService.ts, main.ts, and pathSecurity.ts
 export class ValidationError extends BaseApplicationError {
   constructor(field: string, value: any, reason: string) {
-    super(`Validation failed for ${field}: ${reason}`, 'Validation', 'VALIDATION_ERROR');
+    super(
+      `Validation failed for ${field}: ${reason}`,
+      'Validation',
+      'VALIDATION_ERROR'
+    );
     this.field = field;
     this.value = value;
     this.reason = reason;
@@ -54,7 +58,11 @@ export class ValidationError extends BaseApplicationError {
 
 export class ConfigurationError extends BaseApplicationError {
   constructor(setting: string, issue: string) {
-    super(`Configuration error for ${setting}: ${issue}`, 'Configuration', 'CONFIG_ERROR');
+    super(
+      `Configuration error for ${setting}: ${issue}`,
+      'Configuration',
+      'CONFIG_ERROR'
+    );
     this.setting = setting;
   }
 
@@ -62,8 +70,17 @@ export class ConfigurationError extends BaseApplicationError {
 }
 
 export class DownloadError extends BaseApplicationError {
-  constructor(url: string, reason: string, httpStatus?: number, retryAttempt?: number) {
-    super(`Download failed for ${url}: ${reason}`, 'Download', 'DOWNLOAD_ERROR');
+  constructor(
+    url: string,
+    reason: string,
+    httpStatus?: number,
+    retryAttempt?: number
+  ) {
+    super(
+      `Download failed for ${url}: ${reason}`,
+      'Download',
+      'DOWNLOAD_ERROR'
+    );
     this.url = url;
     this.httpStatus = httpStatus;
     this.retryAttempt = retryAttempt;
@@ -76,7 +93,11 @@ export class DownloadError extends BaseApplicationError {
 
 export class FileSystemError extends BaseApplicationError {
   constructor(operation: string, filePath: string, reason: string) {
-    super(`File system ${operation} failed for ${filePath}: ${reason}`, 'FileSystem', 'FILESYSTEM_ERROR');
+    super(
+      `File system ${operation} failed for ${filePath}: ${reason}`,
+      'FileSystem',
+      'FILESYSTEM_ERROR'
+    );
     this.operation = operation;
     this.filePath = filePath;
   }
@@ -118,13 +139,13 @@ const DEFAULT_RETRY_OPTIONS: RetryOptions = {
   baseDelayMs: 1000,
   maxDelayMs: 10000,
   backoffFactor: 2,
-  retryableErrors: ['NETWORK_ERROR', 'DOWNLOAD_ERROR', 'TIMEOUT_ERROR']
+  retryableErrors: ['NETWORK_ERROR', 'DOWNLOAD_ERROR', 'TIMEOUT_ERROR'],
 };
 
 const DEFAULT_ERROR_OPTIONS: ErrorHandlingOptions = {
   logErrors: true,
   throwOnError: true,
-  maxRetries: 3
+  maxRetries: 3,
 };
 
 export class ErrorHandlingService {
@@ -147,18 +168,22 @@ export class ErrorHandlingService {
    * Based on patterns from downloadService.ts (lines 203-210, 296-304, 448-476)
    */
   handleError(
-    error: unknown, 
-    context: string, 
+    error: unknown,
+    context: string,
     options: Partial<ErrorHandlingOptions> = {}
   ): BaseApplicationError {
     const mergedOptions = { ...DEFAULT_ERROR_OPTIONS, ...options };
-    
+
     let handledError: BaseApplicationError;
 
     if (error instanceof BaseApplicationError) {
       handledError = error;
     } else if (error instanceof PathSecurityError) {
-      handledError = new FileSystemError('security_check', error.attemptedPath, error.message);
+      handledError = new FileSystemError(
+        'security_check',
+        error.attemptedPath,
+        error.message
+      );
     } else if (error instanceof Error) {
       // Convert generic errors to application errors based on context
       handledError = this.categorizeError(error, context);
@@ -171,7 +196,11 @@ export class ErrorHandlingService {
     }
 
     if (mergedOptions.logErrors) {
-      this.loggingService.error(handledError.message, handledError, handledError.context);
+      this.loggingService.error(
+        handledError.message,
+        handledError,
+        handledError.context
+      );
     }
 
     if (mergedOptions.throwOnError) {
@@ -187,12 +216,12 @@ export class ErrorHandlingService {
    */
   private categorizeError(error: Error, context: string): BaseApplicationError {
     const message = error.message.toLowerCase();
-    
+
     // Network-related errors (axios patterns from downloadService.ts)
     if (message.includes('econnaborted') || message.includes('timeout')) {
       return new NetworkError('request', 'Connection timeout', undefined);
     }
-    
+
     if (message.includes('econnrefused') || message.includes('network')) {
       return new NetworkError('connection', error.message);
     }
@@ -241,7 +270,7 @@ export class ErrorHandlingService {
         return await operation();
       } catch (error) {
         lastError = error as Error;
-        
+
         // Check if error is retryable
         if (!this.isRetryableError(error, options.retryableErrors)) {
           throw this.handleError(error, context);
@@ -250,7 +279,11 @@ export class ErrorHandlingService {
         // Don't delay on last attempt
         if (attempt < options.maxAttempts) {
           const delay = this.calculateBackoffDelay(attempt, options);
-          logger.warn(`${context} failed (attempt ${attempt}/${options.maxAttempts}), retrying in ${delay}ms`, context, { error: lastError.message });
+          logger.warn(
+            `${context} failed (attempt ${attempt}/${options.maxAttempts}), retrying in ${delay}ms`,
+            context,
+            { error: lastError.message }
+          );
           await this.delay(delay);
         }
       }
@@ -289,8 +322,12 @@ export class ErrorHandlingService {
    * Calculate exponential backoff delay
    * Implementation based on downloadService.ts line 471
    */
-  private calculateBackoffDelay(attempt: number, options: RetryOptions): number {
-    const delay = options.baseDelayMs * Math.pow(options.backoffFactor, attempt - 1);
+  private calculateBackoffDelay(
+    attempt: number,
+    options: RetryOptions
+  ): number {
+    const delay =
+      options.baseDelayMs * Math.pow(options.backoffFactor, attempt - 1);
     return Math.min(delay, options.maxDelayMs);
   }
 
@@ -330,13 +367,13 @@ export class ErrorHandlingService {
           return `Please check ${error.field}: ${error.reason}`;
         }
         return 'Please check your input and try again.';
-        
+
       case 'CONFIG_ERROR':
         if (error instanceof ConfigurationError) {
           return `Configuration issue: ${error.setting}. Please check your settings.`;
         }
         return 'Please check your configuration and try again.';
-        
+
       case 'DOWNLOAD_ERROR':
         if (error instanceof DownloadError) {
           if (error.httpStatus === 404) {
@@ -348,7 +385,7 @@ export class ErrorHandlingService {
           return 'Download failed. Please check your internet connection.';
         }
         return 'Download failed. Please try again.';
-        
+
       case 'FILESYSTEM_ERROR':
         if (error instanceof FileSystemError) {
           if (error.message.toLowerCase().includes('permission')) {
@@ -362,10 +399,10 @@ export class ErrorHandlingService {
           }
         }
         return 'File system error. Please check permissions and try again.';
-        
+
       case 'NETWORK_ERROR':
         return 'Network error. Please check your internet connection.';
-        
+
       default:
         return 'An unexpected error occurred. Please try again.';
     }
@@ -379,19 +416,46 @@ export class ErrorHandlingService {
     const errors: ValidationError[] = [];
 
     if (!config.partNoColumn) {
-      errors.push(new ValidationError('partNoColumn', config.partNoColumn, 'Part Number column is required'));
+      errors.push(
+        new ValidationError(
+          'partNoColumn',
+          config.partNoColumn,
+          'Part Number column is required'
+        )
+      );
     }
 
     if (!config.imageColumns?.length && !config.pdfColumn) {
-      errors.push(new ValidationError('columns', { imageColumns: config.imageColumns, pdfColumn: config.pdfColumn }, 'At least one Image URL column or PDF column is required'));
+      errors.push(
+        new ValidationError(
+          'columns',
+          { imageColumns: config.imageColumns, pdfColumn: config.pdfColumn },
+          'At least one Image URL column or PDF column is required'
+        )
+      );
     }
 
     if (!config.imageFolder && !config.pdfFolder) {
-      errors.push(new ValidationError('folders', { imageFolder: config.imageFolder, pdfFolder: config.pdfFolder }, 'At least one download folder is required'));
+      errors.push(
+        new ValidationError(
+          'folders',
+          { imageFolder: config.imageFolder, pdfFolder: config.pdfFolder },
+          'At least one download folder is required'
+        )
+      );
     }
 
-    if (config.maxWorkers && (config.maxWorkers < 1 || config.maxWorkers > 20)) {
-      errors.push(new ValidationError('maxWorkers', config.maxWorkers, 'Max workers must be between 1 and 20'));
+    if (
+      config.maxWorkers &&
+      (config.maxWorkers < 1 || config.maxWorkers > 20)
+    ) {
+      errors.push(
+        new ValidationError(
+          'maxWorkers',
+          config.maxWorkers,
+          'Max workers must be between 1 and 20'
+        )
+      );
     }
 
     return errors;
@@ -410,13 +474,25 @@ export class ErrorHandlingService {
       return await operation();
     } catch (error) {
       if (error instanceof PathSecurityError) {
-        throw new FileSystemError('security_check', error.attemptedPath, error.message);
+        throw new FileSystemError(
+          'security_check',
+          error.attemptedPath,
+          error.message
+        );
       }
-      
-      const fileError = new FileSystemError(operationType, filePath, 
-        error instanceof Error ? error.message : 'Unknown error');
-      
-      this.loggingService.fileOperation(operationType, filePath, false, fileError);
+
+      const fileError = new FileSystemError(
+        operationType,
+        filePath,
+        error instanceof Error ? error.message : 'Unknown error'
+      );
+
+      this.loggingService.fileOperation(
+        operationType,
+        filePath,
+        false,
+        fileError
+      );
       throw fileError;
     }
   }
@@ -432,7 +508,8 @@ export class ErrorHandlingService {
       .filter(entry => entry.level === 3) // ERROR level
       .forEach(entry => {
         if (entry.error?.name) {
-          errorStats[entry.error.name] = (errorStats[entry.error.name] || 0) + 1;
+          errorStats[entry.error.name] =
+            (errorStats[entry.error.name] || 0) + 1;
         }
       });
 

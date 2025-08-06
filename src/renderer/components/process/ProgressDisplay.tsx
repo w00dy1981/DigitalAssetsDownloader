@@ -15,7 +15,7 @@ const ProgressDisplay: React.FC<ProgressDisplayProps> = ({
     const hours = Math.floor(seconds / 3600);
     const minutes = Math.floor((seconds % 3600) / 60);
     const secs = seconds % 60;
-    
+
     if (hours > 0) {
       return `${hours}h ${minutes}m ${secs}s`;
     } else if (minutes > 0) {
@@ -27,7 +27,7 @@ const ProgressDisplay: React.FC<ProgressDisplayProps> = ({
 
   const getProgressBarClass = (): string => {
     if (progress.total === 0) return '';
-    
+
     const successRate = progress.successful / progress.total;
     if (successRate >= 0.9) return 'success';
     if (successRate >= 0.7) return 'warning';
@@ -35,7 +35,12 @@ const ProgressDisplay: React.FC<ProgressDisplayProps> = ({
   };
 
   // Only render if there's something to show
-  if (!isDownloading && progress.total === 0 && progress.successful === 0 && progress.failed === 0) {
+  if (
+    !isDownloading &&
+    progress.total === 0 &&
+    progress.successful === 0 &&
+    progress.failed === 0
+  ) {
     return null;
   }
 
@@ -49,7 +54,7 @@ const ProgressDisplay: React.FC<ProgressDisplayProps> = ({
   return (
     <div className="progress-section">
       <h3>Download Progress</h3>
-      
+
       <div className="progress-summary">
         <div className="summary-stats">
           <div className="stat-card success">
@@ -76,22 +81,24 @@ const ProgressDisplay: React.FC<ProgressDisplayProps> = ({
           )}
         </div>
       </div>
-      
+
       <div className="progress-container">
         <div className="progress-bar">
-          <div 
+          <div
             className={`progress-fill ${getProgressBarClass()}`}
             style={{ width: `${progress.percentage}%` }}
           />
         </div>
-        
+
         <div className="progress-stats">
           <div className="stat">
             <span>{formatTime(progress.elapsedTime)} elapsed</span>
           </div>
           {progress.estimatedTimeRemaining > 0 && (
             <div className="stat">
-              <span>{formatTime(progress.estimatedTimeRemaining)} remaining</span>
+              <span>
+                {formatTime(progress.estimatedTimeRemaining)} remaining
+              </span>
             </div>
           )}
           {isDownloading && (
@@ -101,7 +108,7 @@ const ProgressDisplay: React.FC<ProgressDisplayProps> = ({
           )}
         </div>
       </div>
-      
+
       {progress.currentFile && (
         <div className="current-file">
           <strong>Current:</strong> {progress.currentFile}

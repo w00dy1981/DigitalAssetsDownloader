@@ -1,6 +1,10 @@
 import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import { SpreadsheetData, DownloadConfig } from '@/shared/types';
-import { ColumnMappingPanel, FolderConfigurationPanel, NetworkPathsPanel } from './column-selection';
+import {
+  ColumnMappingPanel,
+  FolderConfigurationPanel,
+  NetworkPathsPanel,
+} from './column-selection';
 
 interface ColumnSelectionTabProps {
   data: SpreadsheetData;
@@ -8,10 +12,10 @@ interface ColumnSelectionTabProps {
   initialConfig: DownloadConfig | null;
 }
 
-const ColumnSelectionTab: React.FC<ColumnSelectionTabProps> = ({ 
-  data, 
-  onConfigurationComplete, 
-  initialConfig 
+const ColumnSelectionTab: React.FC<ColumnSelectionTabProps> = ({
+  data,
+  onConfigurationComplete,
+  initialConfig,
 }) => {
   const [partNoColumn, setPartNoColumn] = useState<string>('');
   const [imageColumns, setImageColumns] = useState<string[]>([]);
@@ -26,14 +30,17 @@ const ColumnSelectionTab: React.FC<ColumnSelectionTabProps> = ({
   const [error, setError] = useState<string>('');
 
   // Background processing settings
-  const [backgroundProcessingEnabled, setBackgroundProcessingEnabled] = useState<boolean>(true);
-  const [backgroundMethod, setBackgroundMethod] = useState<'smart_detect' | 'ai_removal' | 'color_replace' | 'edge_detection'>('smart_detect');
+  const [backgroundProcessingEnabled, setBackgroundProcessingEnabled] =
+    useState<boolean>(true);
+  const [backgroundMethod, setBackgroundMethod] = useState<
+    'smart_detect' | 'ai_removal' | 'color_replace' | 'edge_detection'
+  >('smart_detect');
   const [quality, setQuality] = useState<number>(95);
   const [edgeThreshold, setEdgeThreshold] = useState<number>(30);
 
   // Memoized column options for Select components
-  const columnOptions = useMemo(() => 
-    data.columns.map(column => ({ value: column, label: column })),
+  const columnOptions = useMemo(
+    () => data.columns.map(column => ({ value: column, label: column })),
     [data.columns]
   );
 
@@ -80,25 +87,28 @@ const ColumnSelectionTab: React.FC<ColumnSelectionTabProps> = ({
         setPdfFilePath(initialConfig.pdfFilePath);
       }
       setMaxWorkers(initialConfig.maxWorkers || 5);
-      setBackgroundProcessingEnabled(initialConfig.backgroundProcessing?.enabled ?? true);
-      setBackgroundMethod(initialConfig.backgroundProcessing?.method || 'smart_detect');
+      setBackgroundProcessingEnabled(
+        initialConfig.backgroundProcessing?.enabled ?? true
+      );
+      setBackgroundMethod(
+        initialConfig.backgroundProcessing?.method || 'smart_detect'
+      );
       setQuality(initialConfig.backgroundProcessing?.quality || 95);
       setEdgeThreshold(initialConfig.backgroundProcessing?.edgeThreshold || 30);
     }
   }, [initialConfig, imageFilePath, pdfFilePath]);
 
-
   // Save settings whenever network paths change
   const saveNetworkPathSettings = useCallback(async () => {
     try {
-      const currentSettings = await window.electronAPI.loadSettings() || {};
+      const currentSettings = (await window.electronAPI.loadSettings()) || {};
       const updatedSettings = {
         ...currentSettings,
         defaultPaths: {
           ...currentSettings.defaultPaths,
           imageNetworkPath: imageFilePath,
-          pdfNetworkPath: pdfFilePath
-        }
+          pdfNetworkPath: pdfFilePath,
+        },
       };
       await window.electronAPI.saveSettings(updatedSettings);
     } catch (error) {
@@ -119,27 +129,27 @@ const ColumnSelectionTab: React.FC<ColumnSelectionTabProps> = ({
 
   const validateConfiguration = useCallback((): boolean => {
     setError('');
-    
+
     if (!partNoColumn) {
       setError('Please select a Part Number column.');
       return false;
     }
-    
+
     if (imageColumns.length === 0 && !pdfColumn) {
       setError('Please select at least one Image URL column or PDF column.');
       return false;
     }
-    
+
     if (imageColumns.length > 0 && !imageFolder) {
       setError('Please select an image download folder.');
       return false;
     }
-    
+
     if (pdfColumn && !pdfFolder) {
       setError('Please select a PDF download folder.');
       return false;
     }
-    
+
     return true;
   }, [partNoColumn, imageColumns, pdfColumn, imageFolder, pdfFolder]);
 
@@ -147,7 +157,7 @@ const ColumnSelectionTab: React.FC<ColumnSelectionTabProps> = ({
     if (!validateConfiguration()) {
       return;
     }
-    
+
     const config: DownloadConfig = {
       excelFile: data.filePath,
       sheetName: data.sheetName,
@@ -165,32 +175,45 @@ const ColumnSelectionTab: React.FC<ColumnSelectionTabProps> = ({
         enabled: backgroundProcessingEnabled,
         method: backgroundMethod,
         quality,
-        edgeThreshold
-      }
+        edgeThreshold,
+      },
     };
-    
+
     onConfigurationComplete(config);
   }, [
-    data, partNoColumn, imageColumns, pdfColumn, filenameColumn,
-    imageFolder, pdfFolder, sourceImageFolder, imageFilePath, pdfFilePath,
-    maxWorkers, backgroundProcessingEnabled, backgroundMethod, quality, edgeThreshold,
-    onConfigurationComplete, validateConfiguration
+    data,
+    partNoColumn,
+    imageColumns,
+    pdfColumn,
+    filenameColumn,
+    imageFolder,
+    pdfFolder,
+    sourceImageFolder,
+    imageFilePath,
+    pdfFilePath,
+    maxWorkers,
+    backgroundProcessingEnabled,
+    backgroundMethod,
+    quality,
+    edgeThreshold,
+    onConfigurationComplete,
+    validateConfiguration,
   ]);
 
   return (
     <div className="tab-panel">
       <h2>Column Selection & Configuration</h2>
-      <p>Map your Excel columns to the appropriate data types and configure download settings.</p>
-      <p className="data-info">
-        <strong>Loaded Data:</strong> {data.sheetName} ({data.rows.length} rows, {data.columns.length} columns)
+      <p>
+        Map your Excel columns to the appropriate data types and configure
+        download settings.
       </p>
-      
-      {error && (
-        <div className="alert alert-danger mb-3">
-          {error}
-        </div>
-      )}
-      
+      <p className="data-info">
+        <strong>Loaded Data:</strong> {data.sheetName} ({data.rows.length} rows,{' '}
+        {data.columns.length} columns)
+      </p>
+
+      {error && <div className="alert alert-danger mb-3">{error}</div>}
+
       <div className="configuration-sections">
         <ColumnMappingPanel
           data={data}
@@ -205,7 +228,7 @@ const ColumnSelectionTab: React.FC<ColumnSelectionTabProps> = ({
           columnOptions={columnOptions}
           onValidationError={setError}
         />
-        
+
         <FolderConfigurationPanel
           imageFolder={imageFolder}
           onImageFolderChange={setImageFolder}
@@ -215,7 +238,7 @@ const ColumnSelectionTab: React.FC<ColumnSelectionTabProps> = ({
           onSourceImageFolderChange={setSourceImageFolder}
           onError={setError}
         />
-        
+
         <NetworkPathsPanel
           imageFilePath={imageFilePath}
           onImageFilePathChange={setImageFilePath}
@@ -224,38 +247,36 @@ const ColumnSelectionTab: React.FC<ColumnSelectionTabProps> = ({
           onError={setError}
         />
       </div>
-      
+
       <div className="btn-group mt-4">
-        <button
-          type="button"
-          className="btn btn-success"
-          onClick={handleNext}
-        >
+        <button type="button" className="btn btn-success" onClick={handleNext}>
           Next: Process & Download →
         </button>
         <button
           type="button"
           className="btn btn-secondary"
-          onClick={() => window.electronAPI.saveConfig({
-            excelFile: data.filePath,
-            sheetName: data.sheetName,
-            partNoColumn,
-            imageColumns,
-            pdfColumn,
-            filenameColumn,
-            imageFolder,
-            pdfFolder,
-            sourceImageFolder,
-            imageFilePath,
-            pdfFilePath,
-            maxWorkers,
-            backgroundProcessing: {
-              enabled: backgroundProcessingEnabled,
-              method: backgroundMethod,
-              quality,
-              edgeThreshold
-            }
-          })}
+          onClick={() =>
+            window.electronAPI.saveConfig({
+              excelFile: data.filePath,
+              sheetName: data.sheetName,
+              partNoColumn,
+              imageColumns,
+              pdfColumn,
+              filenameColumn,
+              imageFolder,
+              pdfFolder,
+              sourceImageFolder,
+              imageFilePath,
+              pdfFilePath,
+              maxWorkers,
+              backgroundProcessing: {
+                enabled: backgroundProcessingEnabled,
+                method: backgroundMethod,
+                quality,
+                edgeThreshold,
+              },
+            })
+          }
         >
           Save Configuration
         </button>

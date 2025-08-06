@@ -12,7 +12,7 @@ import path from 'path';
  */
 export const hasExtension = (fileName: string, extension: string): boolean => {
   if (!fileName || !extension) return false;
-  
+
   const normalizedExt = extension.startsWith('.') ? extension : `.${extension}`;
   return fileName.toLowerCase().endsWith(normalizedExt.toLowerCase());
 };
@@ -23,9 +23,12 @@ export const hasExtension = (fileName: string, extension: string): boolean => {
  * @param extensions - Array of extensions to check for (with or without leading dots)
  * @returns true if the file has any of the specified extensions
  */
-export const hasAnyExtension = (fileName: string, extensions: string[]): boolean => {
+export const hasAnyExtension = (
+  fileName: string,
+  extensions: string[]
+): boolean => {
   if (!fileName || !extensions.length) return false;
-  
+
   return extensions.some(ext => hasExtension(fileName, ext));
 };
 
@@ -44,7 +47,16 @@ export const getExtension = (filePath: string): string => {
  * @returns true if the file is an image
  */
 export const isImageFile = (fileName: string): boolean => {
-  const imageExtensions = ['.jpg', '.jpeg', '.png', '.gif', '.bmp', '.webp', '.tiff', '.tif'];
+  const imageExtensions = [
+    '.jpg',
+    '.jpeg',
+    '.png',
+    '.gif',
+    '.bmp',
+    '.webp',
+    '.tiff',
+    '.tif',
+  ];
   return hasAnyExtension(fileName, imageExtensions);
 };
 

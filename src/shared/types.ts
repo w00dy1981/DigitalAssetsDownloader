@@ -72,33 +72,37 @@ export interface WindowState {
 export interface UserSettings {
   defaultPaths: {
     lastFileDialogPath: string;
-    imageDownloadFolder: string;          // Default download folder for images
-    pdfDownloadFolder: string;            // Default download folder for PDFs  
-    sourceImageFolder: string;            // Default source folder for searching
-    imageNetworkPath: string;             // Default network path for image logging
-    pdfNetworkPath: string;               // Default network path for PDF logging
+    imageDownloadFolder: string; // Default download folder for images
+    pdfDownloadFolder: string; // Default download folder for PDFs
+    sourceImageFolder: string; // Default source folder for searching
+    imageNetworkPath: string; // Default network path for image logging
+    pdfNetworkPath: string; // Default network path for PDF logging
   };
   downloadBehavior: {
-    defaultConcurrentDownloads: number;   // Default worker count (1-20)
-    connectionTimeout: number;            // Default connection timeout (5s)
-    readTimeout: number;                  // Default read timeout (30s)
-    retryAttempts: number;                // Default retry count (3)
+    defaultConcurrentDownloads: number; // Default worker count (1-20)
+    connectionTimeout: number; // Default connection timeout (5s)
+    readTimeout: number; // Default read timeout (30s)
+    retryAttempts: number; // Default retry count (3)
   };
   imageProcessing: {
-    enabledByDefault: boolean;            // Background processing on/off by default
-    defaultMethod: 'smart_detect' | 'ai_removal' | 'color_replace' | 'edge_detection';
-    defaultQuality: number;               // JPEG quality (60-100%)
-    defaultEdgeThreshold: number;         // Edge detection threshold
+    enabledByDefault: boolean; // Background processing on/off by default
+    defaultMethod:
+      | 'smart_detect'
+      | 'ai_removal'
+      | 'color_replace'
+      | 'edge_detection';
+    defaultQuality: number; // JPEG quality (60-100%)
+    defaultEdgeThreshold: number; // Edge detection threshold
   };
   uiPreferences: {
-    rememberFileDialogPath: boolean;      // Enable/disable file dialog path memory
-    showAdvancedOptions: boolean;         // Show/hide advanced configuration options
+    rememberFileDialogPath: boolean; // Enable/disable file dialog path memory
+    showAdvancedOptions: boolean; // Show/hide advanced configuration options
     startupTab: 'file' | 'column' | 'process' | 'settings'; // Default tab on startup
   };
   updateSettings: {
-    enableAutoUpdates: boolean;           // Enable/disable automatic updates
-    checkForUpdatesOnStartup: boolean;    // Check for updates when app starts
-    updateChannel: 'stable' | 'beta';     // Update channel preference
+    enableAutoUpdates: boolean; // Enable/disable automatic updates
+    checkForUpdatesOnStartup: boolean; // Check for updates when app starts
+    updateChannel: 'stable' | 'beta'; // Update channel preference
     downloadUpdatesAutomatically: boolean; // Auto-download vs prompt user
   };
 }
@@ -116,31 +120,31 @@ export const IPC_CHANNELS = {
   OPEN_FILE_DIALOG: 'open-file-dialog',
   OPEN_FOLDER_DIALOG: 'open-folder-dialog',
   SAVE_FILE_DIALOG: 'save-file-dialog',
-  
+
   // Excel operations
   LOAD_EXCEL_FILE: 'load-excel-file',
   GET_SHEET_NAMES: 'get-sheet-names',
   LOAD_SHEET_DATA: 'load-sheet-data',
-  
+
   // Configuration
   SAVE_CONFIG: 'save-config',
   LOAD_CONFIG: 'load-config',
-  
+
   // Window operations
   MINIMIZE_WINDOW: 'minimize-window',
   MAXIMIZE_WINDOW: 'maximize-window',
   CLOSE_WINDOW: 'close-window',
-  
+
   // Download operations
   START_DOWNLOADS: 'start-downloads',
   CANCEL_DOWNLOADS: 'cancel-downloads',
   DOWNLOAD_PROGRESS: 'download-progress',
   DOWNLOAD_COMPLETE: 'download-complete',
-  
+
   // Settings operations
   SAVE_SETTINGS: 'save-settings',
   LOAD_SETTINGS: 'load-settings',
-  
+
   // Auto-updater operations
   CHECK_FOR_UPDATES: 'check-for-updates',
   UPDATE_AVAILABLE: 'update-available',
@@ -150,4 +154,4 @@ export const IPC_CHANNELS = {
   INSTALL_UPDATE: 'install-update',
 } as const;
 
-export type IpcChannelType = typeof IPC_CHANNELS[keyof typeof IPC_CHANNELS];
+export type IpcChannelType = (typeof IPC_CHANNELS)[keyof typeof IPC_CHANNELS];

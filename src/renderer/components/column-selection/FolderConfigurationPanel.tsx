@@ -18,57 +18,70 @@ const FolderConfigurationPanel: React.FC<FolderConfigurationPanelProps> = ({
   onPdfFolderChange,
   sourceImageFolder,
   onSourceImageFolderChange,
-  onError
+  onError,
 }) => {
   // Simple browser-safe folder path validation
-  const validateFolderPath = useCallback((path: string, isRequired: boolean = true): boolean => {
-    if (!path || path.trim() === '') {
-      if (isRequired) {
-        onError('Folder path is required');
+  const validateFolderPath = useCallback(
+    (path: string, isRequired: boolean = true): boolean => {
+      if (!path || path.trim() === '') {
+        if (isRequired) {
+          onError('Folder path is required');
+          return false;
+        }
+        return true; // Allow empty paths for optional folders
+      }
+
+      // Basic browser-safe validation (no file system access)
+      if (path.trim().length === 0) {
+        onError('Folder path cannot be empty');
         return false;
       }
-      return true; // Allow empty paths for optional folders
-    }
-    
-    // Basic browser-safe validation (no file system access)
-    if (path.trim().length === 0) {
-      onError('Folder path cannot be empty');
-      return false;
-    }
-    
-    // Check for obviously invalid characters (basic validation)
-    if (path.includes('\0') || path.length > 260) {
-      onError('Invalid folder path format');
-      return false;
-    }
-    
-    return true;
-  }, [onError]);
 
-  const handleImageFolderChange = useCallback((value: string) => {
-    if (!validateFolderPath(value, true)) {
-      return; // Validation failed, don't update
-    }
-    onImageFolderChange(value);
-  }, [onImageFolderChange, validateFolderPath]);
+      // Check for obviously invalid characters (basic validation)
+      if (path.includes('\0') || path.length > 260) {
+        onError('Invalid folder path format');
+        return false;
+      }
 
-  const handlePdfFolderChange = useCallback((value: string) => {
-    if (!validateFolderPath(value, true)) {
-      return; // Validation failed, don't update
-    }
-    onPdfFolderChange(value);
-  }, [onPdfFolderChange, validateFolderPath]);
+      return true;
+    },
+    [onError]
+  );
 
-  const handleSourceImageFolderChange = useCallback((value: string) => {
-    if (!validateFolderPath(value, false)) { // Source folder is optional
-      return; // Validation failed, don't update
-    }
-    onSourceImageFolderChange(value);
-  }, [onSourceImageFolderChange, validateFolderPath]);
+  const handleImageFolderChange = useCallback(
+    (value: string) => {
+      if (!validateFolderPath(value, true)) {
+        return; // Validation failed, don't update
+      }
+      onImageFolderChange(value);
+    },
+    [onImageFolderChange, validateFolderPath]
+  );
+
+  const handlePdfFolderChange = useCallback(
+    (value: string) => {
+      if (!validateFolderPath(value, true)) {
+        return; // Validation failed, don't update
+      }
+      onPdfFolderChange(value);
+    },
+    [onPdfFolderChange, validateFolderPath]
+  );
+
+  const handleSourceImageFolderChange = useCallback(
+    (value: string) => {
+      if (!validateFolderPath(value, false)) {
+        // Source folder is optional
+        return; // Validation failed, don't update
+      }
+      onSourceImageFolderChange(value);
+    },
+    [onSourceImageFolderChange, validateFolderPath]
+  );
   return (
     <div className="config-section">
       <h3>Download Folders</h3>
-      
+
       {/* Image Download Folder */}
       <div className="form-group">
         <label htmlFor="image-folder">Image Download Folder *</label>
@@ -82,7 +95,7 @@ const FolderConfigurationPanel: React.FC<FolderConfigurationPanelProps> = ({
           Local folder where downloaded images will be saved
         </small>
       </div>
-      
+
       {/* PDF Download Folder */}
       <div className="form-group">
         <label htmlFor="pdf-folder">PDF Download Folder *</label>
@@ -96,7 +109,7 @@ const FolderConfigurationPanel: React.FC<FolderConfigurationPanelProps> = ({
           Local folder where downloaded PDFs will be saved
         </small>
       </div>
-      
+
       {/* Source Image Folder */}
       <div className="form-group">
         <label htmlFor="source-folder">Source Image Folder (Optional)</label>
@@ -107,7 +120,8 @@ const FolderConfigurationPanel: React.FC<FolderConfigurationPanelProps> = ({
           onError={onError}
         />
         <small className="text-muted">
-          If specified, the system will search this folder for images matching part numbers before downloading
+          If specified, the system will search this folder for images matching
+          part numbers before downloading
         </small>
       </div>
     </div>

@@ -3,12 +3,12 @@ import { autoUpdater } from 'electron-updater';
 import log from 'electron-log';
 import * as path from 'path';
 import Store from 'electron-store';
-import { IPC_CHANNELS, WindowState, AppConfig, DownloadConfig } from '@/shared/types';
+import { IPC_CHANNELS, AppConfig, DownloadConfig } from '@/shared/types';
 import { ExcelService } from '@/services/excelService';
 import { DownloadService } from '@/services/downloadService';
 
 // Global error handlers to catch crashes
-process.on('uncaughtException', (error) => {
+process.on('uncaughtException', error => {
   console.error('Uncaught Exception:', error);
   log.error('Uncaught Exception:', error);
   // Don't exit, try to recover
@@ -36,12 +36,12 @@ class DigitalAssetDownloaderApp {
       log.info('Application starting', {
         version: app.getVersion(),
         electron: process.versions.electron,
-        platform: process.platform
+        platform: process.platform,
       });
     } catch (error) {
       console.error('Failed to initialize logging:', error);
     }
-    
+
     this.store = new Store<AppConfig>({
       defaults: {
         windowState: {
@@ -55,7 +55,7 @@ class DigitalAssetDownloaderApp {
     this.excelService = new ExcelService();
     this.downloadService = new DownloadService();
     this.currentSpreadsheetData = null;
-    
+
     log.info('Application constructor completed successfully');
   }
 
@@ -89,10 +89,14 @@ class DigitalAssetDownloaderApp {
     // Load the renderer
     const isDev = process.env.NODE_ENV === 'development';
     if (isDev) {
-      await this.mainWindow.loadFile(path.join(__dirname, '../renderer/index.html'));
+      await this.mainWindow.loadFile(
+        path.join(__dirname, '../renderer/index.html')
+      );
       this.mainWindow.webContents.openDevTools(); // Enable DevTools for debugging
     } else {
-      await this.mainWindow.loadFile(path.join(__dirname, '../renderer/index.html'));
+      await this.mainWindow.loadFile(
+        path.join(__dirname, '../renderer/index.html')
+      );
     }
 
     // Show window when ready
@@ -114,7 +118,7 @@ class DigitalAssetDownloaderApp {
       if (this.mainWindow) {
         const bounds = this.mainWindow.getBounds();
         const isMaximized = this.mainWindow.isMaximized();
-        
+
         this.store.set('windowState', {
           width: bounds.width,
           height: bounds.height,
@@ -131,7 +135,7 @@ class DigitalAssetDownloaderApp {
 
     // Set up application menu
     this.createMenu();
-    
+
     // Set up context menu for copy/paste
     this.setupContextMenu();
   }
@@ -197,10 +201,7 @@ class DigitalAssetDownloaderApp {
       },
       {
         label: 'Window',
-        submenu: [
-          { role: 'minimize' },
-          { role: 'close' },
-        ],
+        submenu: [{ role: 'minimize' }, { role: 'close' }],
       },
     ];
 
@@ -254,7 +255,10 @@ class DigitalAssetDownloaderApp {
       const result = await dialog.showOpenDialog(this.mainWindow!, {
         properties: ['openFile'],
         filters: [
-          { name: 'All Supported Files', extensions: ['xlsx', 'xls', 'xlsm', 'csv'] },
+          {
+            name: 'All Supported Files',
+            extensions: ['xlsx', 'xls', 'xlsm', 'csv'],
+          },
           { name: 'Excel Files', extensions: ['xlsx', 'xls', 'xlsm'] },
           { name: 'CSV Files', extensions: ['csv'] },
           { name: 'All Files', extensions: ['*'] },
@@ -295,92 +299,123 @@ class DigitalAssetDownloaderApp {
     });
 
     // Excel/CSV handlers - Implemented with ExcelService
-    ipcMain.handle(IPC_CHANNELS.GET_SHEET_NAMES, async (_, filePath: string) => {
-      try {
-        const sheets = await this.excelService.getSheetNames(filePath);
-        return sheets;
-      } catch (error) {
-        console.error('Error getting sheet names:', error);
-        const errorMessage = error instanceof Error ? error.message : 'Unknown error';
-        throw new Error(errorMessage);
+    ipcMain.handle(
+      IPC_CHANNELS.GET_SHEET_NAMES,
+      async (_, filePath: string) => {
+        try {
+          const sheets = await this.excelService.getSheetNames(filePath);
+          return sheets;
+        } catch (error) {
+          console.error('Error getting sheet names:', error);
+          const errorMessage =
+            error instanceof Error ? error.message : 'Unknown error';
+          throw new Error(errorMessage);
+        }
       }
-    });
+    );
 
-    ipcMain.handle(IPC_CHANNELS.LOAD_SHEET_DATA, async (_, filePath: string, sheetName: string) => {
-      try {
-        const data = await this.excelService.loadSheetData(filePath, sheetName);
-        
-        // Store the data for downloads
-        this.currentSpreadsheetData = data.rows;
-        
-        // Add file to recent files list
-        const recentFiles = this.store.get('recentFiles', []);
-        const updatedRecentFiles = [filePath, ...recentFiles.filter(f => f !== filePath)].slice(0, 10);
-        this.store.set('recentFiles', updatedRecentFiles);
-        
-        return data;
-      } catch (error) {
-        console.error('Error loading sheet data:', error);
-        const errorMessage = error instanceof Error ? error.message : 'Unknown error';
-        throw new Error(errorMessage);
+    ipcMain.handle(
+      IPC_CHANNELS.LOAD_SHEET_DATA,
+      async (_, filePath: string, sheetName: string) => {
+        try {
+          const data = await this.excelService.loadSheetData(
+            filePath,
+            sheetName
+          );
+
+          // Store the data for downloads
+          this.currentSpreadsheetData = data.rows;
+
+          // Add file to recent files list
+          const recentFiles = this.store.get('recentFiles', []);
+          const updatedRecentFiles = [
+            filePath,
+            ...recentFiles.filter(f => f !== filePath),
+          ].slice(0, 10);
+          this.store.set('recentFiles', updatedRecentFiles);
+
+          return data;
+        } catch (error) {
+          console.error('Error loading sheet data:', error);
+          const errorMessage =
+            error instanceof Error ? error.message : 'Unknown error';
+          throw new Error(errorMessage);
+        }
       }
-    });
+    );
 
     // Download handlers - Advanced download engine implementation
-    ipcMain.handle(IPC_CHANNELS.START_DOWNLOADS, async (_, config: DownloadConfig) => {
-      try {
-        if (!this.currentSpreadsheetData) {
-          throw new Error('No spreadsheet data loaded. Please load a file first.');
-        }
+    ipcMain.handle(
+      IPC_CHANNELS.START_DOWNLOADS,
+      async (_, config: DownloadConfig) => {
+        try {
+          if (!this.currentSpreadsheetData) {
+            throw new Error(
+              'No spreadsheet data loaded. Please load a file first.'
+            );
+          }
 
-        // Validate configuration
-        if (!config.partNoColumn) {
-          throw new Error('Please select a Part Number column');
-        }
+          // Validate configuration
+          if (!config.partNoColumn) {
+            throw new Error('Please select a Part Number column');
+          }
 
-        if (!config.imageColumns.length && !config.pdfColumn) {
-          throw new Error('Please select at least one Image URL column or PDF column');
-        }
+          if (!config.imageColumns.length && !config.pdfColumn) {
+            throw new Error(
+              'Please select at least one Image URL column or PDF column'
+            );
+          }
 
-        if (!config.imageFolder && !config.pdfFolder) {
-          throw new Error('Please select download folders');
-        }
+          if (!config.imageFolder && !config.pdfFolder) {
+            throw new Error('Please select download folders');
+          }
 
-        // Set up download event listeners
-        this.downloadService.removeAllListeners();
-        
-        this.downloadService.on('progress', (progress) => {
-          this.mainWindow?.webContents.send(IPC_CHANNELS.DOWNLOAD_PROGRESS, progress);
-        });
+          // Set up download event listeners
+          this.downloadService.removeAllListeners();
 
-        this.downloadService.on('complete', (result) => {
-          this.mainWindow?.webContents.send(IPC_CHANNELS.DOWNLOAD_COMPLETE, result);
-        });
-
-        this.downloadService.on('error', (error) => {
-          this.mainWindow?.webContents.send(IPC_CHANNELS.DOWNLOAD_COMPLETE, {
-            error: error instanceof Error ? error.message : 'Unknown error'
+          this.downloadService.on('progress', progress => {
+            this.mainWindow?.webContents.send(
+              IPC_CHANNELS.DOWNLOAD_PROGRESS,
+              progress
+            );
           });
-        });
 
-        this.downloadService.on('cancelled', () => {
-          this.mainWindow?.webContents.send(IPC_CHANNELS.DOWNLOAD_COMPLETE, {
-            cancelled: true,
-            successful: this.downloadService.getProgress().successful,
-            failed: this.downloadService.getProgress().failed
+          this.downloadService.on('complete', result => {
+            this.mainWindow?.webContents.send(
+              IPC_CHANNELS.DOWNLOAD_COMPLETE,
+              result
+            );
           });
-        });
 
-        // Start downloads
-        await this.downloadService.startDownloads(config, this.currentSpreadsheetData);
-        
-        return { success: true, message: 'Downloads started successfully' };
-      } catch (error) {
-        console.error('Error starting downloads:', error);
-        const errorMessage = error instanceof Error ? error.message : 'Unknown error';
-        throw new Error(errorMessage);
+          this.downloadService.on('error', error => {
+            this.mainWindow?.webContents.send(IPC_CHANNELS.DOWNLOAD_COMPLETE, {
+              error: error instanceof Error ? error.message : 'Unknown error',
+            });
+          });
+
+          this.downloadService.on('cancelled', () => {
+            this.mainWindow?.webContents.send(IPC_CHANNELS.DOWNLOAD_COMPLETE, {
+              cancelled: true,
+              successful: this.downloadService.getProgress().successful,
+              failed: this.downloadService.getProgress().failed,
+            });
+          });
+
+          // Start downloads
+          await this.downloadService.startDownloads(
+            config,
+            this.currentSpreadsheetData
+          );
+
+          return { success: true, message: 'Downloads started successfully' };
+        } catch (error) {
+          console.error('Error starting downloads:', error);
+          const errorMessage =
+            error instanceof Error ? error.message : 'Unknown error';
+          throw new Error(errorMessage);
+        }
       }
-    });
+    );
 
     ipcMain.handle(IPC_CHANNELS.CANCEL_DOWNLOADS, async () => {
       try {
@@ -388,7 +423,8 @@ class DigitalAssetDownloaderApp {
         return { success: true, message: 'Downloads cancelled' };
       } catch (error) {
         console.error('Error cancelling downloads:', error);
-        const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+        const errorMessage =
+          error instanceof Error ? error.message : 'Unknown error';
         throw new Error(errorMessage);
       }
     });
@@ -417,13 +453,15 @@ class DigitalAssetDownloaderApp {
     });
 
     ipcMain.handle(IPC_CHANNELS.LOAD_SETTINGS, async () => {
-      return this.store.get('userSettings') || {
-        defaultPaths: {
-          lastFileDialogPath: '',
-          imageNetworkPath: '',
-          pdfNetworkPath: ''
+      return (
+        this.store.get('userSettings') || {
+          defaultPaths: {
+            lastFileDialogPath: '',
+            imageNetworkPath: '',
+            pdfNetworkPath: '',
+          },
         }
-      };
+      );
     });
   }
 
@@ -451,7 +489,7 @@ class DigitalAssetDownloaderApp {
     log.info('Auto-updater configuration:', {
       autoDownload: false,
       autoInstallOnAppQuit: false,
-      version: app.getVersion()
+      version: app.getVersion(),
     });
 
     // Auto-updater event handlers
@@ -460,27 +498,33 @@ class DigitalAssetDownloaderApp {
       this.mainWindow?.webContents.send('update-checking');
     });
 
-    autoUpdater.on('update-available', (info) => {
+    autoUpdater.on('update-available', info => {
       log.info('Update available', { version: info.version });
       this.mainWindow?.webContents.send(IPC_CHANNELS.UPDATE_AVAILABLE, info);
     });
 
-    autoUpdater.on('update-not-available', (info) => {
+    autoUpdater.on('update-not-available', info => {
       log.info('Update not available', { currentVersion: info.version });
-      this.mainWindow?.webContents.send(IPC_CHANNELS.UPDATE_NOT_AVAILABLE, info);
+      this.mainWindow?.webContents.send(
+        IPC_CHANNELS.UPDATE_NOT_AVAILABLE,
+        info
+      );
     });
 
-    autoUpdater.on('error', (err) => {
+    autoUpdater.on('error', err => {
       log.error('Auto-updater error', err);
       this.mainWindow?.webContents.send('update-error', err.message);
     });
 
-    autoUpdater.on('download-progress', (progressObj) => {
+    autoUpdater.on('download-progress', progressObj => {
       log.info('Download progress', { percent: progressObj.percent });
-      this.mainWindow?.webContents.send(IPC_CHANNELS.UPDATE_DOWNLOAD_PROGRESS, progressObj);
+      this.mainWindow?.webContents.send(
+        IPC_CHANNELS.UPDATE_DOWNLOAD_PROGRESS,
+        progressObj
+      );
     });
 
-    autoUpdater.on('update-downloaded', (info) => {
+    autoUpdater.on('update-downloaded', info => {
       log.info('Update downloaded', { version: info.version });
       this.mainWindow?.webContents.send(IPC_CHANNELS.UPDATE_DOWNLOADED, info);
     });
@@ -488,18 +532,18 @@ class DigitalAssetDownloaderApp {
     // Enhanced IPC handler with comprehensive error handling and timeout
     ipcMain.handle(IPC_CHANNELS.CHECK_FOR_UPDATES, async () => {
       log.info('Manual update check requested');
-      
+
       // Create a promise that resolves with all possible outcomes
       return new Promise((resolve, reject) => {
         let resolved = false;
-        
+
         // Set up one-time listeners for this specific check
         const cleanup = () => {
           autoUpdater.removeAllListeners('update-available');
           autoUpdater.removeAllListeners('update-not-available');
           autoUpdater.removeAllListeners('error');
         };
-        
+
         const handleResponse = (type: string, data?: any) => {
           if (!resolved) {
             resolved = true;
@@ -508,51 +552,63 @@ class DigitalAssetDownloaderApp {
             resolve({ type, data });
           }
         };
-        
+
         // Set up temporary event listeners for this check
-        autoUpdater.once('update-available', (info) => {
+        autoUpdater.once('update-available', info => {
           handleResponse('available', info);
         });
-        
-        autoUpdater.once('update-not-available', (info) => {
+
+        autoUpdater.once('update-not-available', info => {
           handleResponse('not-available', info);
         });
-        
-        autoUpdater.once('error', (err) => {
+
+        autoUpdater.once('error', err => {
           handleResponse('error', err.message);
         });
-        
+
         // Add timeout to catch silent failures (30 seconds)
         const timeoutId = setTimeout(() => {
           if (!resolved) {
             cleanup();
-            log.error('Update check timed out after 30 seconds - this indicates a silent failure');
-            reject(new Error('Update check timed out - possible GitHub API issues or rate limiting'));
+            log.error(
+              'Update check timed out after 30 seconds - this indicates a silent failure'
+            );
+            reject(
+              new Error(
+                'Update check timed out - possible GitHub API issues or rate limiting'
+              )
+            );
           }
         }, 30000);
-        
+
         // Clear timeout when resolved
         const originalResolve = resolve;
         resolve = (value: any) => {
           clearTimeout(timeoutId);
           originalResolve(value);
         };
-        
+
         const originalReject = reject;
         reject = (reason: any) => {
           clearTimeout(timeoutId);
           originalReject(reason);
         };
-        
+
         // Trigger the actual update check
-        autoUpdater.checkForUpdates()
-          .then((result) => {
+        autoUpdater
+          .checkForUpdates()
+          .then(result => {
             if (!result && !resolved) {
-              log.warn('Update check returned null - possible rate limiting or API issue');
-              handleResponse('error', 'Update check returned null - possible rate limiting or GitHub API issue');
+              log.warn(
+                'Update check returned null - possible rate limiting or API issue'
+              );
+              handleResponse(
+                'error',
+                'Update check returned null - possible rate limiting or GitHub API issue'
+              );
             }
           })
-          .catch((error) => {
+          .catch(error => {
             log.error('Update check failed', error);
             if (!resolved) {
               handleResponse('error', error.message);
@@ -578,11 +634,12 @@ class DigitalAssetDownloaderApp {
   private async checkForUpdatesOnStartup(): Promise<void> {
     try {
       const userSettings = this.store.get('userSettings');
-      
+
       // Only check if user has enabled auto-updates and startup checking
-      if (userSettings?.updateSettings?.enableAutoUpdates && 
-          userSettings?.updateSettings?.checkForUpdatesOnStartup) {
-        
+      if (
+        userSettings?.updateSettings?.enableAutoUpdates &&
+        userSettings?.updateSettings?.checkForUpdatesOnStartup
+      ) {
         log.info('Auto-updates enabled, scheduling startup check');
         // Wait a bit for the app to fully load
         setTimeout(() => {

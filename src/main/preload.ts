@@ -5,21 +5,29 @@ import { IPC_CHANNELS, IpcChannelType } from '@/shared/types';
 // the ipcRenderer without exposing the entire object
 contextBridge.exposeInMainWorld('electronAPI', {
   // File operations
-  openFileDialog: (options?: any) => ipcRenderer.invoke(IPC_CHANNELS.OPEN_FILE_DIALOG, options),
-  openFolderDialog: (options?: any) => ipcRenderer.invoke(IPC_CHANNELS.OPEN_FOLDER_DIALOG, options),
-  saveFileDialog: (options?: any) => ipcRenderer.invoke(IPC_CHANNELS.SAVE_FILE_DIALOG, options),
+  openFileDialog: (options?: any) =>
+    ipcRenderer.invoke(IPC_CHANNELS.OPEN_FILE_DIALOG, options),
+  openFolderDialog: (options?: any) =>
+    ipcRenderer.invoke(IPC_CHANNELS.OPEN_FOLDER_DIALOG, options),
+  saveFileDialog: (options?: any) =>
+    ipcRenderer.invoke(IPC_CHANNELS.SAVE_FILE_DIALOG, options),
 
   // Excel operations
-  loadExcelFile: (filePath: string) => ipcRenderer.invoke(IPC_CHANNELS.LOAD_EXCEL_FILE, filePath),
-  getSheetNames: (filePath: string) => ipcRenderer.invoke(IPC_CHANNELS.GET_SHEET_NAMES, filePath),
-  loadSheetData: (filePath: string, sheetName: string) => ipcRenderer.invoke(IPC_CHANNELS.LOAD_SHEET_DATA, filePath, sheetName),
+  loadExcelFile: (filePath: string) =>
+    ipcRenderer.invoke(IPC_CHANNELS.LOAD_EXCEL_FILE, filePath),
+  getSheetNames: (filePath: string) =>
+    ipcRenderer.invoke(IPC_CHANNELS.GET_SHEET_NAMES, filePath),
+  loadSheetData: (filePath: string, sheetName: string) =>
+    ipcRenderer.invoke(IPC_CHANNELS.LOAD_SHEET_DATA, filePath, sheetName),
 
   // Configuration
-  saveConfig: (config: any) => ipcRenderer.invoke(IPC_CHANNELS.SAVE_CONFIG, config),
+  saveConfig: (config: any) =>
+    ipcRenderer.invoke(IPC_CHANNELS.SAVE_CONFIG, config),
   loadConfig: () => ipcRenderer.invoke(IPC_CHANNELS.LOAD_CONFIG),
 
   // Settings
-  saveSettings: (settings: any) => ipcRenderer.invoke(IPC_CHANNELS.SAVE_SETTINGS, settings),
+  saveSettings: (settings: any) =>
+    ipcRenderer.invoke(IPC_CHANNELS.SAVE_SETTINGS, settings),
   loadSettings: () => ipcRenderer.invoke(IPC_CHANNELS.LOAD_SETTINGS),
 
   // Auto-updater
@@ -33,7 +41,8 @@ contextBridge.exposeInMainWorld('electronAPI', {
   closeWindow: () => ipcRenderer.invoke(IPC_CHANNELS.CLOSE_WINDOW),
 
   // Download operations
-  startDownloads: (config: any) => ipcRenderer.invoke(IPC_CHANNELS.START_DOWNLOADS, config),
+  startDownloads: (config: any) =>
+    ipcRenderer.invoke(IPC_CHANNELS.START_DOWNLOADS, config),
   cancelDownloads: () => ipcRenderer.invoke(IPC_CHANNELS.CANCEL_DOWNLOADS),
 
   // Event listeners
@@ -58,19 +67,27 @@ contextBridge.exposeInMainWorld('electronAPI', {
     ipcRenderer.on('update-checking', callback);
   },
   onUpdateAvailable: (callback: (updateInfo: any) => void) => {
-    ipcRenderer.on(IPC_CHANNELS.UPDATE_AVAILABLE, (_, updateInfo) => callback(updateInfo));
+    ipcRenderer.on(IPC_CHANNELS.UPDATE_AVAILABLE, (_, updateInfo) =>
+      callback(updateInfo)
+    );
   },
   onUpdateNotAvailable: (callback: (updateInfo: any) => void) => {
-    ipcRenderer.on(IPC_CHANNELS.UPDATE_NOT_AVAILABLE, (_, updateInfo) => callback(updateInfo));
+    ipcRenderer.on(IPC_CHANNELS.UPDATE_NOT_AVAILABLE, (_, updateInfo) =>
+      callback(updateInfo)
+    );
   },
   onUpdateError: (callback: (error: string) => void) => {
     ipcRenderer.on('update-error', (_, error) => callback(error));
   },
   onUpdateDownloaded: (callback: (updateInfo: any) => void) => {
-    ipcRenderer.on(IPC_CHANNELS.UPDATE_DOWNLOADED, (_, updateInfo) => callback(updateInfo));
+    ipcRenderer.on(IPC_CHANNELS.UPDATE_DOWNLOADED, (_, updateInfo) =>
+      callback(updateInfo)
+    );
   },
   onUpdateDownloadProgress: (callback: (progressInfo: any) => void) => {
-    ipcRenderer.on(IPC_CHANNELS.UPDATE_DOWNLOAD_PROGRESS, (_, progressInfo) => callback(progressInfo));
+    ipcRenderer.on(IPC_CHANNELS.UPDATE_DOWNLOAD_PROGRESS, (_, progressInfo) =>
+      callback(progressInfo)
+    );
   },
 
   // Remove listeners

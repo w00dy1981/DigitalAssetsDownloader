@@ -19,7 +19,7 @@ export const Select: React.FC<SelectProps> = ({
   value,
   onChange,
   options,
-  placeholder = "Choose an option...",
+  placeholder = 'Choose an option...',
   disabled = false,
   className = '',
   style,
@@ -37,7 +37,7 @@ export const Select: React.FC<SelectProps> = ({
       style={style}
     >
       {placeholder && <option value="">{placeholder}</option>}
-      {options.map((option) => (
+      {options.map(option => (
         <option key={option.value} value={option.value}>
           {option.label}
         </option>

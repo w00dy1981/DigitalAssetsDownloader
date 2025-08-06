@@ -1,7 +1,6 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { UserSettings } from '@/shared/types';
 import { useStatusMessage } from '../hooks/useStatusMessage';
-import { StatusMessage } from './ui';
 import {
   DefaultPathsSection,
   DownloadBehaviorSection,
@@ -115,7 +114,7 @@ const SettingsTab: React.FC<SettingsTabProps> = ({ onSettingsChange }) => {
       const timeoutId = setTimeout(() => {
         saveSettings();
       }, 1000);
-      
+
       return () => clearTimeout(timeoutId);
     }
   }, [settings, hasChanges, saveSettings]);
@@ -131,7 +130,7 @@ const SettingsTab: React.FC<SettingsTabProps> = ({ onSettingsChange }) => {
     setSettings(prev => {
       const newSettings = { ...prev };
       const pathParts = path.split('.');
-      
+
       if (pathParts.length === 2) {
         const [section, key] = pathParts;
         if (section in newSettings) {
@@ -141,7 +140,7 @@ const SettingsTab: React.FC<SettingsTabProps> = ({ onSettingsChange }) => {
           };
         }
       }
-      
+
       return newSettings;
     });
     setHasChanges(true);
@@ -153,48 +152,47 @@ const SettingsTab: React.FC<SettingsTabProps> = ({ onSettingsChange }) => {
         <h2>Settings</h2>
         <div className="tab-actions">
           {saveStatus && (
-            <span className={`save-status ${saveStatus.includes('Error') ? 'error' : 'success'}`}>
+            <span
+              className={`save-status ${saveStatus.includes('Error') ? 'error' : 'success'}`}
+            >
               {saveStatus}
             </span>
           )}
-          <button 
-            className="btn btn-secondary" 
-            onClick={resetToDefaults}
-          >
+          <button className="btn btn-secondary" onClick={resetToDefaults}>
             Reset to Defaults
           </button>
         </div>
       </div>
-      
+
       <div className="configuration-sections">
         {/* First column - Default Paths, UI Preferences, and Update Settings */}
         <div className="default-paths">
-          <DefaultPathsSection 
-            settings={settings} 
-            onSettingUpdate={updateSetting} 
+          <DefaultPathsSection
+            settings={settings}
+            onSettingUpdate={updateSetting}
           />
-          
-          <UIPreferencesSection 
-            settings={settings} 
-            onSettingUpdate={updateSetting} 
+
+          <UIPreferencesSection
+            settings={settings}
+            onSettingUpdate={updateSetting}
           />
-          
-          <UpdateSettingsSection 
-            settings={settings} 
-            onSettingUpdate={updateSetting} 
+
+          <UpdateSettingsSection
+            settings={settings}
+            onSettingUpdate={updateSetting}
           />
         </div>
 
         {/* Second column - Download Behavior and Image Processing */}
         <div className="other-settings">
-          <DownloadBehaviorSection 
-            settings={settings} 
-            onSettingUpdate={updateSetting} 
+          <DownloadBehaviorSection
+            settings={settings}
+            onSettingUpdate={updateSetting}
           />
-          
-          <ImageProcessingSection 
-            settings={settings} 
-            onSettingUpdate={updateSetting} 
+
+          <ImageProcessingSection
+            settings={settings}
+            onSettingUpdate={updateSetting}
           />
         </div>
       </div>

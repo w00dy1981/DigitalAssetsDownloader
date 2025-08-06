@@ -3,26 +3,29 @@
  * Tests core service functionality with simplified mocking approach
  */
 
-import { ImageProcessingService, imageProcessor } from './ImageProcessingService';
+import {
+  ImageProcessingService,
+  imageProcessor,
+} from './ImageProcessingService';
 
 // Mock logger and error handler
 jest.mock('./LoggingService', () => ({
   logger: {
     info: jest.fn(),
     warn: jest.fn(),
-    error: jest.fn()
-  }
+    error: jest.fn(),
+  },
 }));
 
 jest.mock('./ErrorHandlingService', () => ({
   errorHandler: {
-    handleError: jest.fn((error, context, options) => error)
-  }
+    handleError: jest.fn(error => error),
+  },
 }));
 
 describe('ImageProcessingService', () => {
   let service: ImageProcessingService;
-  
+
   beforeEach(() => {
     service = ImageProcessingService.getInstance();
     jest.clearAllMocks();
@@ -66,7 +69,8 @@ describe('ImageProcessingService', () => {
     });
 
     test('should handle background processing checks gracefully', async () => {
-      const needsProcessing = await service.needsBackgroundProcessing(mockBuffer);
+      const needsProcessing =
+        await service.needsBackgroundProcessing(mockBuffer);
       expect(typeof needsProcessing).toBe('boolean');
     });
 
@@ -93,29 +97,40 @@ describe('ImageProcessingService', () => {
 
     test('should handle dimension extraction gracefully', async () => {
       const dimensions = await service.getImageDimensions(mockBuffer);
-      expect(dimensions === null || (typeof dimensions === 'object' && dimensions.width && dimensions.height)).toBe(true);
+      expect(
+        dimensions === null ||
+          (typeof dimensions === 'object' &&
+            dimensions.width &&
+            dimensions.height)
+      ).toBe(true);
     });
   });
 
   describe('Error Handling', () => {
     test('should handle empty buffer gracefully', async () => {
       const emptyBuffer = Buffer.alloc(0);
-      
-      await expect(service.getImageMetadata(emptyBuffer)).resolves.toBeDefined();
-      await expect(service.needsBackgroundProcessing(emptyBuffer)).resolves.toBeDefined();
+
+      await expect(
+        service.getImageMetadata(emptyBuffer)
+      ).resolves.toBeDefined();
+      await expect(
+        service.needsBackgroundProcessing(emptyBuffer)
+      ).resolves.toBeDefined();
       await expect(service.convertToJpeg(emptyBuffer)).resolves.toBeDefined();
       await expect(service.isValidImage(emptyBuffer)).resolves.toBeDefined();
-      await expect(service.getImageDimensions(emptyBuffer)).resolves.toBeDefined();
+      await expect(
+        service.getImageDimensions(emptyBuffer)
+      ).resolves.toBeDefined();
     });
 
     test('should handle invalid options gracefully', async () => {
       const mockBuffer = Buffer.from('test');
-      
-      const result = await service.convertToJpeg(mockBuffer, { 
+
+      const result = await service.convertToJpeg(mockBuffer, {
         quality: -1, // Invalid quality
-        backgroundProcessing: undefined as any 
+        backgroundProcessing: undefined as any,
       });
-      
+
       expect(result).toBeDefined();
       expect(Buffer.isBuffer(result.buffer)).toBe(true);
     });

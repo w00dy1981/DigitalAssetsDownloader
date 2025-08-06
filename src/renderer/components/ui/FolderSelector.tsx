@@ -14,20 +14,20 @@ interface FolderSelectorProps {
 export const FolderSelector: React.FC<FolderSelectorProps> = ({
   value,
   onChange,
-  placeholder = "Select folder...",
+  placeholder = 'Select folder...',
   disabled = false,
   onError,
-  buttonText = "Browse",
-  buttonClassName = "btn btn-outline-secondary",
+  buttonText = 'Browse',
+  buttonClassName = 'btn btn-outline-secondary',
 }) => {
   const { openFolderDialog } = useFolderDialog();
 
   const handleBrowse = () => {
     openFolderDialog(
       onChange,
-      { 
+      {
         title: 'Select Folder',
-        defaultPath: value 
+        defaultPath: value,
       },
       onError
     );

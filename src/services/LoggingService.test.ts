@@ -10,7 +10,7 @@ describe('LoggingService', () => {
     service = LoggingService.getInstance();
     service.clearHistory();
     service.setLogLevel(LogLevel.DEBUG);
-    
+
     consoleLogSpy = jest.spyOn(console, 'log').mockImplementation();
     consoleWarnSpy = jest.spyOn(console, 'warn').mockImplementation();
     consoleErrorSpy = jest.spyOn(console, 'error').mockImplementation();
@@ -42,7 +42,7 @@ describe('LoggingService', () => {
 
     it('should not log messages below current level', () => {
       service.setLogLevel(LogLevel.WARN);
-      
+
       service.debug('debug message');
       service.info('info message');
       service.warn('warn message');
@@ -57,7 +57,7 @@ describe('LoggingService', () => {
   describe('Logging Methods', () => {
     it('should log debug messages', () => {
       service.debug('Debug message', 'TestContext', { data: 'test' });
-      
+
       expect(consoleLogSpy).toHaveBeenCalled();
       const loggedMessage = consoleLogSpy.mock.calls[0][0];
       expect(loggedMessage).toContain('[DEBUG]');
@@ -67,7 +67,7 @@ describe('LoggingService', () => {
 
     it('should log info messages', () => {
       service.info('Info message', 'TestContext');
-      
+
       expect(consoleLogSpy).toHaveBeenCalled();
       const loggedMessage = consoleLogSpy.mock.calls[0][0];
       expect(loggedMessage).toContain('[INFO]');
@@ -76,7 +76,7 @@ describe('LoggingService', () => {
 
     it('should log warn messages', () => {
       service.warn('Warning message', 'TestContext');
-      
+
       expect(consoleWarnSpy).toHaveBeenCalled();
       const loggedMessage = consoleWarnSpy.mock.calls[0][0];
       expect(loggedMessage).toContain('[WARN]');
@@ -86,7 +86,7 @@ describe('LoggingService', () => {
     it('should log error messages with Error object', () => {
       const error = new Error('Test error');
       service.error('Error message', error, 'TestContext');
-      
+
       expect(consoleErrorSpy).toHaveBeenCalled();
       const loggedMessage = consoleErrorSpy.mock.calls[0][0];
       expect(loggedMessage).toContain('[ERROR]');
@@ -96,7 +96,7 @@ describe('LoggingService', () => {
 
     it('should log error messages with string', () => {
       service.error('Error message', 'Error string', 'TestContext');
-      
+
       expect(consoleErrorSpy).toHaveBeenCalled();
       const loggedError = consoleErrorSpy.mock.calls[0][1];
       expect(loggedError).toBeInstanceOf(Error);
@@ -109,28 +109,34 @@ describe('LoggingService', () => {
       const beforeTime = new Date().toISOString();
       service.info('Test message');
       const afterTime = new Date().toISOString();
-      
+
       const loggedMessage = consoleLogSpy.mock.calls[0][0];
       const timestampMatch = loggedMessage.match(/\[([\d\-T:.Z]+)\]/);
       expect(timestampMatch).toBeTruthy();
-      
+
       const timestamp = new Date(timestampMatch[1]);
-      expect(timestamp.getTime()).toBeGreaterThanOrEqual(new Date(beforeTime).getTime());
-      expect(timestamp.getTime()).toBeLessThanOrEqual(new Date(afterTime).getTime());
+      expect(timestamp.getTime()).toBeGreaterThanOrEqual(
+        new Date(beforeTime).getTime()
+      );
+      expect(timestamp.getTime()).toBeLessThanOrEqual(
+        new Date(afterTime).getTime()
+      );
     });
 
     it('should format message without context when not provided', () => {
       service.info('Test message');
-      
+
       const loggedMessage = consoleLogSpy.mock.calls[0][0];
       expect(loggedMessage).toMatch(/\[[\d\-T:.Z]+\] \[INFO\] Test message/);
     });
 
     it('should format message with context when provided', () => {
       service.info('Test message', 'MyContext');
-      
+
       const loggedMessage = consoleLogSpy.mock.calls[0][0];
-      expect(loggedMessage).toMatch(/\[[\d\-T:.Z]+\] \[INFO\]\[MyContext\] Test message/);
+      expect(loggedMessage).toMatch(
+        /\[[\d\-T:.Z]+\] \[INFO\]\[MyContext\] Test message/
+      );
     });
   });
 
@@ -177,9 +183,9 @@ describe('LoggingService', () => {
     it('should clear history', () => {
       service.info('Message 1');
       service.info('Message 2');
-      
+
       service.clearHistory();
-      
+
       const history = service.getHistory();
       expect(history).toHaveLength(0);
     });
@@ -188,12 +194,12 @@ describe('LoggingService', () => {
   describe('Convenience Methods', () => {
     it('should log download progress', () => {
       service.downloadProgress('file.txt', 50, '1.5 MB/s');
-      
+
       expect(consoleLogSpy).toHaveBeenCalled();
       const loggedMessage = consoleLogSpy.mock.calls[0][0];
       expect(loggedMessage).toContain('Download progress: 50%');
       expect(loggedMessage).toContain('[Download]');
-      
+
       const loggedData = consoleLogSpy.mock.calls[0][1];
       expect(loggedData).toEqual({
         fileName: 'file.txt',
@@ -204,7 +210,7 @@ describe('LoggingService', () => {
 
     it('should log successful file operations', () => {
       service.fileOperation('Read', '/path/to/file.txt', true);
-      
+
       expect(consoleLogSpy).toHaveBeenCalled();
       const loggedMessage = consoleLogSpy.mock.calls[0][0];
       expect(loggedMessage).toContain('Read: /path/to/file.txt');
@@ -214,7 +220,7 @@ describe('LoggingService', () => {
     it('should log failed file operations', () => {
       const error = new Error('File not found');
       service.fileOperation('Read', '/path/to/file.txt', false, error);
-      
+
       expect(consoleErrorSpy).toHaveBeenCalled();
       const loggedMessage = consoleErrorSpy.mock.calls[0][0];
       expect(loggedMessage).toContain('Read: /path/to/file.txt');
@@ -224,7 +230,7 @@ describe('LoggingService', () => {
 
     it('should log successful validation', () => {
       service.validation('email', true);
-      
+
       expect(consoleLogSpy).toHaveBeenCalled();
       const loggedMessage = consoleLogSpy.mock.calls[0][0];
       expect(loggedMessage).toContain('Validation passed for email');
@@ -233,10 +239,12 @@ describe('LoggingService', () => {
 
     it('should log failed validation with reason', () => {
       service.validation('email', false, 'Invalid format');
-      
+
       expect(consoleWarnSpy).toHaveBeenCalled();
       const loggedMessage = consoleWarnSpy.mock.calls[0][0];
-      expect(loggedMessage).toContain('Validation failed for email: Invalid format');
+      expect(loggedMessage).toContain(
+        'Validation failed for email: Invalid format'
+      );
       expect(loggedMessage).toContain('[Validation]');
     });
   });
