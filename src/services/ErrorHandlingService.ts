@@ -153,9 +153,9 @@ export class ErrorHandlingService {
       // Convert generic errors to application errors based on context
       handledError = this.categorizeError(error, context);
     } else {
-      handledError = new BaseApplicationError(
-        `Unknown error: ${String(error)}`,
+      handledError = new ValidationError(
         context,
+        `Unknown error: ${String(error)}`,
         'UNKNOWN_ERROR'
       );
     }
@@ -210,8 +210,8 @@ export class ErrorHandlingService {
       return new ConfigurationError('unknown', error.message);
     }
 
-    // Default to base error
-    return new BaseApplicationError(error.message, context, 'GENERIC_ERROR');
+    // Default to validation error for generic cases
+    return new ValidationError(context, error.message, 'GENERIC_ERROR');
   }
 
   /**
@@ -224,7 +224,7 @@ export class ErrorHandlingService {
     retryOptions: Partial<RetryOptions> = {}
   ): Promise<T> {
     const options = { ...DEFAULT_RETRY_OPTIONS, ...retryOptions };
-    let lastError: Error;
+    let lastError: Error = new Error('No attempts made');
 
     for (let attempt = 1; attempt <= options.maxAttempts; attempt++) {
       try {
@@ -247,10 +247,9 @@ export class ErrorHandlingService {
     }
 
     // All retries failed
-    throw new BaseApplicationError(
-      `${context} failed after ${options.maxAttempts} attempts: ${lastError.message}`,
-      context,
-      'RETRY_EXHAUSTED'
+    throw new NetworkError(
+      'retry_exhausted',
+      `${context} failed after ${options.maxAttempts} attempts: ${lastError.message}`
     );
   }
 
