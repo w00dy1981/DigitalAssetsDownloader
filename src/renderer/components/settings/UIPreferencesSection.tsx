@@ -1,5 +1,6 @@
 import React from 'react';
 import { UserSettings } from '@/shared/types';
+import { FormGroup } from '@/renderer/components/ui';
 
 interface UIPreferencesSectionProps {
   settings: UserSettings;
@@ -18,7 +19,7 @@ export const UIPreferencesSection: React.FC<UIPreferencesSectionProps> = ({
     <div className="config-section">
       <h3>UI Preferences</h3>
 
-      <div className="form-group">
+      <FormGroup helpText="File dialogs will open to the last used location">
         <label>
           <input
             type="checkbox"
@@ -32,12 +33,9 @@ export const UIPreferencesSection: React.FC<UIPreferencesSectionProps> = ({
           />
           Remember file dialog location
         </label>
-        <small className="text-muted">
-          File dialogs will open to the last used location
-        </small>
-      </div>
+      </FormGroup>
 
-      <div className="form-group">
+      <FormGroup helpText="Display advanced configuration options in other tabs">
         <label>
           <input
             type="checkbox"
@@ -48,13 +46,9 @@ export const UIPreferencesSection: React.FC<UIPreferencesSectionProps> = ({
           />
           Show advanced options
         </label>
-        <small className="text-muted">
-          Display advanced configuration options in other tabs
-        </small>
-      </div>
+      </FormGroup>
 
-      <div className="form-group">
-        <label htmlFor="startup-tab">Default startup tab</label>
+      <FormGroup label="Default startup tab" htmlFor="startup-tab">
         <select
           id="startup-tab"
           value={settings.uiPreferences.startupTab}
@@ -66,7 +60,7 @@ export const UIPreferencesSection: React.FC<UIPreferencesSectionProps> = ({
           <option value="process">Process & Download</option>
           <option value="settings">Settings</option>
         </select>
-      </div>
+      </FormGroup>
     </div>
   );
 };

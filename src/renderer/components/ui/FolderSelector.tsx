@@ -9,6 +9,10 @@ interface FolderSelectorProps {
   onError?: (error: string) => void;
   buttonText?: string;
   buttonClassName?: string;
+  // New props for enhanced functionality
+  id?: string;
+  dialogTitle?: string;
+  editable?: boolean;
 }
 
 export const FolderSelector: React.FC<FolderSelectorProps> = ({
@@ -19,26 +23,59 @@ export const FolderSelector: React.FC<FolderSelectorProps> = ({
   onError,
   buttonText = 'Browse',
   buttonClassName = 'btn btn-outline-secondary',
+  id,
+  dialogTitle,
+  editable = false,
 }) => {
   const { openFolderDialog } = useFolderDialog();
 
   const handleBrowse = () => {
-    openFolderDialog(
-      onChange,
-      {
-        title: 'Select Folder',
-        defaultPath: value,
-      },
-      onError
-    );
+    // For enhanced mode, use direct electronAPI call to match existing behavior
+    if (editable && dialogTitle) {
+      window.electronAPI
+        .openFolderDialog({
+          title: dialogTitle,
+          properties: ['openDirectory'],
+        })
+        .then(result => {
+          if (result.filePaths && result.filePaths.length > 0) {
+            onChange(result.filePaths[0]);
+          }
+        })
+        .catch(error => {
+          if (onError) {
+            onError(error.message);
+          } else {
+            console.error(error);
+          }
+        });
+    } else {
+      // Use existing hook for backward compatibility
+      openFolderDialog(
+        onChange,
+        {
+          title: dialogTitle || 'Select Folder',
+          defaultPath: value,
+        },
+        onError
+      );
+    }
+  };
+
+  const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    if (editable) {
+      onChange(e.target.value);
+    }
   };
 
   return (
-    <div className="folder-selector">
+    <div className={editable ? 'folder-input-group' : 'folder-selector'}>
       <input
+        id={id}
         type="text"
         value={value}
-        readOnly
+        readOnly={!editable}
+        onChange={handleInputChange}
         placeholder={placeholder}
         className="form-control"
         disabled={disabled}
@@ -47,7 +84,7 @@ export const FolderSelector: React.FC<FolderSelectorProps> = ({
         type="button"
         onClick={handleBrowse}
         disabled={disabled}
-        className={buttonClassName}
+        className={editable ? 'btn btn-secondary browse-btn' : buttonClassName}
       >
         {buttonText}
       </button>

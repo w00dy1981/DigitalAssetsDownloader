@@ -18,6 +18,7 @@ import {
 import { isImageFile } from './fileUtils';
 import { logger } from './LoggingService';
 import { errorHandler } from './ErrorHandlingService';
+// import { withErrorHandling } from '@/utils/withErrorHandling'; // Available for future use
 import { imageProcessor } from './ImageProcessingService';
 
 interface DownloadJobItem extends DownloadItem {
@@ -90,6 +91,14 @@ export class DownloadService extends EventEmitter {
         backgroundProcessed: result.backgroundProcessed,
       };
     } catch (error) {
+      // Using withErrorHandling utility would simplify this pattern:
+      // const result = await withErrorHandling(
+      //   () => imageProcessor.processImage(imageBuffer, config),
+      //   'ImageProcessing',
+      //   { returnNullOnError: true }
+      // );
+      // if (!result) return { buffer: imageBuffer, backgroundProcessed: false };
+
       const processedError = errorHandler.handleError(
         error,
         'DownloadService',
@@ -116,6 +125,12 @@ export class DownloadService extends EventEmitter {
     if (this.cancelled || this.currentAbortController?.signal.aborted) {
       throw new Error('File write cancelled');
     }
+
+    // Example of withErrorHandling utility usage:
+    // await withErrorHandling(async () => {
+    //   await fs.mkdir(path.dirname(filepath), { recursive: true });
+    //   await fs.writeFile(filepath, content);
+    // }, 'FileWrite');
 
     try {
       await fs.mkdir(path.dirname(filepath), { recursive: true });

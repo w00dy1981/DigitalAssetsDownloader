@@ -6,6 +6,7 @@
 
 import { logger } from './LoggingService';
 import { errorHandler } from './ErrorHandlingService';
+// import { withErrorHandling } from '@/utils/withErrorHandling'; // Available for future use
 
 // Import Sharp with error handling
 let sharp: any = null;
@@ -98,6 +99,13 @@ export class ImageProcessingService {
         channels: metadata.channels,
       };
     } catch (error) {
+      // Example of withErrorHandling utility - would simplify to:
+      // return await withErrorHandling(
+      //   () => this.extractMetadata(imageBuffer),
+      //   'ImageMetadata',
+      //   { returnNullOnError: true }
+      // ) || {};
+
       const processedError = errorHandler.handleError(
         error,
         'ImageProcessingService',

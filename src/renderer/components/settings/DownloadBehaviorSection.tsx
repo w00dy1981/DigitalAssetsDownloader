@@ -1,6 +1,6 @@
 import React from 'react';
 import { UserSettings } from '@/shared/types';
-import { NumberInput } from '@/renderer/components/ui';
+import { NumberInput, FormGroup } from '@/renderer/components/ui';
 
 interface DownloadBehaviorSectionProps {
   settings: UserSettings;
@@ -18,8 +18,11 @@ export const DownloadBehaviorSection: React.FC<
     <div className="config-section">
       <h3>Download Behavior</h3>
 
-      <div className="form-group">
-        <label htmlFor="concurrent-downloads">Concurrent Downloads</label>
+      <FormGroup 
+        label="Concurrent Downloads" 
+        htmlFor="concurrent-downloads"
+        helpText="Number of simultaneous downloads (1-20)"
+      >
         <NumberInput
           value={settings.downloadBehavior.defaultConcurrentDownloads}
           onChange={value =>
@@ -29,13 +32,9 @@ export const DownloadBehaviorSection: React.FC<
           max={20}
           suffix="workers"
         />
-        <small className="text-muted">
-          Number of simultaneous downloads (1-20)
-        </small>
-      </div>
+      </FormGroup>
 
-      <div className="form-group">
-        <label htmlFor="connection-timeout">Connection Timeout</label>
+      <FormGroup label="Connection Timeout" htmlFor="connection-timeout">
         <NumberInput
           value={settings.downloadBehavior.connectionTimeout}
           onChange={value =>
@@ -45,10 +44,9 @@ export const DownloadBehaviorSection: React.FC<
           max={60}
           suffix="seconds"
         />
-      </div>
+      </FormGroup>
 
-      <div className="form-group">
-        <label htmlFor="read-timeout">Read Timeout</label>
+      <FormGroup label="Read Timeout" htmlFor="read-timeout">
         <NumberInput
           value={settings.downloadBehavior.readTimeout}
           onChange={value => handleDownloadSettingChange('readTimeout', value)}
@@ -56,10 +54,9 @@ export const DownloadBehaviorSection: React.FC<
           max={300}
           suffix="seconds"
         />
-      </div>
+      </FormGroup>
 
-      <div className="form-group">
-        <label htmlFor="retry-attempts">Retry Attempts</label>
+      <FormGroup label="Retry Attempts" htmlFor="retry-attempts">
         <NumberInput
           value={settings.downloadBehavior.retryAttempts}
           onChange={value =>
@@ -69,7 +66,7 @@ export const DownloadBehaviorSection: React.FC<
           max={10}
           suffix="attempts"
         />
-      </div>
+      </FormGroup>
     </div>
   );
 };

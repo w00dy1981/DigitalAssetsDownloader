@@ -16,6 +16,54 @@ export interface SheetData {
 
 export class ExcelService {
   /**
+   * Private helper method to read Excel files with timeout protection
+   */
+  private async readExcelFileWithTimeout(
+    workbook: ExcelJS.Workbook,
+    safeFilePath: string,
+    timeout: number = 30000
+  ): Promise<void> {
+    const readWithTimeout = Promise.race([
+      workbook.xlsx.readFile(safeFilePath),
+      new Promise<never>((_, reject) =>
+        setTimeout(
+          () => reject(new Error(`File read timeout after ${timeout}ms`)),
+          timeout
+        )
+      ),
+    ]);
+
+    await readWithTimeout;
+  }
+
+  /**
+   * Private helper method to handle common Excel service errors
+   */
+  private handleExcelError(error: unknown, operation: string): never {
+    logger.error(
+      `Error ${operation}`,
+      error instanceof Error ? error : new Error(String(error)),
+      'ExcelService'
+    );
+    const errorMessage =
+      error instanceof Error ? error.message : 'Unknown error';
+
+    // More specific error messages
+    if (errorMessage.includes('timeout')) {
+      throw new Error(
+        'File reading timed out - the Excel file may be too large or corrupted'
+      );
+    }
+    if (errorMessage.includes('ETIMEDOUT')) {
+      throw new Error(
+        'Network or file system timeout - please check the file location and try again'
+      );
+    }
+
+    throw new Error(`Failed to ${operation}: ${errorMessage}`);
+  }
+
+  /**
    * Get sheet names from an Excel file
    * Supports .xlsx, .xls, .xlsm formats
    */
@@ -56,21 +104,7 @@ export class ExcelService {
       }
 
       const workbook = new ExcelJS.Workbook();
-
-      // Add timeout wrapper for Excel file reading
-      const readWithTimeout = (timeout: number = 30000) => {
-        return Promise.race([
-          workbook.xlsx.readFile(safeFilePath),
-          new Promise((_, reject) =>
-            setTimeout(
-              () => reject(new Error(`File read timeout after ${timeout}ms`)),
-              timeout
-            )
-          ),
-        ]);
-      };
-
-      await readWithTimeout();
+      await this.readExcelFileWithTimeout(workbook, safeFilePath);
 
       const sheetNames: string[] = [];
       workbook.eachSheet(worksheet => {
@@ -93,27 +127,7 @@ export class ExcelService {
         );
         throw new Error(`Security error: ${error.message}`);
       }
-      logger.error(
-        'Error getting sheet names',
-        error instanceof Error ? error : new Error(String(error)),
-        'ExcelService'
-      );
-      const errorMessage =
-        error instanceof Error ? error.message : 'Unknown error';
-
-      // More specific error messages
-      if (errorMessage.includes('timeout')) {
-        throw new Error(
-          'File reading timed out - the Excel file may be too large or corrupted'
-        );
-      }
-      if (errorMessage.includes('ETIMEDOUT')) {
-        throw new Error(
-          'Network or file system timeout - please check the file location and try again'
-        );
-      }
-
-      throw new Error(`Failed to read Excel file: ${errorMessage}`);
+      this.handleExcelError(error, 'read Excel file');
     }
   }
 
@@ -136,21 +150,7 @@ export class ExcelService {
       }
 
       const workbook = new ExcelJS.Workbook();
-
-      // Add timeout wrapper for Excel file reading
-      const readWithTimeout = (timeout: number = 30000) => {
-        return Promise.race([
-          workbook.xlsx.readFile(safeFilePath),
-          new Promise((_, reject) =>
-            setTimeout(
-              () => reject(new Error(`File read timeout after ${timeout}ms`)),
-              timeout
-            )
-          ),
-        ]);
-      };
-
-      await readWithTimeout();
+      await this.readExcelFileWithTimeout(workbook, safeFilePath);
 
       const worksheet = workbook.getWorksheet(sheetName);
       if (!worksheet) {
@@ -172,32 +172,22 @@ export class ExcelService {
         );
         throw new Error(`Security error: ${error.message}`);
       }
-      logger.error(
-        'Error loading sheet data',
-        error instanceof Error ? error : new Error(String(error)),
-        'ExcelService'
-      );
       const errorMessage =
         error instanceof Error ? error.message : 'Unknown error';
 
-      // More specific error messages
-      if (errorMessage.includes('timeout')) {
-        throw new Error(
-          'File reading timed out - the Excel file may be too large or corrupted'
-        );
-      }
-      if (errorMessage.includes('ETIMEDOUT')) {
-        throw new Error(
-          'Network or file system timeout - please check the file location and try again'
-        );
-      }
+      // Handle special case for loadSheetData
       if (errorMessage.includes('No valid column headers')) {
+        logger.error(
+          'Error loading sheet data',
+          error instanceof Error ? error : new Error(String(error)),
+          'ExcelService'
+        );
         throw new Error(
           'The first row of the sheet does not contain valid column headers. Please ensure the first row has column names.'
         );
       }
 
-      throw new Error(`Failed to load sheet data: ${errorMessage}`);
+      this.handleExcelError(error, 'load sheet data');
     }
   }
 
