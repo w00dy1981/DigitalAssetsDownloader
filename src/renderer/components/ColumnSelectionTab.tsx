@@ -32,9 +32,8 @@ const ColumnSelectionTab: React.FC<ColumnSelectionTabProps> = ({
   // Background processing settings
   const [backgroundProcessingEnabled, setBackgroundProcessingEnabled] =
     useState<boolean>(true);
-  const [backgroundMethod, setBackgroundMethod] = useState<
-    'smart_detect' | 'ai_removal' | 'color_replace' | 'edge_detection'
-  >('smart_detect');
+  const [backgroundMethod, setBackgroundMethod] =
+    useState<'smart_detect'>('smart_detect');
   const [quality, setQuality] = useState<number>(95);
   const [edgeThreshold, setEdgeThreshold] = useState<number>(30);
 

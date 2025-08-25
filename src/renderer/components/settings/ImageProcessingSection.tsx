@@ -51,10 +51,11 @@ export const ImageProcessingSection: React.FC<ImageProcessingSectionProps> = ({
           className="form-control"
         >
           <option value="smart_detect">Smart Detection</option>
-          <option value="ai_removal">AI Removal</option>
-          <option value="color_replace">Color Replacement</option>
-          <option value="edge_detection">Edge Detection</option>
         </select>
+        <small className="text-muted">
+          Detects PNG images with transparency and converts them to JPG with
+          white background
+        </small>
       </div>
 
       <div className="form-group">

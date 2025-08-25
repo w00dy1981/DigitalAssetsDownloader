@@ -18,8 +18,8 @@ export const DownloadBehaviorSection: React.FC<
     <div className="config-section">
       <h3>Download Behavior</h3>
 
-      <FormGroup 
-        label="Concurrent Downloads" 
+      <FormGroup
+        label="Concurrent Downloads"
         htmlFor="concurrent-downloads"
         helpText="Number of simultaneous downloads (1-20)"
       >

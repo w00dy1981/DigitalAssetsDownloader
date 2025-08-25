@@ -27,7 +27,7 @@ export interface ImageProcessingOptions {
   quality?: number;
   backgroundProcessing?: {
     enabled: boolean;
-    method: 'smart_detect' | 'ai_removal' | 'color_replace' | 'edge_detection';
+    method: 'smart_detect';
     quality: number;
     edgeThreshold: number;
   };

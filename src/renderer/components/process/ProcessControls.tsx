@@ -194,21 +194,10 @@ const ProcessControls: React.FC<ProcessControlsProps> = ({
                     style={{ maxWidth: '200px' }}
                   >
                     <option value="smart_detect">Smart Detection</option>
-                    <option value="ai_removal">AI Removal</option>
-                    <option value="color_replace">
-                      Color Range Replacement
-                    </option>
-                    <option value="edge_detection">Edge Detection</option>
                   </select>
                   <small className="text-muted method-explanation">
-                    {config.backgroundProcessing.method === 'smart_detect' &&
-                      'Analyzes edges to detect and remove backgrounds automatically'}
-                    {config.backgroundProcessing.method === 'ai_removal' &&
-                      'Uses AI to intelligently remove backgrounds (most accurate)'}
-                    {config.backgroundProcessing.method === 'color_replace' &&
-                      'Replaces specific color ranges with transparency'}
-                    {config.backgroundProcessing.method === 'edge_detection' &&
-                      'Uses edge detection algorithms for background removal'}
+                    Detects PNG images with transparency and converts them to
+                    JPG with white background
                   </small>
                 </div>
 

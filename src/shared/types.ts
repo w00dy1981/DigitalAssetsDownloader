@@ -23,7 +23,7 @@ export interface DownloadConfig {
   maxWorkers: number;
   backgroundProcessing: {
     enabled: boolean;
-    method: 'smart_detect' | 'ai_removal' | 'color_replace' | 'edge_detection';
+    method: 'smart_detect';
     quality: number;
     edgeThreshold: number;
   };
@@ -86,11 +86,7 @@ export interface UserSettings {
   };
   imageProcessing: {
     enabledByDefault: boolean; // Background processing on/off by default
-    defaultMethod:
-      | 'smart_detect'
-      | 'ai_removal'
-      | 'color_replace'
-      | 'edge_detection';
+    defaultMethod: 'smart_detect';
     defaultQuality: number; // JPEG quality (60-100%)
     defaultEdgeThreshold: number; // Edge detection threshold
   };
