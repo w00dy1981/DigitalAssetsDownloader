@@ -33,6 +33,11 @@ jobs:
       - name: Install dependencies
         run: npm ci
 
+      - name: Install Wine (for Windows builds on Linux)
+        run: |
+          sudo apt update
+          sudo apt install -y wine64
+
       - name: Run tests
         run: npm test
 
@@ -97,11 +102,4 @@ jobs:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
           npm run build
-          npm run dist:win
-          
-          # Create GitHub release with built artifacts
-          gh release create $NEW_VERSION ./release/*.* \
-            --title "Release $NEW_VERSION" \
-            --notes "Auto-generated release from commit: ${{ github.event.head_commit.message }}" \
-            --draft=false \
-            --prerelease=false
+          npx electron-builder --win --publish always
