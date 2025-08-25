@@ -225,8 +225,9 @@ export class ImageProcessingService {
           format: 'jpeg',
         };
       } else {
-        // Just convert to JPEG without background processing
+        // Convert to JPEG with white background (JPEG doesn't support transparency)
         const processedBuffer = await sharp(imageBuffer)
+          .flatten({ background: { r: 255, g: 255, b: 255 } }) // White background
           .jpeg({ quality })
           .toBuffer();
 

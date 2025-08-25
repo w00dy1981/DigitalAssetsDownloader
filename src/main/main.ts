@@ -489,7 +489,7 @@ class DigitalAssetDownloaderApp {
       Object.defineProperty(app, 'isPackaged', {
         get() {
           return true;
-        }
+        },
       });
     }
 
