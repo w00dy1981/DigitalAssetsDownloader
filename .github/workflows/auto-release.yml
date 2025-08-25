@@ -39,8 +39,10 @@ jobs:
       - name: Check if version bump needed
         id: version-check
         run: |
-          # Check if this is a version bump commit
-          if [[ "${{ github.event.head_commit.message }}" =~ ^[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
+          # Check if this is a version bump commit (only check first line of commit message)
+          commit_first_line="${{ github.event.head_commit.message }}"
+          commit_first_line="${commit_first_line%%$'\n'*}"  # Get only first line
+          if [[ "$commit_first_line" =~ ^[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
             echo "skip-bump=true" >> $GITHUB_OUTPUT
           else
             echo "skip-bump=false" >> $GITHUB_OUTPUT
@@ -50,13 +52,15 @@ jobs:
         id: bump-type
         if: steps.version-check.outputs.skip-bump == 'false'
         run: |
-          commit_msg="${{ github.event.head_commit.message }}"
+          # Use first line of commit message for version bump detection
+          commit_first_line="${{ github.event.head_commit.message }}"
+          commit_first_line="${commit_first_line%%$'\n'*}"  # Get only first line
           
           # Major release indicators
-          if [[ "$commit_msg" =~ (BREAKING|major|Major|MAJOR) ]]; then
+          if [[ "$commit_first_line" =~ (BREAKING|major|Major|MAJOR) ]]; then
             echo "bump=major" >> $GITHUB_OUTPUT
           # Minor release indicators (features, refactoring, significant changes)
-          elif [[ "$commit_msg" =~ (feat|feature|Feature|refactor|Refactor|Phase|phase) ]]; then
+          elif [[ "$commit_first_line" =~ (feat|feature|Feature|refactor|Refactor|Phase|phase) ]]; then
             echo "bump=minor" >> $GITHUB_OUTPUT
           # Patch release (fixes, chores, docs)
           else
