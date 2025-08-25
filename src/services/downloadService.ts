@@ -18,7 +18,6 @@ import {
 import { isImageFile } from './fileUtils';
 import { logger } from './LoggingService';
 import { errorHandler } from './ErrorHandlingService';
-import sharp from 'sharp';
 // import { withErrorHandling } from '@/utils/withErrorHandling'; // Available for future use
 import { imageProcessor } from './ImageProcessingService';
 
@@ -111,33 +110,9 @@ export class DownloadService extends EventEmitter {
         'DownloadService'
       );
 
-      // Fallback: attempt basic PNG to JPEG conversion using Sharp directly
-      try {
-        if (sharp && imageBuffer) {
-          const basicResult = await sharp(imageBuffer)
-            .flatten({ background: { r: 255, g: 255, b: 255 } }) // Always apply white background
-            .jpeg({ quality })
-            .toBuffer();
-
-          logger.info(
-            'Basic PNG to JPEG conversion succeeded as fallback',
-            'DownloadService'
-          );
-          return { buffer: basicResult, backgroundProcessed: false };
-        }
-      } catch (fallbackError) {
-        logger.error(
-          'Basic fallback conversion also failed',
-          errorHandler.handleError(fallbackError, 'DownloadService', {
-            throwOnError: false,
-          }),
-          'DownloadService'
-        );
-      }
-
-      // If all conversion attempts fail, throw error rather than return corrupted PNG data
+      // With @napi-rs/canvas, we don't need a fallback - throw error to fail download properly
       throw new Error(
-        `Cannot convert PNG to JPEG - both advanced and basic processing failed: ${processedError.message}`
+        `Cannot convert PNG to JPEG - image processing failed: ${processedError.message}`
       );
     }
   }

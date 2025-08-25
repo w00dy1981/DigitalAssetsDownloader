@@ -72,6 +72,7 @@
     "webpack-dev-server": "^4.15.1"
   },
   "dependencies": {
+    "@napi-rs/canvas": "^0.1.77",
     "axios": "^1.6.2",
     "electron-log": "^5.1.7",
     "electron-store": "^8.1.0",
@@ -79,8 +80,7 @@
     "exceljs": "^4.4.0",
     "fast-csv": "^4.3.6",
     "react": "^18.2.0",
-    "react-dom": "^18.2.0",
-    "sharp": "^0.34.2"
+    "react-dom": "^18.2.0"
   },
   "build": {
     "appId": "com.digitalassetdownloader.app",

@@ -1,21 +1,19 @@
 /**
- * ImageProcessingService - Handles all image processing operations
- * Extracted from downloadService.ts for better separation of concerns
- * Follows KISS/DRY principles with focused single responsibility
+ * ImageProcessingService - Handles all image processing operations using @napi-rs/canvas
+ * Replaced Sharp with @napi-rs/canvas for better Electron compatibility
+ * Zero system dependencies and pure npm packages without native compilation issues
  */
 
 import { logger } from './LoggingService';
 import { errorHandler } from './ErrorHandlingService';
-// import { withErrorHandling } from '@/utils/withErrorHandling'; // Available for future use
 
-// Import Sharp with error handling
-let sharp: any = null;
+// Import @napi-rs/canvas with error handling
+let canvas: any = null;
 try {
-  // eslint-disable-next-line @typescript-eslint/no-require-imports
-  sharp = require('sharp');
+  canvas = require('@napi-rs/canvas');
 } catch (error) {
   logger.warn(
-    'Sharp not available, image processing disabled',
+    '@napi-rs/canvas not available, image processing disabled',
     'ImageProcessingService',
     {
       error: error instanceof Error ? error.message : 'Unknown error',
@@ -50,14 +48,14 @@ export interface ImageMetadata {
 }
 
 /**
- * Singleton service for handling image processing operations
+ * Singleton service for handling image processing operations using @napi-rs/canvas
  */
 export class ImageProcessingService {
   private static instance: ImageProcessingService;
-  private isSharpAvailable: boolean = false;
+  private isCanvasAvailable: boolean = false;
 
   private constructor() {
-    this.isSharpAvailable = sharp !== null;
+    this.isCanvasAvailable = canvas !== null;
   }
 
   /**
@@ -71,41 +69,50 @@ export class ImageProcessingService {
   }
 
   /**
-   * Check if Sharp is available for image processing
+   * Check if Canvas is available for image processing
    */
   public isProcessingAvailable(): boolean {
-    return this.isSharpAvailable;
+    return this.isCanvasAvailable;
   }
 
   /**
-   * Get image metadata without processing
+   * Get image metadata from buffer
    */
   public async getImageMetadata(imageBuffer: Buffer): Promise<ImageMetadata> {
-    if (!this.isSharpAvailable || !sharp) {
+    if (!this.isCanvasAvailable || !canvas) {
       logger.warn(
-        'Sharp not available - cannot get image metadata',
+        'Canvas not available - cannot get image metadata',
         'ImageProcessingService'
       );
       return {};
     }
 
     try {
-      const metadata = await sharp(imageBuffer).metadata();
-      return {
-        format: metadata.format,
-        width: metadata.width,
-        height: metadata.height,
-        hasAlpha: metadata.hasAlpha,
-        channels: metadata.channels,
-      };
-    } catch (error) {
-      // Example of withErrorHandling utility - would simplify to:
-      // return await withErrorHandling(
-      //   () => this.extractMetadata(imageBuffer),
-      //   'ImageMetadata',
-      //   { returnNullOnError: true }
-      // ) || {};
+      // Create image from buffer
+      const img = new canvas.Image();
 
+      // Use Promise to handle image loading
+      const metadata = await new Promise<ImageMetadata>((resolve, reject) => {
+        img.onload = () => {
+          resolve({
+            width: img.width,
+            height: img.height,
+            format: this.detectImageFormat(imageBuffer),
+            hasAlpha: this.detectAlphaChannel(imageBuffer),
+            channels: this.detectAlphaChannel(imageBuffer) ? 4 : 3,
+          });
+        };
+
+        img.onerror = (error: any) => {
+          reject(new Error('Failed to load image'));
+        };
+
+        // Set image source from buffer
+        img.src = imageBuffer;
+      });
+
+      return metadata;
+    } catch (error) {
       const processedError = errorHandler.handleError(
         error,
         'ImageProcessingService',
@@ -119,52 +126,91 @@ export class ImageProcessingService {
   }
 
   /**
+   * Detect image format from buffer header
+   */
+  private detectImageFormat(imageBuffer: Buffer): string {
+    // Check PNG signature
+    if (
+      imageBuffer.length >= 8 &&
+      imageBuffer[0] === 0x89 &&
+      imageBuffer[1] === 0x50 &&
+      imageBuffer[2] === 0x4e &&
+      imageBuffer[3] === 0x47
+    ) {
+      return 'png';
+    }
+
+    // Check JPEG signature
+    if (
+      imageBuffer.length >= 2 &&
+      imageBuffer[0] === 0xff &&
+      imageBuffer[1] === 0xd8
+    ) {
+      return 'jpeg';
+    }
+
+    // Check WebP signature
+    if (
+      imageBuffer.length >= 12 &&
+      imageBuffer.subarray(0, 4).toString('ascii') === 'RIFF' &&
+      imageBuffer.subarray(8, 12).toString('ascii') === 'WEBP'
+    ) {
+      return 'webp';
+    }
+
+    return 'unknown';
+  }
+
+  /**
+   * Detect if image has alpha channel (transparency)
+   */
+  private detectAlphaChannel(imageBuffer: Buffer): boolean {
+    const format = this.detectImageFormat(imageBuffer);
+
+    // Only PNG and WebP can have alpha channels
+    if (format === 'png') {
+      // For PNG, check color type in IHDR chunk
+      const ihdrStart = imageBuffer.indexOf('IHDR');
+      if (ihdrStart !== -1 && ihdrStart + 13 < imageBuffer.length) {
+        const colorType = imageBuffer[ihdrStart + 9];
+        // Color types 4 and 6 have alpha channel
+        return colorType === 4 || colorType === 6;
+      }
+    }
+
+    if (format === 'webp') {
+      // WebP VP8X format indicates alpha
+      return imageBuffer.includes(Buffer.from('VP8X'));
+    }
+
+    return false;
+  }
+
+  /**
    * Smart detection for images that need background processing
-   * Only processes PNG files with actual transparency
    */
   public async needsBackgroundProcessing(
     imageBuffer: Buffer
   ): Promise<boolean> {
-    if (!this.isSharpAvailable || !sharp) {
+    if (!this.isCanvasAvailable || !canvas) {
       return false;
     }
 
     try {
-      const metadata = await sharp(imageBuffer).metadata();
+      const format = this.detectImageFormat(imageBuffer);
+      const hasAlpha = this.detectAlphaChannel(imageBuffer);
 
-      // Only process PNG files with actual transparency
-      if (metadata.format === 'png' && metadata.hasAlpha) {
-        // Sample a small region to check for transparency (performance optimization)
-        const sampleSize = 100; // Sample 100x100 pixels max
-        const { data } = await sharp(imageBuffer)
-          .resize(
-            Math.min(metadata.width || sampleSize, sampleSize),
-            Math.min(metadata.height || sampleSize, sampleSize)
-          )
-          .ensureAlpha()
-          .raw()
-          .toBuffer({ resolveWithObject: true });
-
-        // Check every 10th alpha pixel for efficiency
-        for (let i = 3; i < data.length; i += 40) {
-          // Sample every 10th pixel's alpha
-          if (data[i] < 255) {
-            logger.info(
-              'Found transparency in PNG - needs background processing',
-              'ImageProcessingService'
-            );
-            return true;
-          }
-        }
-
+      // Only process PNG files with alpha channel
+      if (format === 'png' && hasAlpha) {
+        // For now, assume all PNG with alpha needs processing
+        // In a more sophisticated implementation, we could check actual pixel transparency
         logger.info(
-          'PNG has alpha channel but no actual transparency - skipping processing',
+          'PNG with alpha channel detected - needs background processing',
           'ImageProcessingService'
         );
-        return false;
+        return true;
       }
 
-      // Skip all other formats (JPEG, etc.) - they don't have transparency
       return false;
     } catch (error) {
       const processedError = errorHandler.handleError(
@@ -184,7 +230,7 @@ export class ImageProcessingService {
   }
 
   /**
-   * Convert image to JPEG format with optional background processing
+   * Convert image to JPEG format with white background using @napi-rs/canvas
    */
   public async convertToJpeg(
     imageBuffer: Buffer,
@@ -192,51 +238,72 @@ export class ImageProcessingService {
   ): Promise<ImageProcessingResult> {
     const { quality = 95, backgroundProcessing } = options;
 
-    if (!this.isSharpAvailable || !sharp) {
+    if (!this.isCanvasAvailable || !canvas) {
       logger.warn(
-        'Sharp not available - returning original image buffer',
+        'Canvas not available - returning original image buffer',
         'ImageProcessingService'
       );
       return { buffer: imageBuffer, backgroundProcessed: false };
     }
 
-    // Check if background processing is enabled
-    const backgroundProcessingEnabled = backgroundProcessing?.enabled ?? false;
-
     try {
-      const needsProcessing =
-        backgroundProcessingEnabled &&
-        (await this.needsBackgroundProcessing(imageBuffer));
+      // Create image from buffer
+      const img = new canvas.Image();
 
-      if (needsProcessing) {
-        // Apply white background to handle transparency
-        const processedBuffer = await sharp(imageBuffer)
-          .flatten({ background: { r: 255, g: 255, b: 255 } }) // White background
-          .jpeg({ quality })
-          .toBuffer();
+      // Load image and convert to JPEG
+      const result = await new Promise<ImageProcessingResult>(
+        (resolve, reject) => {
+          img.onload = () => {
+            try {
+              // Create canvas with image dimensions
+              const canvasElement = canvas.createCanvas(img.width, img.height);
+              const ctx = canvasElement.getContext('2d');
 
-        logger.info(
-          'Image processed: transparency replaced with white background',
-          'ImageProcessingService'
-        );
-        return {
-          buffer: processedBuffer,
-          backgroundProcessed: true,
-          format: 'jpeg',
-        };
-      } else {
-        // Convert to JPEG with white background (JPEG doesn't support transparency)
-        const processedBuffer = await sharp(imageBuffer)
-          .flatten({ background: { r: 255, g: 255, b: 255 } }) // White background
-          .jpeg({ quality })
-          .toBuffer();
+              // Fill with white background (handles transparency)
+              ctx.fillStyle = 'white';
+              ctx.fillRect(0, 0, img.width, img.height);
 
-        return {
-          buffer: processedBuffer,
-          backgroundProcessed: false,
-          format: 'jpeg',
-        };
-      }
+              // Draw image on top of white background
+              ctx.drawImage(img, 0, 0);
+
+              // Convert to JPEG buffer
+              const jpegBuffer = canvasElement.toBuffer('image/jpeg', {
+                quality: quality / 100,
+              });
+
+              const needsProcessing = backgroundProcessing?.enabled ?? false;
+              const hasTransparency = this.detectAlphaChannel(imageBuffer);
+              const backgroundProcessed = needsProcessing && hasTransparency;
+
+              if (backgroundProcessed) {
+                logger.info(
+                  'Image processed: transparency replaced with white background',
+                  'ImageProcessingService'
+                );
+              }
+
+              resolve({
+                buffer: jpegBuffer,
+                backgroundProcessed,
+                format: 'jpeg',
+                width: img.width,
+                height: img.height,
+              });
+            } catch (error) {
+              reject(error);
+            }
+          };
+
+          img.onerror = (error: any) => {
+            reject(new Error('Failed to load image for conversion'));
+          };
+
+          // Set image source from buffer
+          img.src = imageBuffer;
+        }
+      );
+
+      return result;
     } catch (error) {
       const processedError = errorHandler.handleError(
         error,
@@ -244,97 +311,18 @@ export class ImageProcessingService {
         { throwOnError: false }
       );
       logger.error(
-        'Sharp image processing failed',
+        'Canvas image processing failed',
         processedError,
         'ImageProcessingService'
       );
 
-      // Return original buffer if processing fails
-      return { buffer: imageBuffer, backgroundProcessed: false };
-    }
-  }
-
-  /**
-   * Process image with comprehensive options and metadata extraction
-   */
-  public async processImage(
-    imageBuffer: Buffer,
-    options: ImageProcessingOptions = {}
-  ): Promise<ImageProcessingResult> {
-    try {
-      // Get metadata first
-      const metadata = await this.getImageMetadata(imageBuffer);
-
-      // Convert to JPEG with processing
-      const result = await this.convertToJpeg(imageBuffer, options);
-
-      // Merge metadata into result
-      return {
-        ...result,
-        width: metadata.width,
-        height: metadata.height,
-      };
-    } catch (error) {
-      const processedError = errorHandler.handleError(
-        error,
-        'ImageProcessingService',
-        { throwOnError: false }
-      );
-      logger.error(
-        'Image processing failed',
-        processedError,
-        'ImageProcessingService'
-      );
-
-      return { buffer: imageBuffer, backgroundProcessed: false };
-    }
-  }
-
-  /**
-   * Check if a buffer contains image data
-   */
-  public async isValidImage(buffer: Buffer): Promise<boolean> {
-    if (!this.isSharpAvailable || !sharp) {
-      return false;
-    }
-
-    try {
-      const metadata = await sharp(buffer).metadata();
-      return !!(metadata.format && metadata.width && metadata.height);
-    } catch {
-      return false;
-    }
-  }
-
-  /**
-   * Get image dimensions without full processing
-   */
-  public async getImageDimensions(
-    buffer: Buffer
-  ): Promise<{ width: number; height: number } | null> {
-    if (!this.isSharpAvailable || !sharp) {
-      return null;
-    }
-
-    try {
-      const metadata = await sharp(buffer).metadata();
-      if (metadata.width && metadata.height) {
-        return { width: metadata.width, height: metadata.height };
-      }
-      return null;
-    } catch (error) {
-      const processedError = errorHandler.handleError(
-        error,
-        'ImageProcessingService',
-        { throwOnError: false }
-      );
-      logger.warn('Error getting image dimensions', 'ImageProcessingService', {
-        error: processedError.message,
-      });
-      return null;
+      // Return original buffer if processing fails (no more PNG in JPEG files)
+      throw new Error(`Image conversion failed: ${processedError.message}`);
     }
   }
 }
 
-// Export singleton instance
+/**
+ * Singleton instance export
+ */
 export const imageProcessor = ImageProcessingService.getInstance();

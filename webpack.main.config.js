@@ -37,6 +37,7 @@ module.exports = {
   externals: {
     electron: 'commonjs electron',
     sharp: 'commonjs sharp',
+    '@napi-rs/canvas': 'commonjs @napi-rs/canvas',
   },
   node: {
     __dirname: false,
