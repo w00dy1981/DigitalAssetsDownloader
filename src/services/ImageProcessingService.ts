@@ -171,8 +171,9 @@ export class ImageProcessingService {
     if (format === 'png') {
       // For PNG, check color type in IHDR chunk
       const ihdrStart = imageBuffer.indexOf('IHDR');
-      if (ihdrStart !== -1 && ihdrStart + 13 < imageBuffer.length) {
-        const colorType = imageBuffer[ihdrStart + 9];
+      if (ihdrStart !== -1 && ihdrStart + 17 <= imageBuffer.length) {
+        // Color type is at offset 9 within IHDR data, which starts 4 bytes after 'IHDR'
+        const colorType = imageBuffer[ihdrStart + 4 + 9];
         // Color types 4 and 6 have alpha channel
         return colorType === 4 || colorType === 6;
       }
