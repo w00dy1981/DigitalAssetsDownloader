@@ -35,7 +35,10 @@ jobs:
       - name: Install Wine (for Windows builds on Linux)
         run: |
           sudo apt update
-          sudo apt install -y wine64
+          sudo dpkg --add-architecture i386
+          sudo apt update
+          sudo apt install -y wine64 wine32:i386
+          wine --version
 
       - name: Run tests
         run: npm test
