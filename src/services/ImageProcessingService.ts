@@ -103,7 +103,7 @@ export class ImageProcessingService {
           });
         };
 
-        img.onerror = (error: any) => {
+        img.onerror = () => {
           reject(new Error('Failed to load image'));
         };
 
@@ -237,7 +237,7 @@ export class ImageProcessingService {
     imageBuffer: Buffer,
     options: ImageProcessingOptions = {}
   ): Promise<ImageProcessingResult> {
-    const { quality = 95, backgroundProcessing } = options;
+    const { quality = 95 } = options;
 
     if (!this.isCanvasAvailable || !canvas) {
       logger.warn(
@@ -272,9 +272,8 @@ export class ImageProcessingService {
                 quality: quality / 100,
               });
 
-              const needsProcessing = backgroundProcessing?.enabled ?? false;
               const hasTransparency = this.detectAlphaChannel(imageBuffer);
-              const backgroundProcessed = needsProcessing && hasTransparency;
+              const backgroundProcessed = hasTransparency;
 
               if (backgroundProcessed) {
                 logger.info(
@@ -295,7 +294,7 @@ export class ImageProcessingService {
             }
           };
 
-          img.onerror = (error: any) => {
+          img.onerror = () => {
             reject(new Error('Failed to load image for conversion'));
           };
 
