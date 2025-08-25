@@ -86,7 +86,6 @@ export const UpdateSettingsSection: React.FC<UpdateSettingsSectionProps> = ({
     // Detect development mode (when running with npm run dev)
     const isDevelopment =
       process.env.NODE_ENV === 'development' ||
-      window.location.protocol === 'file:' ||
       !window.electronAPI;
 
     try {
@@ -114,7 +113,6 @@ export const UpdateSettingsSection: React.FC<UpdateSettingsSectionProps> = ({
 
       const isDevelopment =
         process.env.NODE_ENV === 'development' ||
-        window.location.protocol === 'file:' ||
         !window.electronAPI;
       const message = isDevelopment
         ? 'Update checks are limited in development mode - build and test in production'
