@@ -97,7 +97,6 @@ jobs:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
           npm run build
-          npm run dist:mac
           npm run dist:win
           
           # Create GitHub release with built artifacts
