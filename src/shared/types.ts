@@ -1,6 +1,5 @@
 // Shared TypeScript interfaces for Digital Asset Downloader
 // Based on original Python app configuration schema (Lines 1200-1225)
-// Test GitHub Actions workflow fix
 
 export interface SpreadsheetData {
   columns: string[];
