@@ -483,6 +483,16 @@ class DigitalAssetDownloaderApp {
     autoUpdater.logger = log;
     log.info('Auto-updater initialized');
 
+    // Force production mode for auto-updater
+    if (process.env.NODE_ENV !== 'production') {
+      log.info('Overriding development mode detection for auto-updater');
+      Object.defineProperty(app, 'isPackaged', {
+        get() {
+          return true;
+        }
+      });
+    }
+
     // Configure auto-updater behavior
     autoUpdater.autoDownload = false; // Let user control download
     autoUpdater.autoInstallOnAppQuit = false; // Let user control install
