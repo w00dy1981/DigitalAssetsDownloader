@@ -2,14 +2,87 @@ import React, { useState, useCallback } from 'react';
 import { SpreadsheetData } from '@/shared/types';
 import { logger } from '@/services/LoggingService';
 
+/**
+ * Simple update notification banner - KISS implementation
+ */
+const UpdateNotificationBanner: React.FC = () => {
+  const [isWorking, setIsWorking] = useState(false);
+
+  const handleUpdateClick = useCallback(async () => {
+    try {
+      setIsWorking(true);
+
+      // Simple flow: trigger update check, then user can go to Settings to complete
+      await window.electronAPI.checkForUpdates();
+
+      // Show success message and direct to settings
+      setTimeout(() => {
+        alert(
+          'Update check initiated!\n\nGo to Settings tab to complete the update process.'
+        );
+        setIsWorking(false);
+      }, 1000);
+    } catch (error) {
+      logger.error(
+        'Update check failed',
+        error instanceof Error ? error : new Error(String(error)),
+        'UpdateBanner'
+      );
+      alert('Update check failed. Please try again later.');
+      setIsWorking(false);
+    }
+  }, []);
+
+  return (
+    <div
+      style={{
+        background: 'linear-gradient(135deg, #28a745 0%, #20c997 100%)',
+        border: '1px solid #1e7e34',
+        borderRadius: '8px',
+        padding: '16px',
+        marginBottom: '20px',
+        color: 'white',
+        display: 'flex',
+        alignItems: 'center',
+        justifyContent: 'space-between',
+      }}
+    >
+      <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+        <span style={{ fontSize: '24px' }}>🔄</span>
+        <div>
+          <strong style={{ display: 'block', marginBottom: '4px' }}>
+            Update Available!
+          </strong>
+          <div style={{ fontSize: '14px', opacity: 0.9 }}>
+            A new version is ready to download.
+          </div>
+        </div>
+      </div>
+      <button
+        className="btn btn-light"
+        onClick={handleUpdateClick}
+        disabled={isWorking}
+        style={{
+          fontWeight: '500',
+          opacity: isWorking ? 0.7 : 1,
+        }}
+      >
+        {isWorking ? 'Checking...' : 'Update Now'}
+      </button>
+    </div>
+  );
+};
+
 interface FileSelectionTabProps {
   onDataLoaded: (data: SpreadsheetData) => void;
   currentData: SpreadsheetData | null;
+  hasUpdateAvailable?: boolean;
 }
 
 const FileSelectionTab: React.FC<FileSelectionTabProps> = ({
   onDataLoaded,
   currentData,
+  hasUpdateAvailable,
 }) => {
   const [selectedFile, setSelectedFile] = useState<string>('');
   const [availableSheets, setAvailableSheets] = useState<string[]>([]);
@@ -186,6 +259,9 @@ const FileSelectionTab: React.FC<FileSelectionTabProps> = ({
 
   return (
     <div className="tab-panel">
+      {/* Update Notification Banner */}
+      {hasUpdateAvailable && <UpdateNotificationBanner />}
+
       <h2>File Selection</h2>
       <p>
         Select an Excel file (.xlsx, .xls, .xlsm) or CSV file to begin

@@ -136,6 +136,7 @@ const App: React.FC = () => {
           <FileSelectionTab
             onDataLoaded={handleDataLoaded}
             currentData={spreadsheetData}
+            hasUpdateAvailable={hasUpdateAvailable}
           />
         )}
         {activeTab === 1 && spreadsheetData && (

@@ -151,19 +151,19 @@ export class ImageProcessingService {
   }
 
   /**
-   * Smart detection for images that need background processing
+   * Simple detection for images that need background processing
+   * Convert ALL PNG and WebP files to JPEG when background processing is enabled
    */
   public async needsBackgroundProcessing(
     imageBuffer: Buffer
   ): Promise<boolean> {
     try {
       const format = this.detectImageFormat(imageBuffer);
-      const hasAlpha = this.detectAlphaChannel(imageBuffer);
 
-      // Only process PNG files with alpha channel
-      if (format === 'png' && hasAlpha) {
+      // Process ALL PNG and WebP files (user wants them converted to JPEG)
+      if (format === 'png' || format === 'webp') {
         logger.info(
-          'PNG with alpha channel detected - needs background processing',
+          `${format.toUpperCase()} file detected - applying background processing`,
           'ImageProcessingService'
         );
         return true;
@@ -188,6 +188,32 @@ export class ImageProcessingService {
   }
 
   /**
+   * Check if a Jimp image has transparent pixels by scanning the alpha channel
+   */
+  private hasTransparentPixels(image: any): boolean {
+    const { width, height } = image;
+
+    // Sample pixels to check for transparency (check every 10th pixel for performance)
+    const sampleSize = Math.max(1, Math.floor(Math.min(width, height) / 10));
+
+    for (let y = 0; y < height; y += sampleSize) {
+      for (let x = 0; x < width; x += sampleSize) {
+        const rgba = image.getPixelColour
+          ? image.getPixelColour(x, y)
+          : image.getPixelColor(x, y);
+        const alpha = rgba & 0xff; // Extract alpha channel (last 8 bits)
+
+        if (alpha < 255) {
+          // Found a pixel with transparency
+          return true;
+        }
+      }
+    }
+
+    return false;
+  }
+
+  /**
    * Convert image to JPEG format with white background using Jimp
    */
   public async convertToJpeg(
@@ -202,9 +228,8 @@ export class ImageProcessingService {
       const originalWidth = image.width;
       const originalHeight = image.height;
 
-      // Detect if image has transparency
-      const hasTransparency = this.detectAlphaChannel(imageBuffer);
-      const originalFormat = this.detectImageFormat(imageBuffer);
+      // Detect if image has transparency using Jimp pixel analysis
+      const hasTransparency = this.hasTransparentPixels(image);
 
       let processedImage = image;
 
