@@ -4,7 +4,7 @@ A modern, cross-platform desktop application for bulk downloading and processing
 
 ![Digital Asset Downloader](https://img.shields.io/badge/platform-Windows%20%7C%20macOS%20%7C%20Linux-blue)
 ![License](https://img.shields.io/badge/license-MIT-green)
-![Version](https://img.shields.io/badge/version-1.0.8-orange)
+![Version](https://img.shields.io/badge/version-1.3.0-orange)
 
 ---
 
@@ -22,10 +22,12 @@ A modern, cross-platform desktop application for bulk downloading and processing
 - **Progress Tracking**: Real-time progress with ETAs and success/failure counters
 
 ### 🎨 **Image Processing**
-- **Smart Background Detection**: Automatic transparency detection and removal
-- **PNG to JPEG Conversion**: Optimized 95% quality JPEG output
+- **Pure JavaScript Processing**: Jimp-powered image processing with zero native dependencies
+- **Smart Background Detection**: Automatic transparency detection and removal  
+- **PNG to JPEG Conversion**: Optimized 95% quality JPEG output with white backgrounds
 - **Batch Processing**: Process hundreds of images efficiently
 - **Selective Processing**: Only processes images that actually need background fixes
+- **Electron-Optimized**: Reliable bundling without native module issues
 
 ### ⚙️ **Professional Features**
 - **Network Path Logging**: Separate download paths vs. CSV log paths for enterprise workflows
@@ -40,7 +42,7 @@ A modern, cross-platform desktop application for bulk downloading and processing
 
 - **Frontend**: React 18 + TypeScript
 - **Desktop**: Electron 28
-- **Image Processing**: Sharp (cross-platform)
+- **Image Processing**: Jimp (pure JavaScript, zero native dependencies)
 - **Excel Processing**: ExcelJS
 - **HTTP Client**: Axios with retry logic
 - **Configuration**: electron-store
