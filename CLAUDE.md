@@ -23,7 +23,7 @@ For active development sessions, reference **`PHASE_6_HANDOFF.md`** for current 
 - `npm start:electron` - Start Electron app (requires build first)
 
 ### Testing & Quality
-- `npm test` - Run all tests (202 passing tests as of Phase 3)
+- `npm test` - Run all tests (214 passing tests as of current version)
 - `npm run test:watch` - Run tests in watch mode
 - `npm run test:coverage` - Run tests with coverage report (50% threshold enforced)
 - `npm run lint` - ESLint checking (REQUIRED after changes)
@@ -129,13 +129,13 @@ src/
 ### Required Testing After Changes
 1. Run `npm run build` - Verify TypeScript compilation
 2. Run `npm run lint` - Check code quality
-3. Run `npm test` - Ensure all 202 tests still pass
+3. Run `npm test` - Ensure all 214 tests still pass
 4. Run `npm run dev` - Test application manually
 5. Test the critical path: File Selection → Column Selection → Process tabs
 
 ## Service Layer Architecture (Phase 3 - COMPLETE)
 
-**5 Production-Ready Services** with comprehensive testing:
+**6 Production-Ready Services** with comprehensive testing:
 
 ```typescript
 // Import pattern for all services
@@ -144,6 +144,7 @@ import { validationService } from '@/services/ValidationService';
 import { configService } from '@/services/ConfigurationService';
 import { ipcService } from '@/services/IPCService';
 import { errorHandler } from '@/services/ErrorHandlingService';
+import { imageProcessingService } from '@/services/ImageProcessingService';
 ```
 
 ### Service Integration Patterns
@@ -185,7 +186,7 @@ import { NumberInput } from '@/renderer/components/ui';
 - **TypeScript** with strict mode enabled (`"strict": true`)
 - **Electron 28** for desktop application framework
 - **ExcelJS** for Excel/CSV file processing
-- **Sharp** for high-performance image processing
+- **Jimp** for image processing (replaced Sharp in recent versions)
 - **Axios** with retry logic for HTTP downloads
 
 ### Development Tools
@@ -198,12 +199,14 @@ import { NumberInput } from '@/renderer/components/ui';
 - **Phase 1**: ✅ Custom Hooks (Complete - 23 lines saved)
 - **Phase 2**: ✅ UI Components (Complete - 119 lines saved)  
 - **Phase 3**: ✅ Business Logic Services (Complete - 300+ patterns consolidated)
-- **Phase 4**: 📋 Component Decomposition (Planned - Large components → focused components)
-- **Phase 5**: 📋 Method Simplification (Planned - Break down complex methods)
+- **Phase 4**: ✅ Component Decomposition (Complete - Large components → focused components)
+- **Phase 5**: ✅ Method Simplification (Complete - Break down complex methods)
+- **Phase 6A**: ✅ DRY Violations Cleanup (Complete - 200+ lines saved)
+- **Phase 6B-C**: 📋 Configuration Enhancement & Final Cleanup (In Progress)
 
 ## Key Metrics to Track
 
-- **Testing**: Maintain 202+ passing tests, >90% coverage for services
+- **Testing**: Maintain 214+ passing tests, >90% coverage for services
 - **Build Performance**: Keep builds under 30 seconds
 - **Type Safety**: Zero TypeScript errors required
 - **Component Size**: Target <200 lines per component
@@ -212,6 +215,6 @@ import { NumberInput } from '@/renderer/components/ui';
 ## GitHub Integration
 
 - **Auto-updates**: via `electron-updater` and GitHub Releases
-- **Issues**: Track Phase 4-5 refactoring in GitHub Issues #18, #19
-- **Branch**: Active development on `feature/kiss-dry-refactoring`
+- **Issues**: Track Phase 6 cleanup in GitHub Issues #22, #23, #24
+- **Branch**: Active development on `main` (production-ready)
 - **Publishing**: `npm run publish` creates GitHub releases automatically
