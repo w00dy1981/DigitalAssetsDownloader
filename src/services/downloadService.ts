@@ -403,7 +403,7 @@ export class DownloadService extends EventEmitter {
         let processedContent = content;
         let backgroundProcessed = false;
 
-        if (contentType.startsWith('image/')) {
+        if (this.isImageContent(url, contentType, content)) {
           try {
             const result = await this.convertToJpg(content, 95, config);
             processedContent = result.buffer;
@@ -458,6 +458,81 @@ export class DownloadService extends EventEmitter {
       success: false,
       message: 'Download failed after all retry attempts',
     };
+  }
+
+  /**
+   * Enhanced image detection using URL extension, Content-Type, and magic bytes
+   * This addresses the issue where servers return wrong Content-Type headers
+   */
+  private isImageContent(
+    url: string,
+    contentType: string,
+    buffer: Buffer
+  ): boolean {
+    // Method 1: Check URL extension
+    const urlExtension = url
+      .toLowerCase()
+      .match(/\.(jpg|jpeg|png|gif|bmp|webp)(?:\?.*)?$/i);
+    if (urlExtension) {
+      logger.info(
+        `Image detected by URL extension: ${urlExtension[1]}`,
+        'DownloadService',
+        { url: url.substring(0, 100) + '...' }
+      );
+      return true;
+    }
+
+    // Method 2: Check Content-Type header (original method)
+    if (contentType.startsWith('image/')) {
+      logger.info(
+        `Image detected by Content-Type: ${contentType}`,
+        'DownloadService'
+      );
+      return true;
+    }
+
+    // Method 3: Check magic bytes (buffer signature)
+    if (buffer.length < 12) return false;
+
+    // PNG signature: 89 50 4E 47 0D 0A 1A 0A
+    if (
+      buffer[0] === 0x89 &&
+      buffer[1] === 0x50 &&
+      buffer[2] === 0x4e &&
+      buffer[3] === 0x47
+    ) {
+      logger.info('Image detected by PNG magic bytes', 'DownloadService');
+      return true;
+    }
+
+    // JPEG signature: FF D8
+    if (buffer[0] === 0xff && buffer[1] === 0xd8) {
+      logger.info('Image detected by JPEG magic bytes', 'DownloadService');
+      return true;
+    }
+
+    // WebP signature: RIFF....WEBP
+    if (
+      buffer.subarray(0, 4).toString('ascii') === 'RIFF' &&
+      buffer.subarray(8, 12).toString('ascii') === 'WEBP'
+    ) {
+      logger.info('Image detected by WebP magic bytes', 'DownloadService');
+      return true;
+    }
+
+    // GIF signatures: GIF87a or GIF89a
+    const gifSignature = buffer.subarray(0, 6).toString('ascii');
+    if (gifSignature === 'GIF87a' || gifSignature === 'GIF89a') {
+      logger.info('Image detected by GIF magic bytes', 'DownloadService');
+      return true;
+    }
+
+    logger.debug('Content not detected as image', 'DownloadService', {
+      url: url.substring(0, 100) + '...',
+      contentType,
+      firstBytes: buffer.subarray(0, 12).toString('hex'),
+    });
+    return false;
   }
 
   /**

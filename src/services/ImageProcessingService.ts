@@ -1,25 +1,12 @@
 /**
- * ImageProcessingService - Handles all image processing operations using @napi-rs/canvas
- * Replaced Sharp with @napi-rs/canvas for better Electron compatibility
- * Zero system dependencies and pure npm packages without native compilation issues
+ * ImageProcessingService - Handles all image processing operations using Jimp
+ * Replaced @napi-rs/canvas with Jimp for better Electron reliability
+ * Pure JavaScript implementation with zero native dependencies
  */
 
+import { Jimp } from 'jimp';
 import { logger } from './LoggingService';
 import { errorHandler } from './ErrorHandlingService';
-
-// Import @napi-rs/canvas with error handling
-let canvas: any = null;
-try {
-  canvas = require('@napi-rs/canvas');
-} catch (error) {
-  logger.warn(
-    '@napi-rs/canvas not available, image processing disabled',
-    'ImageProcessingService',
-    {
-      error: error instanceof Error ? error.message : 'Unknown error',
-    }
-  );
-}
 
 export interface ImageProcessingOptions {
   quality?: number;
@@ -48,15 +35,12 @@ export interface ImageMetadata {
 }
 
 /**
- * Singleton service for handling image processing operations using @napi-rs/canvas
+ * Singleton service for handling image processing operations using Jimp
  */
 export class ImageProcessingService {
   private static instance: ImageProcessingService;
-  private isCanvasAvailable: boolean = false;
 
-  private constructor() {
-    this.isCanvasAvailable = canvas !== null;
-  }
+  private constructor() {}
 
   /**
    * Get singleton instance
@@ -69,49 +53,28 @@ export class ImageProcessingService {
   }
 
   /**
-   * Check if Canvas is available for image processing
+   * Check if image processing is available (always true with Jimp)
    */
   public isProcessingAvailable(): boolean {
-    return this.isCanvasAvailable;
+    return true;
   }
 
   /**
    * Get image metadata from buffer
    */
   public async getImageMetadata(imageBuffer: Buffer): Promise<ImageMetadata> {
-    if (!this.isCanvasAvailable || !canvas) {
-      logger.warn(
-        'Canvas not available - cannot get image metadata',
-        'ImageProcessingService'
-      );
-      return {};
-    }
-
     try {
-      // Create image from buffer
-      const img = new canvas.Image();
+      const image = await Jimp.fromBuffer(imageBuffer);
+      const format = this.detectImageFormat(imageBuffer);
+      const hasAlpha = this.detectAlphaChannel(imageBuffer);
 
-      // Use Promise to handle image loading
-      const metadata = await new Promise<ImageMetadata>((resolve, reject) => {
-        img.onload = () => {
-          resolve({
-            width: img.width,
-            height: img.height,
-            format: this.detectImageFormat(imageBuffer),
-            hasAlpha: this.detectAlphaChannel(imageBuffer),
-            channels: this.detectAlphaChannel(imageBuffer) ? 4 : 3,
-          });
-        };
-
-        img.onerror = () => {
-          reject(new Error('Failed to load image'));
-        };
-
-        // Set image source from buffer
-        img.src = imageBuffer;
-      });
-
-      return metadata;
+      return {
+        width: image.width,
+        height: image.height,
+        format,
+        hasAlpha,
+        channels: hasAlpha ? 4 : 3,
+      };
     } catch (error) {
       const processedError = errorHandler.handleError(
         error,
@@ -193,18 +156,12 @@ export class ImageProcessingService {
   public async needsBackgroundProcessing(
     imageBuffer: Buffer
   ): Promise<boolean> {
-    if (!this.isCanvasAvailable || !canvas) {
-      return false;
-    }
-
     try {
       const format = this.detectImageFormat(imageBuffer);
       const hasAlpha = this.detectAlphaChannel(imageBuffer);
 
       // Only process PNG files with alpha channel
       if (format === 'png' && hasAlpha) {
-        // For now, assume all PNG with alpha needs processing
-        // In a more sophisticated implementation, we could check actual pixel transparency
         logger.info(
           'PNG with alpha channel detected - needs background processing',
           'ImageProcessingService'
@@ -231,7 +188,7 @@ export class ImageProcessingService {
   }
 
   /**
-   * Convert image to JPEG format with white background using @napi-rs/canvas
+   * Convert image to JPEG format with white background using Jimp
    */
   public async convertToJpeg(
     imageBuffer: Buffer,
@@ -239,71 +196,48 @@ export class ImageProcessingService {
   ): Promise<ImageProcessingResult> {
     const { quality = 95 } = options;
 
-    if (!this.isCanvasAvailable || !canvas) {
-      logger.warn(
-        'Canvas not available - returning original image buffer',
-        'ImageProcessingService'
-      );
-      return { buffer: imageBuffer, backgroundProcessed: false };
-    }
-
     try {
-      // Create image from buffer
-      const img = new canvas.Image();
+      // Load image with Jimp
+      const image = await Jimp.fromBuffer(imageBuffer);
+      const originalWidth = image.width;
+      const originalHeight = image.height;
 
-      // Load image and convert to JPEG
-      const result = await new Promise<ImageProcessingResult>(
-        (resolve, reject) => {
-          img.onload = () => {
-            try {
-              // Create canvas with image dimensions
-              const canvasElement = canvas.createCanvas(img.width, img.height);
-              const ctx = canvasElement.getContext('2d');
+      // Detect if image has transparency
+      const hasTransparency = this.detectAlphaChannel(imageBuffer);
+      const originalFormat = this.detectImageFormat(imageBuffer);
 
-              // Fill with white background (handles transparency)
-              ctx.fillStyle = 'white';
-              ctx.fillRect(0, 0, img.width, img.height);
+      let processedImage = image;
 
-              // Draw image on top of white background
-              ctx.drawImage(img, 0, 0);
+      // If image has transparency, create white background
+      if (hasTransparency) {
+        // Create white background image
+        const whiteBackground = new Jimp({
+          width: originalWidth,
+          height: originalHeight,
+          color: 0xffffffff,
+        });
 
-              // Convert to JPEG buffer
-              const jpegBuffer = canvasElement.toBuffer('image/jpeg', {
-                quality: quality / 100,
-              });
+        // Composite the original image over the white background
+        processedImage = whiteBackground.composite(image, 0, 0);
 
-              const hasTransparency = this.detectAlphaChannel(imageBuffer);
-              const backgroundProcessed = hasTransparency;
+        logger.info(
+          'Image processed: transparency replaced with white background',
+          'ImageProcessingService'
+        );
+      }
 
-              if (backgroundProcessed) {
-                logger.info(
-                  'Image processed: transparency replaced with white background',
-                  'ImageProcessingService'
-                );
-              }
+      // Convert to JPEG with specified quality
+      const jpegBuffer = await processedImage.getBuffer('image/jpeg', {
+        quality,
+      });
 
-              resolve({
-                buffer: jpegBuffer,
-                backgroundProcessed,
-                format: 'jpeg',
-                width: img.width,
-                height: img.height,
-              });
-            } catch (error) {
-              reject(error);
-            }
-          };
-
-          img.onerror = () => {
-            reject(new Error('Failed to load image for conversion'));
-          };
-
-          // Set image source from buffer
-          img.src = imageBuffer;
-        }
-      );
-
-      return result;
+      return {
+        buffer: jpegBuffer,
+        backgroundProcessed: hasTransparency,
+        format: 'jpeg',
+        width: originalWidth,
+        height: originalHeight,
+      };
     } catch (error) {
       const processedError = errorHandler.handleError(
         error,
@@ -311,12 +245,12 @@ export class ImageProcessingService {
         { throwOnError: false }
       );
       logger.error(
-        'Canvas image processing failed',
+        'Jimp image processing failed',
         processedError,
         'ImageProcessingService'
       );
 
-      // Return original buffer if processing fails (no more PNG in JPEG files)
+      // Throw error instead of returning original buffer (better error visibility)
       throw new Error(`Image conversion failed: ${processedError.message}`);
     }
   }
