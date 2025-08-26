@@ -15,12 +15,6 @@
       "@/services/*": ["./services/*"]
     }
   },
-  "include": [
-    "./renderer/**/*",
-    "./shared/**/*",
-    "./renderer/types.d.ts"
-  ],
-  "exclude": [
-    "./main/**/*"
-  ]
+  "include": ["./renderer/**/*", "./shared/**/*", "./renderer/types.d.ts"],
+  "exclude": ["./main/**/*"]
 }

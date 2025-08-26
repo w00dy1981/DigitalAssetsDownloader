@@ -15,11 +15,6 @@
       "@/workers/*": ["./workers/*"]
     }
   },
-  "include": [
-    "./main/**/*",
-    "./shared/**/*"
-  ],
-  "exclude": [
-    "./renderer/**/*"
-  ]
+  "include": ["./main/**/*", "./shared/**/*"],
+  "exclude": ["./renderer/**/*"]
 }
