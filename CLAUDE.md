@@ -8,6 +8,8 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 **NEVER TELL THE USER THE APP IS "PRODUCTION READY"!**
 This application is in the middle of an ongoing refactor. Always acknowledge this is development/refactoring work, not a finished production application.
 
+Use the Serena MCP to search efficiently through the codebase
+
 ## 📋 Current Session Handoff
 For active development sessions, reference **`PHASE_6_HANDOFF.md`** for current task status, GitHub issues, and session handoff templates.
 
