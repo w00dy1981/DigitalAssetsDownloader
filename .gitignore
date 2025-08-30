@@ -112,3 +112,11 @@ sample-data/
 NOTES_PRIVATE.md
 TODO_PRIVATE.md
 DEVELOPMENT_PLAN_PRIVATE.md
+
+# Serena MCP cache files
+.serena/
+*.pkl
+
+# Report directories
+report/
+reports/
