@@ -217,40 +217,53 @@ export class ErrorHandlingService {
   private categorizeError(error: Error, context: string): BaseApplicationError {
     const message = error.message.toLowerCase();
 
-    // Network-related errors (axios patterns from downloadService.ts)
-    if (message.includes('econnaborted') || message.includes('timeout')) {
-      return new NetworkError('request', 'Connection timeout', undefined);
+    // Network errors - connection, timeout, network-related issues
+    if (this.isNetworkError(message)) {
+      return new NetworkError('request', error.message);
     }
 
-    if (message.includes('econnrefused') || message.includes('network')) {
-      return new NetworkError('connection', error.message);
+    // File system errors - file operations, permissions, paths
+    if (this.isFileSystemError(message)) {
+      return new FileSystemError('access', 'unknown', error.message);
     }
 
-    // File system errors (patterns from main.ts and downloadService.ts)
-    if (message.includes('enoent') || message.includes('file not found')) {
-      return new FileSystemError('read', 'unknown', 'File not found');
+    // Application errors - configuration, validation, business logic
+    if (this.isApplicationError(message, context)) {
+      if (message.includes('column') || message.includes('configuration')) {
+        return new ConfigurationError('unknown', error.message);
+      }
+      if (context === 'Download' || context === 'download') {
+        return new DownloadError('unknown', error.message);
+      }
+      return new ValidationError(context, error.message, 'VALIDATION_ERROR');
     }
 
-    if (message.includes('eacces') || message.includes('permission')) {
-      return new FileSystemError('access', 'unknown', 'Permission denied');
-    }
-
-    if (message.includes('eexist') || message.includes('already exists')) {
-      return new FileSystemError('create', 'unknown', 'File already exists');
-    }
-
-    // Download-specific errors
-    if (context === 'Download' || context === 'download') {
-      return new DownloadError('unknown', error.message);
-    }
-
-    // Configuration errors (patterns from main.ts lines 322-333)
-    if (message.includes('column') || message.includes('configuration')) {
-      return new ConfigurationError('unknown', error.message);
-    }
-
-    // Default to validation error for generic cases
+    // Unknown errors - fallback for unrecognized error patterns
     return new ValidationError(context, error.message, 'GENERIC_ERROR');
+  }
+
+  private isNetworkError(message: string): boolean {
+    return message.includes('econnaborted') || 
+           message.includes('timeout') ||
+           message.includes('econnrefused') || 
+           message.includes('network');
+  }
+
+  private isFileSystemError(message: string): boolean {
+    return message.includes('enoent') || 
+           message.includes('file not found') ||
+           message.includes('eacces') || 
+           message.includes('permission') ||
+           message.includes('eexist') || 
+           message.includes('already exists');
+  }
+
+  private isApplicationError(message: string, context: string): boolean {
+    return message.includes('column') || 
+           message.includes('configuration') ||
+           message.includes('validation') ||
+           context === 'Download' || 
+           context === 'download';
   }
 
   /**

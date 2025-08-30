@@ -99,24 +99,7 @@ const ProcessTab: React.FC<ProcessTabProps> = ({
     };
   }, []);
 
-  const handleStartDownloads = useCallback(async () => {
-    // Atomic check - prevent multiple simultaneous start attempts
-    if (isDownloading || isStartPending) {
-      const message = 'Downloads already in progress - please wait';
-      logger.warn(
-        'ProcessTab: Download start prevented - already in progress',
-        'ProcessTab'
-      );
-      setLogs(prev => [...prev, message]);
-      return;
-    }
-
-    setIsStartPending(true);
-    logger.info('ProcessTab: Starting download process', 'ProcessTab', {
-      config,
-    });
-
-    // Validate configuration
+  const validateDownloadConfig = useCallback((): string | null => {
     if (!config.partNoColumn) {
       const message = 'Error: Please select a Part Number column';
       logger.error(
@@ -124,9 +107,7 @@ const ProcessTab: React.FC<ProcessTabProps> = ({
         new Error(message),
         'ProcessTab'
       );
-      setLogs(prev => [...prev, message]);
-      setIsStartPending(false);
-      return;
+      return message;
     }
 
     if (!config.imageColumns.length && !config.pdfColumn) {
@@ -137,9 +118,7 @@ const ProcessTab: React.FC<ProcessTabProps> = ({
         new Error(message),
         'ProcessTab'
       );
-      setLogs(prev => [...prev, message]);
-      setIsStartPending(false);
-      return;
+      return message;
     }
 
     if (!config.imageFolder && !config.pdfFolder) {
@@ -149,12 +128,13 @@ const ProcessTab: React.FC<ProcessTabProps> = ({
         new Error(message),
         'ProcessTab'
       );
-      setLogs(prev => [...prev, message]);
-      setIsStartPending(false);
-      return;
+      return message;
     }
 
-    // Set downloading state immediately to prevent race conditions
+    return null;
+  }, [config]);
+
+  const initializeDownloadState = useCallback(() => {
     setIsDownloading(true);
     setStartTime(Date.now());
     setProgress({
@@ -168,7 +148,9 @@ const ProcessTab: React.FC<ProcessTabProps> = ({
       backgroundProcessed: 0,
     });
     setLogs(['Starting downloads...']);
+  }, []);
 
+  const executeDownload = useCallback(async (): Promise<void> => {
     try {
       const result = await window.electronAPI.startDownloads(config);
       if (result.success) {
@@ -187,28 +169,67 @@ const ProcessTab: React.FC<ProcessTabProps> = ({
         setIsDownloading(false);
       }
     } catch (error) {
-      const handledError = errorHandler.handleError(
-        error,
-        'ProcessTab.handleStartDownloads'
-      );
+      throw error; // Re-throw to be handled by main function
+    }
+  }, [config]);
 
-      // Handle specific race condition errors
-      if (handledError.message.includes('Downloads already in progress')) {
-        setLogs(prev => [
-          ...prev,
-          'Downloads already in progress - operation prevented',
-        ]);
-      } else {
-        setLogs(prev => [
-          ...prev,
-          `Error starting downloads: ${handledError.message}`,
-        ]);
-      }
-      setIsDownloading(false);
+  const handleDownloadError = useCallback((error: unknown) => {
+    const handledError = errorHandler.handleError(
+      error,
+      'ProcessTab.handleStartDownloads'
+    );
+
+    // Handle specific race condition errors
+    if (handledError.message.includes('Downloads already in progress')) {
+      setLogs(prev => [
+        ...prev,
+        'Downloads already in progress - operation prevented',
+      ]);
+    } else {
+      setLogs(prev => [
+        ...prev,
+        `Error starting downloads: ${handledError.message}`,
+      ]);
+    }
+    setIsDownloading(false);
+  }, []);
+
+  const handleStartDownloads = useCallback(async () => {
+    // Atomic check - prevent multiple simultaneous start attempts
+    if (isDownloading || isStartPending) {
+      const message = 'Downloads already in progress - please wait';
+      logger.warn(
+        'ProcessTab: Download start prevented - already in progress',
+        'ProcessTab'
+      );
+      setLogs(prev => [...prev, message]);
+      return;
+    }
+
+    setIsStartPending(true);
+    logger.info('ProcessTab: Starting download process', 'ProcessTab', {
+      config,
+    });
+
+    // Validate configuration
+    const validationError = validateDownloadConfig();
+    if (validationError) {
+      setLogs(prev => [...prev, validationError]);
+      setIsStartPending(false);
+      return;
+    }
+
+    // Initialize download state
+    initializeDownloadState();
+
+    try {
+      await executeDownload();
+    } catch (error) {
+      handleDownloadError(error);
     } finally {
       setIsStartPending(false);
     }
-  }, [config, isDownloading, isStartPending]);
+  }, [config, isDownloading, isStartPending, validateDownloadConfig, initializeDownloadState, executeDownload, handleDownloadError]);
 
   const handleCancelDownloads = useCallback(async () => {
     if (!isDownloading || isCancelPending) {
