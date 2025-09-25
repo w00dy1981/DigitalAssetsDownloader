@@ -391,7 +391,7 @@ export class DownloadService extends EventEmitter {
           method: 'GET',
           url,
           headers,
-          timeout: 30000, // 30 second timeout
+          timeout: 60000, // 60 second timeout- up from 30
           responseType: 'arraybuffer',
           signal: abortSignal,
         });
