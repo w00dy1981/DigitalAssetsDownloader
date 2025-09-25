@@ -164,10 +164,12 @@ export const IPC_CHANNELS = {
 
   // Auto-updater operations
   CHECK_FOR_UPDATES: 'check-for-updates',
+  UPDATE_CHECKING: 'update-checking',
   UPDATE_AVAILABLE: 'update-available',
   UPDATE_NOT_AVAILABLE: 'update-not-available',
   UPDATE_DOWNLOADED: 'update-downloaded',
   UPDATE_DOWNLOAD_PROGRESS: 'update-download-progress',
+  UPDATE_ERROR: 'update-error',
   INSTALL_UPDATE: 'install-update',
 } as const;
 

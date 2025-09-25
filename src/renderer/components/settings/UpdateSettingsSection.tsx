@@ -24,11 +24,13 @@ export const UpdateSettingsSection: React.FC<UpdateSettingsSectionProps> = ({
   // Set up update event listeners
   useEffect(() => {
     const handleUpdateChecking = () => {
+      console.log('🔍 UI: Update check started');
       setIsCheckingForUpdates(true);
       showUpdateStatus('Checking for updates...');
     };
 
     const handleUpdateAvailable = (updateInfo: any) => {
+      console.log('🎉 UI: Update available!', updateInfo);
       if (updateCheckTimeoutId) {
         clearTimeout(updateCheckTimeoutId);
         setUpdateCheckTimeoutId(null);
@@ -38,6 +40,7 @@ export const UpdateSettingsSection: React.FC<UpdateSettingsSectionProps> = ({
     };
 
     const handleUpdateNotAvailable = () => {
+      console.log('✅ UI: No updates available');
       if (updateCheckTimeoutId) {
         clearTimeout(updateCheckTimeoutId);
         setUpdateCheckTimeoutId(null);
@@ -47,6 +50,7 @@ export const UpdateSettingsSection: React.FC<UpdateSettingsSectionProps> = ({
     };
 
     const handleUpdateError = (error: string) => {
+      console.error('❌ UI: Update check failed:', error);
       if (updateCheckTimeoutId) {
         clearTimeout(updateCheckTimeoutId);
         setUpdateCheckTimeoutId(null);
@@ -55,22 +59,18 @@ export const UpdateSettingsSection: React.FC<UpdateSettingsSectionProps> = ({
       showUpdateStatus(`Update check failed: ${error}`, appConstants.getUIConfiguration().statusMessageDuration);
     };
 
-    // Set up listeners
+    // Set up listeners with proper IPC channels
     window.electronAPI.onUpdateChecking?.(handleUpdateChecking);
     window.electronAPI.onUpdateAvailable(handleUpdateAvailable);
     window.electronAPI.onUpdateNotAvailable(handleUpdateNotAvailable);
     window.electronAPI.onUpdateError?.(handleUpdateError);
 
-    // Cleanup - remove all listeners for these channels when component unmounts
+    // Cleanup - remove all listeners for these channels when component unmounts  
     return () => {
-      window.electronAPI.removeAllListeners?.('update-checking' as any);
-      window.electronAPI.removeAllListeners(
-        IPC_CHANNELS.UPDATE_AVAILABLE as any
-      );
-      window.electronAPI.removeAllListeners(
-        IPC_CHANNELS.UPDATE_NOT_AVAILABLE as any
-      );
-      window.electronAPI.removeAllListeners?.('update-error' as any);
+      window.electronAPI.removeAllListeners?.(IPC_CHANNELS.UPDATE_CHECKING as any);
+      window.electronAPI.removeAllListeners(IPC_CHANNELS.UPDATE_AVAILABLE as any);
+      window.electronAPI.removeAllListeners(IPC_CHANNELS.UPDATE_NOT_AVAILABLE as any);
+      window.electronAPI.removeAllListeners?.(IPC_CHANNELS.UPDATE_ERROR as any);
 
       // Clear any pending timeout
       if (updateCheckTimeoutId) {
@@ -82,17 +82,28 @@ export const UpdateSettingsSection: React.FC<UpdateSettingsSectionProps> = ({
 
   // Manual update check with timeout mechanism and development mode detection
   const checkForUpdatesManually = useCallback(async () => {
-    if (isCheckingForUpdates) return; // Prevent multiple clicks
+    console.log('🔍 UI: Manual update check triggered by user');
+    
+    if (isCheckingForUpdates) {
+      console.log('⚠️ UI: Update check already in progress, ignoring request');
+      return; // Prevent multiple clicks
+    }
 
     // Detect development mode (when running with npm run dev)
     const isDevelopment =
       process.env.NODE_ENV === 'development' ||
       !window.electronAPI;
 
+    if (isDevelopment) {
+      console.log('⚠️ UI: Development mode detected - update functionality may be limited');
+    }
+
     try {
+      console.log('⏱️ UI: Setting up update check timeout...');
       // Add shorter timeout for development mode
       const timeoutDuration = appConstants.getUpdateTimeout();
       const timeoutId = setTimeout(() => {
+        console.warn(`⏰ UI: Update check timed out after ${timeoutDuration / 1000}s`);
         setIsCheckingForUpdates(false);
         setUpdateCheckTimeoutId(null);
         const message = isDevelopment
@@ -102,9 +113,10 @@ export const UpdateSettingsSection: React.FC<UpdateSettingsSectionProps> = ({
       }, timeoutDuration);
       setUpdateCheckTimeoutId(timeoutId);
 
+      console.log('🚀 UI: Invoking window.electronAPI.checkForUpdates()...');
       await window.electronAPI.checkForUpdates();
     } catch (error) {
-      console.error('Manual update check failed:', error);
+      console.error('❌ UI: Manual update check failed:', error);
       // Clear timeout on error
       if (updateCheckTimeoutId) {
         clearTimeout(updateCheckTimeoutId);
