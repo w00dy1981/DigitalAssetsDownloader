@@ -8,6 +8,7 @@ import {
   UIPreferencesSection,
   UpdateSettingsSection,
 } from './settings';
+import { CONSTANTS } from '@/shared/constants';
 
 interface SettingsTabProps {
   onSettingsChange?: (settings: UserSettings) => void;
@@ -25,16 +26,16 @@ const SettingsTab: React.FC<SettingsTabProps> = ({ onSettingsChange }) => {
       pdfNetworkPath: '',
     },
     downloadBehavior: {
-      defaultConcurrentDownloads: 5,
-      connectionTimeout: 5,
-      readTimeout: 30,
-      retryAttempts: 3,
+      defaultConcurrentDownloads: CONSTANTS.DOWNLOAD.DEFAULT_WORKERS,
+      connectionTimeout: CONSTANTS.NETWORK.CONNECTION_TIMEOUT / 1000, // Convert to seconds
+      readTimeout: CONSTANTS.NETWORK.READ_TIMEOUT / 1000, // Convert to seconds
+      retryAttempts: CONSTANTS.DOWNLOAD.DEFAULT_RETRY_ATTEMPTS,
     },
     imageProcessing: {
       enabledByDefault: true,
       defaultMethod: 'smart_detect',
-      defaultQuality: 95,
-      defaultEdgeThreshold: 30,
+      defaultQuality: CONSTANTS.IMAGE.DEFAULT_QUALITY,
+      defaultEdgeThreshold: CONSTANTS.IMAGE.DEFAULT_EDGE_THRESHOLD,
     },
     uiPreferences: {
       rememberFileDialogPath: true,

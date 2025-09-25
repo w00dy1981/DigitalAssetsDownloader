@@ -11,6 +11,7 @@ import { DownloadConfig, UserSettings } from '@/shared/types';
 import { logger } from './LoggingService';
 import { ValidationService } from './ValidationService';
 import { IPCService } from './IPCService';
+import { CONSTANTS } from '@/shared/constants';
 
 export interface ConfigurationValidationResult {
   isValid: boolean;
@@ -41,16 +42,16 @@ export class ConfigurationService {
       pdfNetworkPath: '',
     },
     downloadBehavior: {
-      defaultConcurrentDownloads: 5,
-      connectionTimeout: 5,
-      readTimeout: 30,
-      retryAttempts: 3,
+      defaultConcurrentDownloads: CONSTANTS.DOWNLOAD.DEFAULT_WORKERS,
+      connectionTimeout: CONSTANTS.NETWORK.CONNECTION_TIMEOUT / 1000, // Convert to seconds as used in UI
+      readTimeout: CONSTANTS.NETWORK.READ_TIMEOUT / 1000, // Convert to seconds as used in UI
+      retryAttempts: CONSTANTS.DOWNLOAD.DEFAULT_RETRY_ATTEMPTS,
     },
     imageProcessing: {
       enabledByDefault: true,
       defaultMethod: 'smart_detect',
-      defaultQuality: 95,
-      defaultEdgeThreshold: 30,
+      defaultQuality: CONSTANTS.IMAGE.DEFAULT_QUALITY,
+      defaultEdgeThreshold: CONSTANTS.IMAGE.DEFAULT_EDGE_THRESHOLD,
     },
     uiPreferences: {
       rememberFileDialogPath: true,

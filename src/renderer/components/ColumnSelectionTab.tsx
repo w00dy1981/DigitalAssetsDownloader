@@ -1,5 +1,6 @@
 import React, { useReducer, useEffect, useCallback, useMemo } from 'react';
 import { SpreadsheetData, DownloadConfig } from '@/shared/types';
+import { CONSTANTS } from '@/shared/constants';
 
 // State interface for useReducer
 interface ColumnSelectionState {
@@ -50,12 +51,12 @@ const initialState: ColumnSelectionState = {
   sourceImageFolder: '',
   imageFilePath: '',
   pdfFilePath: '',
-  maxWorkers: 5,
+  maxWorkers: CONSTANTS.DOWNLOAD.DEFAULT_WORKERS,
   error: '',
   backgroundProcessingEnabled: true,
   backgroundMethod: 'smart_detect',
-  quality: 95,
-  edgeThreshold: 30,
+  quality: CONSTANTS.IMAGE.DEFAULT_QUALITY,
+  edgeThreshold: CONSTANTS.IMAGE.DEFAULT_EDGE_THRESHOLD,
 };
 
 // Reducer function
@@ -106,16 +107,17 @@ const columnSelectionReducer = (
         sourceImageFolder: action.payload.sourceImageFolder || '',
         imageFilePath: action.payload.imageFilePath || '',
         pdfFilePath: action.payload.pdfFilePath || '',
-        maxWorkers: action.payload.maxWorkers || 5,
+        maxWorkers: action.payload.maxWorkers || CONSTANTS.DOWNLOAD.DEFAULT_WORKERS,
         backgroundProcessingEnabled: action.payload.backgroundProcessing?.enabled ?? true,
         backgroundMethod: action.payload.backgroundProcessing?.method || 'smart_detect',
-        quality: action.payload.backgroundProcessing?.quality || 95,
-        edgeThreshold: action.payload.backgroundProcessing?.edgeThreshold || 30,
+        quality: action.payload.backgroundProcessing?.quality || CONSTANTS.IMAGE.DEFAULT_QUALITY,
+        edgeThreshold: action.payload.backgroundProcessing?.edgeThreshold || CONSTANTS.IMAGE.DEFAULT_EDGE_THRESHOLD,
       };
     default:
       return state;
   }
 };
+
 import {
   ColumnMappingPanel,
   FolderConfigurationPanel,

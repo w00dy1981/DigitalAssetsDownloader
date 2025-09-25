@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { UserSettings, IPC_CHANNELS } from '@/shared/types';
 import { useStatusMessage } from '@/renderer/hooks';
+import { appConstants } from '@/services/AppConstantsService';
 
 interface UpdateSettingsSectionProps {
   settings: UserSettings;
@@ -33,7 +34,7 @@ export const UpdateSettingsSection: React.FC<UpdateSettingsSectionProps> = ({
         setUpdateCheckTimeoutId(null);
       }
       setIsCheckingForUpdates(false);
-      showUpdateStatus(`Update available: v${updateInfo.version}`, 8000);
+      showUpdateStatus(`Update available: v${updateInfo.version}`, appConstants.getUIConfiguration().statusMessageDuration);
     };
 
     const handleUpdateNotAvailable = () => {
@@ -51,7 +52,7 @@ export const UpdateSettingsSection: React.FC<UpdateSettingsSectionProps> = ({
         setUpdateCheckTimeoutId(null);
       }
       setIsCheckingForUpdates(false);
-      showUpdateStatus(`Update check failed: ${error}`, 8000);
+      showUpdateStatus(`Update check failed: ${error}`, appConstants.getUIConfiguration().statusMessageDuration);
     };
 
     // Set up listeners
@@ -90,14 +91,14 @@ export const UpdateSettingsSection: React.FC<UpdateSettingsSectionProps> = ({
 
     try {
       // Add shorter timeout for development mode
-      const timeoutDuration = isDevelopment ? 10000 : 30000; // 10s for dev, 30s for prod
+      const timeoutDuration = appConstants.getUpdateTimeout();
       const timeoutId = setTimeout(() => {
         setIsCheckingForUpdates(false);
         setUpdateCheckTimeoutId(null);
         const message = isDevelopment
           ? 'Update checks may not work in development mode - try again in production build'
           : 'Update check timed out - try again later';
-        showUpdateStatus(message, 8000);
+        showUpdateStatus(message, appConstants.getUIConfiguration().statusMessageDuration);
       }, timeoutDuration);
       setUpdateCheckTimeoutId(timeoutId);
 
@@ -117,7 +118,7 @@ export const UpdateSettingsSection: React.FC<UpdateSettingsSectionProps> = ({
       const message = isDevelopment
         ? 'Update checks are limited in development mode - build and test in production'
         : 'Update check failed - Please try again later';
-      showUpdateStatus(message, 8000);
+      showUpdateStatus(message, appConstants.getUIConfiguration().statusMessageDuration);
     }
   }, [isCheckingForUpdates, updateCheckTimeoutId, showUpdateStatus]);
 

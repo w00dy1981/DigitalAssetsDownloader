@@ -7,6 +7,7 @@
 import { Jimp } from 'jimp';
 import { logger } from './LoggingService';
 import { errorHandler } from './ErrorHandlingService';
+import { CONSTANTS } from '@/shared/constants';
 
 export interface ImageProcessingOptions {
   quality?: number;
@@ -220,7 +221,7 @@ export class ImageProcessingService {
     imageBuffer: Buffer,
     options: ImageProcessingOptions = {}
   ): Promise<ImageProcessingResult> {
-    const { quality = 95 } = options;
+    const { quality = CONSTANTS.IMAGE.DEFAULT_QUALITY } = options;
 
     try {
       // Load image with Jimp

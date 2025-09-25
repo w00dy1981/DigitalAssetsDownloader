@@ -101,6 +101,27 @@ export interface UserSettings {
     updateChannel: 'stable' | 'beta'; // Update channel preference
     downloadUpdatesAutomatically: boolean; // Auto-download vs prompt user
   };
+  // Enhanced configuration options (Issue #23)
+  advanced?: {
+    // Network timeout configurations
+    networkTimeouts?: {
+      connectionTimeout?: number; // Override default connection timeout
+      readTimeout?: number; // Override default read timeout  
+      updateCheckTimeout?: number; // Override default update check timeout
+      excelTimeout?: number; // Override default Excel loading timeout
+    };
+    // UI configuration
+    windowSettings?: {
+      defaultWidth?: number; // Override default window width
+      defaultHeight?: number; // Override default window height
+      statusMessageDuration?: number; // Override status message display duration
+    };
+    // Image processing overrides
+    imageDefaults?: {
+      qualityOverride?: number; // Override default JPEG quality
+      edgeThresholdOverride?: number; // Override default edge threshold
+    };
+  };
 }
 
 export interface AppConfig {

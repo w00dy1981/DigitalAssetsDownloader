@@ -6,6 +6,7 @@ import Store from 'electron-store';
 import { IPC_CHANNELS, AppConfig, DownloadConfig } from '@/shared/types';
 import { ExcelService } from '@/services/excelService';
 import { DownloadService } from '@/services/downloadService';
+import { appConstants } from '@/services/AppConstantsService';
 
 // Global error handlers to catch crashes
 process.on('uncaughtException', error => {
@@ -45,8 +46,8 @@ class DigitalAssetDownloaderApp {
     this.store = new Store<AppConfig>({
       defaults: {
         windowState: {
-          width: 1200,
-          height: 800,
+          width: appConstants.getUIConfiguration().defaultWindowWidth,
+          height: appConstants.getUIConfiguration().defaultWindowHeight,
           isMaximized: false,
         },
         recentFiles: [],
@@ -479,7 +480,7 @@ class DigitalAssetDownloaderApp {
 
   private setupAutoUpdater(): void {
     // Configure auto-updater logging
-    log.transports.file.maxSize = 5 * 1024 * 1024; // 5MB
+    log.transports.file.maxSize = appConstants.getPathConfiguration().logFileMaxSize;
     autoUpdater.logger = log;
     log.info('Auto-updater initialized');
 
@@ -576,12 +577,13 @@ class DigitalAssetDownloaderApp {
           handleResponse('error', err.message);
         });
 
-        // Add timeout to catch silent failures (30 seconds)
+        // Add timeout to catch silent failures
         const timeoutId = setTimeout(() => {
           if (!resolved) {
             cleanup();
+            const timeout = appConstants.getNetworkTimeouts().updateCheckTimeout;
             log.error(
-              'Update check timed out after 30 seconds - this indicates a silent failure'
+              `Update check timed out after ${timeout / 1000} seconds - this indicates a silent failure`
             );
             reject(
               new Error(
@@ -589,7 +591,7 @@ class DigitalAssetDownloaderApp {
               )
             );
           }
-        }, 30000);
+        }, appConstants.getNetworkTimeouts().updateCheckTimeout);
 
         // Clear timeout when resolved
         const originalResolve = resolve;
