@@ -20,6 +20,7 @@ import { logger } from './LoggingService';
 import { errorHandler } from './ErrorHandlingService';
 // import { withErrorHandling } from '@/utils/withErrorHandling'; // Available for future use
 import { imageProcessor } from './ImageProcessingService';
+import { appConstants } from './AppConstantsService';
 
 interface DownloadJobItem extends DownloadItem {
   imageFilePaths: string[];
@@ -72,7 +73,7 @@ export class DownloadService extends EventEmitter {
    */
   private async convertToJpg(
     imageBuffer: Buffer,
-    quality = 95,
+    quality = appConstants.getDefaultQuality(),
     config?: DownloadConfig
   ): Promise<{ buffer: Buffer; backgroundProcessed: boolean }> {
     // Check for cancellation before processing
@@ -291,7 +292,7 @@ export class DownloadService extends EventEmitter {
         const isImageFile = /\.(jpg|jpeg|png|gif|bmp)$/i.test(url);
         if (isImageFile) {
           try {
-            const result = await this.convertToJpg(content, 95, config);
+            const result = await this.convertToJpg(content, appConstants.getDefaultQuality(), config);
             processedContent = result.buffer;
             backgroundProcessed = result.backgroundProcessed;
           } catch (error) {
@@ -327,7 +328,7 @@ export class DownloadService extends EventEmitter {
           let backgroundProcessed = false;
 
           try {
-            const result = await this.convertToJpg(content, 95, config);
+            const result = await this.convertToJpg(content, appConstants.getDefaultQuality(), config);
             processedContent = result.buffer;
             backgroundProcessed = result.backgroundProcessed;
           } catch (error) {
@@ -405,7 +406,7 @@ export class DownloadService extends EventEmitter {
 
         if (this.isImageContent(url, contentType, content)) {
           try {
-            const result = await this.convertToJpg(content, 95, config);
+            const result = await this.convertToJpg(content, appConstants.getDefaultQuality(), config);
             processedContent = result.buffer;
             backgroundProcessed = result.backgroundProcessed;
           } catch (error) {
@@ -594,7 +595,7 @@ export class DownloadService extends EventEmitter {
           try {
             const result = await this.convertToJpg(
               sourceResult.content,
-              95,
+              appConstants.getDefaultQuality(),
               config
             );
             processedContent = result.buffer;

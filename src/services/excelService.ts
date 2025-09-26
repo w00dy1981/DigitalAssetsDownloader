@@ -8,6 +8,7 @@ import {
 } from './pathSecurity';
 import { isCsvFile, isExcelFile, getExtension } from './fileUtils';
 import { logger } from './LoggingService';
+import { appConstants } from './AppConstantsService';
 
 export interface SheetData {
   columns: string[];
@@ -21,7 +22,7 @@ export class ExcelService {
   private async readExcelFileWithTimeout(
     workbook: ExcelJS.Workbook,
     safeFilePath: string,
-    timeout: number = 30000
+    timeout: number = appConstants.getNetworkTimeouts().excelTimeout
   ): Promise<void> {
     const readWithTimeout = Promise.race([
       workbook.xlsx.readFile(safeFilePath),

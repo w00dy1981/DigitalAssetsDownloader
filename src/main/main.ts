@@ -6,6 +6,7 @@ import Store from 'electron-store';
 import { IPC_CHANNELS, AppConfig, DownloadConfig } from '@/shared/types';
 import { ExcelService } from '@/services/excelService';
 import { DownloadService } from '@/services/downloadService';
+import { appConstants } from '@/services/AppConstantsService';
 
 // Global error handlers to catch crashes
 process.on('uncaughtException', error => {
@@ -45,8 +46,8 @@ class DigitalAssetDownloaderApp {
     this.store = new Store<AppConfig>({
       defaults: {
         windowState: {
-          width: 1200,
-          height: 800,
+          width: appConstants.getUIConfiguration().defaultWindowWidth,
+          height: appConstants.getUIConfiguration().defaultWindowHeight,
           isMaximized: false,
         },
         recentFiles: [],
@@ -479,12 +480,18 @@ class DigitalAssetDownloaderApp {
 
   private setupAutoUpdater(): void {
     // Configure auto-updater logging
-    log.transports.file.maxSize = 5 * 1024 * 1024; // 5MB
+    log.transports.file.maxSize = appConstants.getPathConfiguration().logFileMaxSize;
     autoUpdater.logger = log;
+    console.log('🔧 Auto-updater initialized', {
+      version: app.getVersion(),
+      autoDownload: false,
+      autoInstallOnAppQuit: false,
+    });
     log.info('Auto-updater initialized');
 
     // Force production mode for auto-updater
     if (process.env.NODE_ENV !== 'production') {
+      console.log('⚠️ Development mode detected - overriding for auto-updater compatibility');
       log.info('Overriding development mode detection for auto-updater');
       Object.defineProperty(app, 'isPackaged', {
         get() {
@@ -496,24 +503,38 @@ class DigitalAssetDownloaderApp {
     // Configure auto-updater behavior
     autoUpdater.autoDownload = false; // Let user control download
     autoUpdater.autoInstallOnAppQuit = false; // Let user control install
+    console.log('⚙️ Auto-updater configuration:', {
+      autoDownload: false,
+      autoInstallOnAppQuit: false,
+      version: app.getVersion(),
+      feedURL: autoUpdater.getFeedURL(),
+    });
     log.info('Auto-updater configuration:', {
       autoDownload: false,
       autoInstallOnAppQuit: false,
       version: app.getVersion(),
     });
 
-    // Auto-updater event handlers
+    // Auto-updater event handlers with enhanced console output
     autoUpdater.on('checking-for-update', () => {
+      console.log('🔍 Auto-updater: Checking for updates...');
       log.info('Checking for updates');
-      this.mainWindow?.webContents.send('update-checking');
+      this.mainWindow?.webContents.send(IPC_CHANNELS.UPDATE_CHECKING);
     });
 
     autoUpdater.on('update-available', info => {
+      console.log('🎉 Auto-updater: Update available!', { 
+        newVersion: info.version, 
+        currentVersion: app.getVersion() 
+      });
       log.info('Update available', { version: info.version });
       this.mainWindow?.webContents.send(IPC_CHANNELS.UPDATE_AVAILABLE, info);
     });
 
     autoUpdater.on('update-not-available', info => {
+      console.log('✅ Auto-updater: No updates available', { 
+        currentVersion: info.version 
+      });
       log.info('Update not available', { currentVersion: info.version });
       this.mainWindow?.webContents.send(
         IPC_CHANNELS.UPDATE_NOT_AVAILABLE,
@@ -522,11 +543,13 @@ class DigitalAssetDownloaderApp {
     });
 
     autoUpdater.on('error', err => {
+      console.error('❌ Auto-updater error:', err);
       log.error('Auto-updater error', err);
-      this.mainWindow?.webContents.send('update-error', err.message);
+      this.mainWindow?.webContents.send(IPC_CHANNELS.UPDATE_ERROR, err.message);
     });
 
     autoUpdater.on('download-progress', progressObj => {
+      console.log(`📥 Auto-updater: Download progress: ${Math.round(progressObj.percent)}%`);
       log.info('Download progress', { percent: progressObj.percent });
       this.mainWindow?.webContents.send(
         IPC_CHANNELS.UPDATE_DOWNLOAD_PROGRESS,
@@ -535,12 +558,16 @@ class DigitalAssetDownloaderApp {
     });
 
     autoUpdater.on('update-downloaded', info => {
+      console.log('✅ Auto-updater: Update downloaded successfully!', { 
+        version: info.version 
+      });
       log.info('Update downloaded', { version: info.version });
       this.mainWindow?.webContents.send(IPC_CHANNELS.UPDATE_DOWNLOADED, info);
     });
 
     // Enhanced IPC handler with comprehensive error handling and timeout
     ipcMain.handle(IPC_CHANNELS.CHECK_FOR_UPDATES, async () => {
+      console.log('🔍 Manual update check requested by user');
       log.info('Manual update check requested');
 
       // Create a promise that resolves with all possible outcomes
@@ -576,12 +603,14 @@ class DigitalAssetDownloaderApp {
           handleResponse('error', err.message);
         });
 
-        // Add timeout to catch silent failures (30 seconds)
+        // Add timeout to catch silent failures
         const timeoutId = setTimeout(() => {
           if (!resolved) {
             cleanup();
+            const timeout = appConstants.getNetworkTimeouts().updateCheckTimeout;
+            console.error(`❌ Update check timed out after ${timeout / 1000} seconds - this indicates a silent failure`);
             log.error(
-              'Update check timed out after 30 seconds - this indicates a silent failure'
+              `Update check timed out after ${timeout / 1000} seconds - this indicates a silent failure`
             );
             reject(
               new Error(
@@ -589,7 +618,7 @@ class DigitalAssetDownloaderApp {
               )
             );
           }
-        }, 30000);
+        }, appConstants.getNetworkTimeouts().updateCheckTimeout);
 
         // Clear timeout when resolved
         const originalResolve = resolve;
@@ -605,10 +634,12 @@ class DigitalAssetDownloaderApp {
         };
 
         // Trigger the actual update check
+        console.log('🚀 Starting update check via electron-updater...');
         autoUpdater
           .checkForUpdates()
           .then(result => {
             if (!result && !resolved) {
+              console.warn('⚠️ Update check returned null - possible rate limiting or API issue');
               log.warn(
                 'Update check returned null - possible rate limiting or API issue'
               );
@@ -619,6 +650,7 @@ class DigitalAssetDownloaderApp {
             }
           })
           .catch(error => {
+            console.error('❌ Update check failed:', error);
             log.error('Update check failed', error);
             if (!resolved) {
               handleResponse('error', error.message);
@@ -628,11 +660,13 @@ class DigitalAssetDownloaderApp {
     });
 
     ipcMain.handle(IPC_CHANNELS.INSTALL_UPDATE, () => {
+      console.log('🔄 Install update requested - quitting and installing...');
       log.info('Install update requested');
       autoUpdater.quitAndInstall();
     });
 
     ipcMain.handle('download-update', () => {
+      console.log('📥 Download update requested');
       log.info('Download update requested');
       return autoUpdater.downloadUpdate();
     });
@@ -650,13 +684,18 @@ class DigitalAssetDownloaderApp {
         userSettings?.updateSettings?.enableAutoUpdates &&
         userSettings?.updateSettings?.checkForUpdatesOnStartup
       ) {
+        console.log('🚀 Auto-updates enabled, scheduling startup check in 3 seconds...');
         log.info('Auto-updates enabled, scheduling startup check');
         // Wait a bit for the app to fully load
         setTimeout(() => {
+          console.log('⏰ Executing scheduled startup update check...');
           autoUpdater.checkForUpdatesAndNotify();
         }, 3000);
+      } else {
+        console.log('⏸️ Auto-updates disabled or startup check disabled');
       }
     } catch (error) {
+      console.error('❌ Error checking startup settings:', error);
       log.error('Error checking startup settings', error);
     }
   }
