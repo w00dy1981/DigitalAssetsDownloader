@@ -113,7 +113,7 @@ describe('AppConstantsService', () => {
 
       service.setUserSettings(userSettings);
       const imageConfig = service.getImageProcessing();
-      
+
       expect(imageConfig.defaultQuality).toBe(85);
       expect(imageConfig.defaultEdgeThreshold).toBe(25);
     });
@@ -228,7 +228,7 @@ describe('AppConstantsService', () => {
 
       service.setUserSettings(userSettings);
       const downloadConfig = service.getDownloadConfiguration();
-      
+
       expect(downloadConfig.defaultWorkers).toBe(8);
       expect(downloadConfig.defaultRetryAttempts).toBe(5);
     });
@@ -245,26 +245,26 @@ describe('AppConstantsService', () => {
 
     test('should detect development mode', () => {
       const originalEnv = process.env.NODE_ENV;
-      
+
       process.env.NODE_ENV = 'development';
       expect(service.isDevelopment()).toBe(true);
-      
+
       process.env.NODE_ENV = 'production';
       expect(service.isDevelopment()).toBe(false);
-      
+
       // Restore original
       process.env.NODE_ENV = originalEnv;
     });
 
     test('should return environment-appropriate update timeout', () => {
       const originalEnv = process.env.NODE_ENV;
-      
+
       process.env.NODE_ENV = 'development';
       expect(service.getUpdateTimeout()).toBe(CONSTANTS.UI.DEV_UPDATE_TIMEOUT);
-      
+
       process.env.NODE_ENV = 'production';
       expect(service.getUpdateTimeout()).toBe(CONSTANTS.UI.PROD_UPDATE_TIMEOUT);
-      
+
       // Restore original
       process.env.NODE_ENV = originalEnv;
     });
@@ -280,15 +280,27 @@ describe('AppConstantsService', () => {
     });
 
     test('should have valid quality ranges', () => {
-      expect(CONSTANTS.IMAGE.MIN_QUALITY).toBeLessThan(CONSTANTS.IMAGE.MAX_QUALITY);
-      expect(CONSTANTS.IMAGE.DEFAULT_QUALITY).toBeGreaterThanOrEqual(CONSTANTS.IMAGE.MIN_QUALITY);
-      expect(CONSTANTS.IMAGE.DEFAULT_QUALITY).toBeLessThanOrEqual(CONSTANTS.IMAGE.MAX_QUALITY);
+      expect(CONSTANTS.IMAGE.MIN_QUALITY).toBeLessThan(
+        CONSTANTS.IMAGE.MAX_QUALITY
+      );
+      expect(CONSTANTS.IMAGE.DEFAULT_QUALITY).toBeGreaterThanOrEqual(
+        CONSTANTS.IMAGE.MIN_QUALITY
+      );
+      expect(CONSTANTS.IMAGE.DEFAULT_QUALITY).toBeLessThanOrEqual(
+        CONSTANTS.IMAGE.MAX_QUALITY
+      );
     });
 
     test('should have valid worker ranges', () => {
-      expect(CONSTANTS.DOWNLOAD.MIN_WORKERS).toBeLessThan(CONSTANTS.DOWNLOAD.MAX_WORKERS);
-      expect(CONSTANTS.DOWNLOAD.DEFAULT_WORKERS).toBeGreaterThanOrEqual(CONSTANTS.DOWNLOAD.MIN_WORKERS);
-      expect(CONSTANTS.DOWNLOAD.DEFAULT_WORKERS).toBeLessThanOrEqual(CONSTANTS.DOWNLOAD.MAX_WORKERS);
+      expect(CONSTANTS.DOWNLOAD.MIN_WORKERS).toBeLessThan(
+        CONSTANTS.DOWNLOAD.MAX_WORKERS
+      );
+      expect(CONSTANTS.DOWNLOAD.DEFAULT_WORKERS).toBeGreaterThanOrEqual(
+        CONSTANTS.DOWNLOAD.MIN_WORKERS
+      );
+      expect(CONSTANTS.DOWNLOAD.DEFAULT_WORKERS).toBeLessThanOrEqual(
+        CONSTANTS.DOWNLOAD.MAX_WORKERS
+      );
     });
   });
 });

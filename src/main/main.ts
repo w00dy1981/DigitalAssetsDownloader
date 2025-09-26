@@ -480,7 +480,8 @@ class DigitalAssetDownloaderApp {
 
   private setupAutoUpdater(): void {
     // Configure auto-updater logging
-    log.transports.file.maxSize = appConstants.getPathConfiguration().logFileMaxSize;
+    log.transports.file.maxSize =
+      appConstants.getPathConfiguration().logFileMaxSize;
     autoUpdater.logger = log;
     console.log('🔧 Auto-updater initialized', {
       version: app.getVersion(),
@@ -491,7 +492,9 @@ class DigitalAssetDownloaderApp {
 
     // Force production mode for auto-updater
     if (process.env.NODE_ENV !== 'production') {
-      console.log('⚠️ Development mode detected - overriding for auto-updater compatibility');
+      console.log(
+        '⚠️ Development mode detected - overriding for auto-updater compatibility'
+      );
       log.info('Overriding development mode detection for auto-updater');
       Object.defineProperty(app, 'isPackaged', {
         get() {
@@ -523,17 +526,17 @@ class DigitalAssetDownloaderApp {
     });
 
     autoUpdater.on('update-available', info => {
-      console.log('🎉 Auto-updater: Update available!', { 
-        newVersion: info.version, 
-        currentVersion: app.getVersion() 
+      console.log('🎉 Auto-updater: Update available!', {
+        newVersion: info.version,
+        currentVersion: app.getVersion(),
       });
       log.info('Update available', { version: info.version });
       this.mainWindow?.webContents.send(IPC_CHANNELS.UPDATE_AVAILABLE, info);
     });
 
     autoUpdater.on('update-not-available', info => {
-      console.log('✅ Auto-updater: No updates available', { 
-        currentVersion: info.version 
+      console.log('✅ Auto-updater: No updates available', {
+        currentVersion: info.version,
       });
       log.info('Update not available', { currentVersion: info.version });
       this.mainWindow?.webContents.send(
@@ -549,7 +552,9 @@ class DigitalAssetDownloaderApp {
     });
 
     autoUpdater.on('download-progress', progressObj => {
-      console.log(`📥 Auto-updater: Download progress: ${Math.round(progressObj.percent)}%`);
+      console.log(
+        `📥 Auto-updater: Download progress: ${Math.round(progressObj.percent)}%`
+      );
       log.info('Download progress', { percent: progressObj.percent });
       this.mainWindow?.webContents.send(
         IPC_CHANNELS.UPDATE_DOWNLOAD_PROGRESS,
@@ -558,8 +563,8 @@ class DigitalAssetDownloaderApp {
     });
 
     autoUpdater.on('update-downloaded', info => {
-      console.log('✅ Auto-updater: Update downloaded successfully!', { 
-        version: info.version 
+      console.log('✅ Auto-updater: Update downloaded successfully!', {
+        version: info.version,
       });
       log.info('Update downloaded', { version: info.version });
       this.mainWindow?.webContents.send(IPC_CHANNELS.UPDATE_DOWNLOADED, info);
@@ -607,8 +612,11 @@ class DigitalAssetDownloaderApp {
         const timeoutId = setTimeout(() => {
           if (!resolved) {
             cleanup();
-            const timeout = appConstants.getNetworkTimeouts().updateCheckTimeout;
-            console.error(`❌ Update check timed out after ${timeout / 1000} seconds - this indicates a silent failure`);
+            const timeout =
+              appConstants.getNetworkTimeouts().updateCheckTimeout;
+            console.error(
+              `❌ Update check timed out after ${timeout / 1000} seconds - this indicates a silent failure`
+            );
             log.error(
               `Update check timed out after ${timeout / 1000} seconds - this indicates a silent failure`
             );
@@ -639,7 +647,9 @@ class DigitalAssetDownloaderApp {
           .checkForUpdates()
           .then(result => {
             if (!result && !resolved) {
-              console.warn('⚠️ Update check returned null - possible rate limiting or API issue');
+              console.warn(
+                '⚠️ Update check returned null - possible rate limiting or API issue'
+              );
               log.warn(
                 'Update check returned null - possible rate limiting or API issue'
               );
@@ -684,7 +694,9 @@ class DigitalAssetDownloaderApp {
         userSettings?.updateSettings?.enableAutoUpdates &&
         userSettings?.updateSettings?.checkForUpdatesOnStartup
       ) {
-        console.log('🚀 Auto-updates enabled, scheduling startup check in 3 seconds...');
+        console.log(
+          '🚀 Auto-updates enabled, scheduling startup check in 3 seconds...'
+        );
         log.info('Auto-updates enabled, scheduling startup check');
         // Wait a bit for the app to fully load
         setTimeout(() => {

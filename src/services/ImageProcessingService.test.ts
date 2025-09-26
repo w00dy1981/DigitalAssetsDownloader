@@ -28,27 +28,38 @@ jest.mock('./ErrorHandlingService', () => ({
 const mockJimpImage = {
   width: 100,
   height: 100,
-  getPixelColour: jest.fn((x: number, y: number) => 0xffffffff), // Opaque pixel by default
-  getPixelColor: jest.fn((x: number, y: number) => 0xffffffff), // Alternative spelling
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
+  getPixelColour: jest.fn((_: number, __: number) => 0xffffffff), // Opaque pixel by default
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
+  getPixelColor: jest.fn((_: number, __: number) => 0xffffffff), // Alternative spelling
   composite: jest.fn().mockReturnThis(),
   quality: jest.fn().mockReturnThis(),
-  getBuffer: jest.fn((format: string, options?: any) => {
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
+  getBuffer: jest.fn((_: string, __?: unknown) => {
     return Promise.resolve(Buffer.from('mock-jpeg-data'));
   }),
 };
 
-jest.mock('jimp', () => ({
-  Jimp: {
-    fromBuffer: jest.fn((buffer: Buffer) => {
-      // Handle empty/invalid buffers by throwing error like real Jimp
-      if (buffer.length === 0 || buffer.toString().includes('test') || buffer.toString().includes('invalid')) {
-        return Promise.reject(new Error('Could not find MIME for Buffer'));
-      }
-      return Promise.resolve(mockJimpImage);
-    }),
-    MIME_JPEG: 'image/jpeg',
-  }
-}), { virtual: true });
+jest.mock(
+  'jimp',
+  () => ({
+    Jimp: {
+      fromBuffer: jest.fn((buffer: Buffer) => {
+        // Handle empty/invalid buffers by throwing error like real Jimp
+        if (
+          buffer.length === 0 ||
+          buffer.toString().includes('test') ||
+          buffer.toString().includes('invalid')
+        ) {
+          return Promise.reject(new Error('Could not find MIME for Buffer'));
+        }
+        return Promise.resolve(mockJimpImage);
+      }),
+      MIME_JPEG: 'image/jpeg',
+    },
+  }),
+  { virtual: true }
+);
 
 describe('ImageProcessingService', () => {
   let service: ImageProcessingService;
@@ -175,14 +186,18 @@ describe('ImageProcessingService', () => {
 
     test('should throw error for invalid buffers in conversion', async () => {
       const mockBuffer = Buffer.from('test-image-data');
-      await expect(service.convertToJpeg(mockBuffer)).rejects.toThrow('Image conversion failed');
+      await expect(service.convertToJpeg(mockBuffer)).rejects.toThrow(
+        'Image conversion failed'
+      );
     });
   });
 
   describe('JPEG Conversion with Valid Images', () => {
     test('should convert valid image buffer', async () => {
       // Use a valid PNG signature that won't be rejected by mock
-      const validPngBuffer = Buffer.from([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a]);
+      const validPngBuffer = Buffer.from([
+        0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a,
+      ]);
       const options: ImageProcessingOptions = { quality: 85 };
 
       const result = await service.convertToJpeg(validPngBuffer, options);
@@ -195,7 +210,9 @@ describe('ImageProcessingService', () => {
 
     test('should handle background processing options', async () => {
       // Use a valid PNG signature that won't be rejected by mock
-      const validPngBuffer = Buffer.from([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a]);
+      const validPngBuffer = Buffer.from([
+        0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a,
+      ]);
       const options: ImageProcessingOptions = {
         quality: 90,
         backgroundProcessing: {
@@ -223,19 +240,25 @@ describe('ImageProcessingService', () => {
         service.needsBackgroundProcessing(emptyBuffer)
       ).resolves.toBeDefined();
       // Empty buffer should now throw an error with Jimp
-      await expect(service.convertToJpeg(emptyBuffer)).rejects.toThrow('Image conversion failed');
+      await expect(service.convertToJpeg(emptyBuffer)).rejects.toThrow(
+        'Image conversion failed'
+      );
     });
 
     test('should handle invalid image data', async () => {
       const invalidBuffer = Buffer.from('invalid-image-data');
-      
+
       // Invalid data should now throw an error with Jimp
-      await expect(service.convertToJpeg(invalidBuffer)).rejects.toThrow('Image conversion failed');
+      await expect(service.convertToJpeg(invalidBuffer)).rejects.toThrow(
+        'Image conversion failed'
+      );
     });
 
     test('should handle options gracefully', async () => {
       // Use valid PNG signature that won't be rejected by mock
-      const validBuffer = Buffer.from([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a]);
+      const validBuffer = Buffer.from([
+        0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a,
+      ]);
 
       const result = await service.convertToJpeg(validBuffer, {
         quality: 95, // Valid quality
@@ -249,8 +272,6 @@ describe('ImageProcessingService', () => {
 
   describe('Background Processing Detection', () => {
     test('should detect PNG with alpha needs processing', async () => {
-
-
       // Create PNG buffer with alpha channel using same structure as above
       const pngWithAlpha = Buffer.concat([
         Buffer.from([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a]), // PNG signature
@@ -279,8 +300,6 @@ describe('ImageProcessingService', () => {
     });
 
     test('should not process JPEG images', async () => {
-
-
       const jpegBuffer = Buffer.from([0xff, 0xd8, 0xff]);
       const needsProcessing =
         await service.needsBackgroundProcessing(jpegBuffer);
@@ -288,8 +307,6 @@ describe('ImageProcessingService', () => {
     });
 
     test('should process all PNG files (simplified detection)', async () => {
-
-
       // PNG without alpha (color type 2) - should still be processed
       const pngWithoutAlpha = Buffer.concat([
         Buffer.from([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a]), // PNG signature
@@ -319,7 +336,9 @@ describe('ImageProcessingService', () => {
 
     test('should process PNG files regardless of completeness', async () => {
       // Use full PNG signature (minimum 8 bytes required for detection)
-      const pngBuffer = Buffer.from([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a]);
+      const pngBuffer = Buffer.from([
+        0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a,
+      ]);
       const needsProcessing =
         await service.needsBackgroundProcessing(pngBuffer);
       expect(needsProcessing).toBe(true);

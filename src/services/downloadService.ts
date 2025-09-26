@@ -292,7 +292,11 @@ export class DownloadService extends EventEmitter {
         const isImageFile = /\.(jpg|jpeg|png|gif|bmp)$/i.test(url);
         if (isImageFile) {
           try {
-            const result = await this.convertToJpg(content, appConstants.getDefaultQuality(), config);
+            const result = await this.convertToJpg(
+              content,
+              appConstants.getDefaultQuality(),
+              config
+            );
             processedContent = result.buffer;
             backgroundProcessed = result.backgroundProcessed;
           } catch (error) {
@@ -328,7 +332,11 @@ export class DownloadService extends EventEmitter {
           let backgroundProcessed = false;
 
           try {
-            const result = await this.convertToJpg(content, appConstants.getDefaultQuality(), config);
+            const result = await this.convertToJpg(
+              content,
+              appConstants.getDefaultQuality(),
+              config
+            );
             processedContent = result.buffer;
             backgroundProcessed = result.backgroundProcessed;
           } catch (error) {
@@ -406,7 +414,11 @@ export class DownloadService extends EventEmitter {
 
         if (this.isImageContent(url, contentType, content)) {
           try {
-            const result = await this.convertToJpg(content, appConstants.getDefaultQuality(), config);
+            const result = await this.convertToJpg(
+              content,
+              appConstants.getDefaultQuality(),
+              config
+            );
             processedContent = result.buffer;
             backgroundProcessed = result.backgroundProcessed;
           } catch (error) {

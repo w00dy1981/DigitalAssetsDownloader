@@ -243,27 +243,33 @@ export class ErrorHandlingService {
   }
 
   private isNetworkError(message: string): boolean {
-    return message.includes('econnaborted') || 
-           message.includes('timeout') ||
-           message.includes('econnrefused') || 
-           message.includes('network');
+    return (
+      message.includes('econnaborted') ||
+      message.includes('timeout') ||
+      message.includes('econnrefused') ||
+      message.includes('network')
+    );
   }
 
   private isFileSystemError(message: string): boolean {
-    return message.includes('enoent') || 
-           message.includes('file not found') ||
-           message.includes('eacces') || 
-           message.includes('permission') ||
-           message.includes('eexist') || 
-           message.includes('already exists');
+    return (
+      message.includes('enoent') ||
+      message.includes('file not found') ||
+      message.includes('eacces') ||
+      message.includes('permission') ||
+      message.includes('eexist') ||
+      message.includes('already exists')
+    );
   }
 
   private isApplicationError(message: string, context: string): boolean {
-    return message.includes('column') || 
-           message.includes('configuration') ||
-           message.includes('validation') ||
-           context === 'Download' || 
-           context === 'download';
+    return (
+      message.includes('column') ||
+      message.includes('configuration') ||
+      message.includes('validation') ||
+      context === 'Download' ||
+      context === 'download'
+    );
   }
 
   /**

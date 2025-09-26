@@ -8,13 +8,13 @@
 export const NETWORK_CONSTANTS = {
   // Default connection timeout (5 seconds)
   CONNECTION_TIMEOUT: 5000,
-  
+
   // Default read timeout (30 seconds) - used across multiple services
   READ_TIMEOUT: 30000,
-  
+
   // Auto-updater check timeout (30 seconds)
   UPDATE_CHECK_TIMEOUT: 30000,
-  
+
   // Excel loading timeout (30 seconds)
   EXCEL_TIMEOUT: 30000,
 } as const;
@@ -23,11 +23,11 @@ export const NETWORK_CONSTANTS = {
 export const IMAGE_PROCESSING_CONSTANTS = {
   // Default JPEG quality (95%) - used across services and components
   DEFAULT_QUALITY: 95,
-  
+
   // Quality validation range
   MIN_QUALITY: 60,
   MAX_QUALITY: 100,
-  
+
   // Default edge threshold for smart detection
   DEFAULT_EDGE_THRESHOLD: 30,
 } as const;
@@ -37,14 +37,14 @@ export const UI_CONSTANTS = {
   // Default application window dimensions
   DEFAULT_WINDOW_WIDTH: 1200,
   DEFAULT_WINDOW_HEIGHT: 800,
-  
+
   // Minimum window dimensions
   MIN_WINDOW_WIDTH: 800,
   MIN_WINDOW_HEIGHT: 600,
-  
+
   // Status message display duration (8 seconds)
   STATUS_MESSAGE_DURATION: 8000,
-  
+
   // Development vs production timeout for updates
   DEV_UPDATE_TIMEOUT: 10000,
   PROD_UPDATE_TIMEOUT: 30000,
@@ -56,7 +56,7 @@ export const DOWNLOAD_CONSTANTS = {
   MIN_WORKERS: 1,
   MAX_WORKERS: 20,
   DEFAULT_WORKERS: 5,
-  
+
   // Retry configuration
   DEFAULT_RETRY_ATTEMPTS: 3,
   MAX_RETRY_ATTEMPTS: 10,
@@ -85,7 +85,8 @@ export const CONSTANTS = {
 } as const;
 
 // Type definitions for configuration values
-export type NetworkTimeout = typeof NETWORK_CONSTANTS[keyof typeof NETWORK_CONSTANTS];
+export type NetworkTimeout =
+  (typeof NETWORK_CONSTANTS)[keyof typeof NETWORK_CONSTANTS];
 export type ImageQuality = number; // Between MIN_QUALITY and MAX_QUALITY
 export type WindowDimension = number;
 export type WorkerCount = number; // Between MIN_WORKERS and MAX_WORKERS

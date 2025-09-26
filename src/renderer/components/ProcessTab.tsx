@@ -151,25 +151,21 @@ const ProcessTab: React.FC<ProcessTabProps> = ({
   }, []);
 
   const executeDownload = useCallback(async (): Promise<void> => {
-    try {
-      const result = await window.electronAPI.startDownloads(config);
-      if (result.success) {
-        logger.info('ProcessTab: Download startup successful', 'ProcessTab', {
-          message: result.message,
-        });
-        setLogs(prev => [...prev, result.message]);
-      } else {
-        const errorMessage = `Error: ${result.message || 'Unknown error'}`;
-        logger.error(
-          'ProcessTab: Download startup failed',
-          new Error(result.message || 'Unknown error'),
-          'ProcessTab'
-        );
-        setLogs(prev => [...prev, errorMessage]);
-        setIsDownloading(false);
-      }
-    } catch (error) {
-      throw error; // Re-throw to be handled by main function
+    const result = await window.electronAPI.startDownloads(config);
+    if (result.success) {
+      logger.info('ProcessTab: Download startup successful', 'ProcessTab', {
+        message: result.message,
+      });
+      setLogs(prev => [...prev, result.message]);
+    } else {
+      const errorMessage = `Error: ${result.message || 'Unknown error'}`;
+      logger.error(
+        'ProcessTab: Download startup failed',
+        new Error(result.message || 'Unknown error'),
+        'ProcessTab'
+      );
+      setLogs(prev => [...prev, errorMessage]);
+      setIsDownloading(false);
     }
   }, [config]);
 
@@ -229,7 +225,15 @@ const ProcessTab: React.FC<ProcessTabProps> = ({
     } finally {
       setIsStartPending(false);
     }
-  }, [config, isDownloading, isStartPending, validateDownloadConfig, initializeDownloadState, executeDownload, handleDownloadError]);
+  }, [
+    config,
+    isDownloading,
+    isStartPending,
+    validateDownloadConfig,
+    initializeDownloadState,
+    executeDownload,
+    handleDownloadError,
+  ]);
 
   const handleCancelDownloads = useCallback(async () => {
     if (!isDownloading || isCancelPending) {

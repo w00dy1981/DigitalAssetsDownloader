@@ -106,7 +106,7 @@ export interface UserSettings {
     // Network timeout configurations
     networkTimeouts?: {
       connectionTimeout?: number; // Override default connection timeout
-      readTimeout?: number; // Override default read timeout  
+      readTimeout?: number; // Override default read timeout
       updateCheckTimeout?: number; // Override default update check timeout
       excelTimeout?: number; // Override default Excel loading timeout
     };

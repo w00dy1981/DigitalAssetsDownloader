@@ -107,11 +107,18 @@ const columnSelectionReducer = (
         sourceImageFolder: action.payload.sourceImageFolder || '',
         imageFilePath: action.payload.imageFilePath || '',
         pdfFilePath: action.payload.pdfFilePath || '',
-        maxWorkers: action.payload.maxWorkers || CONSTANTS.DOWNLOAD.DEFAULT_WORKERS,
-        backgroundProcessingEnabled: action.payload.backgroundProcessing?.enabled ?? true,
-        backgroundMethod: action.payload.backgroundProcessing?.method || 'smart_detect',
-        quality: action.payload.backgroundProcessing?.quality || CONSTANTS.IMAGE.DEFAULT_QUALITY,
-        edgeThreshold: action.payload.backgroundProcessing?.edgeThreshold || CONSTANTS.IMAGE.DEFAULT_EDGE_THRESHOLD,
+        maxWorkers:
+          action.payload.maxWorkers || CONSTANTS.DOWNLOAD.DEFAULT_WORKERS,
+        backgroundProcessingEnabled:
+          action.payload.backgroundProcessing?.enabled ?? true,
+        backgroundMethod:
+          action.payload.backgroundProcessing?.method || 'smart_detect',
+        quality:
+          action.payload.backgroundProcessing?.quality ||
+          CONSTANTS.IMAGE.DEFAULT_QUALITY,
+        edgeThreshold:
+          action.payload.backgroundProcessing?.edgeThreshold ||
+          CONSTANTS.IMAGE.DEFAULT_EDGE_THRESHOLD,
       };
     default:
       return state;
@@ -136,7 +143,7 @@ const ColumnSelectionTab: React.FC<ColumnSelectionTabProps> = ({
   initialConfig,
 }) => {
   const [state, dispatch] = useReducer(columnSelectionReducer, initialState);
-  
+
   const {
     partNoColumn,
     imageColumns,
@@ -156,26 +163,50 @@ const ColumnSelectionTab: React.FC<ColumnSelectionTabProps> = ({
   } = state;
 
   // Wrapper functions for component props
-  const setPartNoColumn = useCallback((value: string) => 
-    dispatch({ type: 'SET_PART_NO_COLUMN', payload: value }), []);
-  const setImageColumns = useCallback((value: string[]) => 
-    dispatch({ type: 'SET_IMAGE_COLUMNS', payload: value }), []);
-  const setPdfColumn = useCallback((value: string) => 
-    dispatch({ type: 'SET_PDF_COLUMN', payload: value }), []);
-  const setFilenameColumn = useCallback((value: string) => 
-    dispatch({ type: 'SET_FILENAME_COLUMN', payload: value }), []);
-  const setImageFolder = useCallback((value: string) => 
-    dispatch({ type: 'SET_IMAGE_FOLDER', payload: value }), []);
-  const setPdfFolder = useCallback((value: string) => 
-    dispatch({ type: 'SET_PDF_FOLDER', payload: value }), []);
-  const setSourceImageFolder = useCallback((value: string) => 
-    dispatch({ type: 'SET_SOURCE_IMAGE_FOLDER', payload: value }), []);
-  const setImageFilePath = useCallback((value: string) => 
-    dispatch({ type: 'SET_IMAGE_FILE_PATH', payload: value }), []);
-  const setPdfFilePath = useCallback((value: string) => 
-    dispatch({ type: 'SET_PDF_FILE_PATH', payload: value }), []);
-  const setError = useCallback((value: string) => 
-    dispatch({ type: 'SET_ERROR', payload: value }), []);
+  const setPartNoColumn = useCallback(
+    (value: string) => dispatch({ type: 'SET_PART_NO_COLUMN', payload: value }),
+    []
+  );
+  const setImageColumns = useCallback(
+    (value: string[]) =>
+      dispatch({ type: 'SET_IMAGE_COLUMNS', payload: value }),
+    []
+  );
+  const setPdfColumn = useCallback(
+    (value: string) => dispatch({ type: 'SET_PDF_COLUMN', payload: value }),
+    []
+  );
+  const setFilenameColumn = useCallback(
+    (value: string) =>
+      dispatch({ type: 'SET_FILENAME_COLUMN', payload: value }),
+    []
+  );
+  const setImageFolder = useCallback(
+    (value: string) => dispatch({ type: 'SET_IMAGE_FOLDER', payload: value }),
+    []
+  );
+  const setPdfFolder = useCallback(
+    (value: string) => dispatch({ type: 'SET_PDF_FOLDER', payload: value }),
+    []
+  );
+  const setSourceImageFolder = useCallback(
+    (value: string) =>
+      dispatch({ type: 'SET_SOURCE_IMAGE_FOLDER', payload: value }),
+    []
+  );
+  const setImageFilePath = useCallback(
+    (value: string) =>
+      dispatch({ type: 'SET_IMAGE_FILE_PATH', payload: value }),
+    []
+  );
+  const setPdfFilePath = useCallback(
+    (value: string) => dispatch({ type: 'SET_PDF_FILE_PATH', payload: value }),
+    []
+  );
+  const setError = useCallback(
+    (value: string) => dispatch({ type: 'SET_ERROR', payload: value }),
+    []
+  );
 
   // Memoized column options for Select components
   const columnOptions = useMemo(
@@ -190,8 +221,14 @@ const ColumnSelectionTab: React.FC<ColumnSelectionTabProps> = ({
         const settings = await window.electronAPI.loadSettings();
         if (settings?.defaultPaths) {
           // Use saved paths (may be empty if user hasn't configured them)
-          dispatch({ type: 'SET_IMAGE_FILE_PATH', payload: settings.defaultPaths.imageNetworkPath || '' });
-          dispatch({ type: 'SET_PDF_FILE_PATH', payload: settings.defaultPaths.pdfNetworkPath || '' });
+          dispatch({
+            type: 'SET_IMAGE_FILE_PATH',
+            payload: settings.defaultPaths.imageNetworkPath || '',
+          });
+          dispatch({
+            type: 'SET_PDF_FILE_PATH',
+            payload: settings.defaultPaths.pdfNetworkPath || '',
+          });
         } else {
           // No settings available - start with empty paths
           dispatch({ type: 'SET_IMAGE_FILE_PATH', payload: '' });
@@ -211,25 +248,67 @@ const ColumnSelectionTab: React.FC<ColumnSelectionTabProps> = ({
   // Load initial configuration with defaults
   useEffect(() => {
     if (initialConfig) {
-      dispatch({ type: 'SET_PART_NO_COLUMN', payload: initialConfig.partNoColumn || '' });
-      dispatch({ type: 'SET_IMAGE_COLUMNS', payload: initialConfig.imageColumns || [] });
-      dispatch({ type: 'SET_PDF_COLUMN', payload: initialConfig.pdfColumn || '' });
-      dispatch({ type: 'SET_FILENAME_COLUMN', payload: initialConfig.filenameColumn || '' });
-      dispatch({ type: 'SET_IMAGE_FOLDER', payload: initialConfig.imageFolder || '' });
-      dispatch({ type: 'SET_PDF_FOLDER', payload: initialConfig.pdfFolder || '' });
-      dispatch({ type: 'SET_SOURCE_IMAGE_FOLDER', payload: initialConfig.sourceImageFolder || '' });
+      dispatch({
+        type: 'SET_PART_NO_COLUMN',
+        payload: initialConfig.partNoColumn || '',
+      });
+      dispatch({
+        type: 'SET_IMAGE_COLUMNS',
+        payload: initialConfig.imageColumns || [],
+      });
+      dispatch({
+        type: 'SET_PDF_COLUMN',
+        payload: initialConfig.pdfColumn || '',
+      });
+      dispatch({
+        type: 'SET_FILENAME_COLUMN',
+        payload: initialConfig.filenameColumn || '',
+      });
+      dispatch({
+        type: 'SET_IMAGE_FOLDER',
+        payload: initialConfig.imageFolder || '',
+      });
+      dispatch({
+        type: 'SET_PDF_FOLDER',
+        payload: initialConfig.pdfFolder || '',
+      });
+      dispatch({
+        type: 'SET_SOURCE_IMAGE_FOLDER',
+        payload: initialConfig.sourceImageFolder || '',
+      });
       // Use network paths from config if available and current paths are empty
       if (initialConfig.imageFilePath && !imageFilePath) {
-        dispatch({ type: 'SET_IMAGE_FILE_PATH', payload: initialConfig.imageFilePath });
+        dispatch({
+          type: 'SET_IMAGE_FILE_PATH',
+          payload: initialConfig.imageFilePath,
+        });
       }
       if (initialConfig.pdfFilePath && !pdfFilePath) {
-        dispatch({ type: 'SET_PDF_FILE_PATH', payload: initialConfig.pdfFilePath });
+        dispatch({
+          type: 'SET_PDF_FILE_PATH',
+          payload: initialConfig.pdfFilePath,
+        });
       }
-      dispatch({ type: 'SET_MAX_WORKERS', payload: initialConfig.maxWorkers || 5 });
-      dispatch({ type: 'SET_BACKGROUND_PROCESSING_ENABLED', payload: initialConfig.backgroundProcessing?.enabled ?? true });
-      dispatch({ type: 'SET_BACKGROUND_METHOD', payload: initialConfig.backgroundProcessing?.method || 'smart_detect' });
-      dispatch({ type: 'SET_QUALITY', payload: initialConfig.backgroundProcessing?.quality || 95 });
-      dispatch({ type: 'SET_EDGE_THRESHOLD', payload: initialConfig.backgroundProcessing?.edgeThreshold || 30 });
+      dispatch({
+        type: 'SET_MAX_WORKERS',
+        payload: initialConfig.maxWorkers || 5,
+      });
+      dispatch({
+        type: 'SET_BACKGROUND_PROCESSING_ENABLED',
+        payload: initialConfig.backgroundProcessing?.enabled ?? true,
+      });
+      dispatch({
+        type: 'SET_BACKGROUND_METHOD',
+        payload: initialConfig.backgroundProcessing?.method || 'smart_detect',
+      });
+      dispatch({
+        type: 'SET_QUALITY',
+        payload: initialConfig.backgroundProcessing?.quality || 95,
+      });
+      dispatch({
+        type: 'SET_EDGE_THRESHOLD',
+        payload: initialConfig.backgroundProcessing?.edgeThreshold || 30,
+      });
     }
   }, [initialConfig, imageFilePath, pdfFilePath]);
 
@@ -266,22 +345,34 @@ const ColumnSelectionTab: React.FC<ColumnSelectionTabProps> = ({
     dispatch({ type: 'SET_ERROR', payload: '' });
 
     if (!partNoColumn) {
-      dispatch({ type: 'SET_ERROR', payload: 'Please select a Part Number column.' });
+      dispatch({
+        type: 'SET_ERROR',
+        payload: 'Please select a Part Number column.',
+      });
       return false;
     }
 
     if (imageColumns.length === 0 && !pdfColumn) {
-      dispatch({ type: 'SET_ERROR', payload: 'Please select at least one Image URL column or PDF column.' });
+      dispatch({
+        type: 'SET_ERROR',
+        payload: 'Please select at least one Image URL column or PDF column.',
+      });
       return false;
     }
 
     if (imageColumns.length > 0 && !imageFolder) {
-      dispatch({ type: 'SET_ERROR', payload: 'Please select an image download folder.' });
+      dispatch({
+        type: 'SET_ERROR',
+        payload: 'Please select an image download folder.',
+      });
       return false;
     }
 
     if (pdfColumn && !pdfFolder) {
-      dispatch({ type: 'SET_ERROR', payload: 'Please select a PDF download folder.' });
+      dispatch({
+        type: 'SET_ERROR',
+        payload: 'Please select a PDF download folder.',
+      });
       return false;
     }
 
