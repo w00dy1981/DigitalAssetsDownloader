@@ -1,132 +1,11 @@
-import React, { useReducer, useEffect, useCallback, useMemo } from 'react';
+import React from 'react';
 import { SpreadsheetData, DownloadConfig } from '@/shared/types';
-import { CONSTANTS } from '@/shared/constants';
 import { configurationService } from '@/services/ConfigurationService';
 import { logger } from '@/services/LoggingService';
-
-// State interface for useReducer
-interface ColumnSelectionState {
-  partNoColumn: string;
-  imageColumns: string[];
-  pdfColumn: string;
-  filenameColumn: string;
-  imageFolder: string;
-  pdfFolder: string;
-  sourceImageFolder: string;
-  imageFilePath: string;
-  pdfFilePath: string;
-  maxWorkers: number;
-  error: string;
-  backgroundProcessingEnabled: boolean;
-  backgroundMethod: 'smart_detect';
-  quality: number;
-  edgeThreshold: number;
-}
-
-// Action types
-type ColumnSelectionAction =
-  | { type: 'SET_PART_NO_COLUMN'; payload: string }
-  | { type: 'SET_IMAGE_COLUMNS'; payload: string[] }
-  | { type: 'SET_PDF_COLUMN'; payload: string }
-  | { type: 'SET_FILENAME_COLUMN'; payload: string }
-  | { type: 'SET_IMAGE_FOLDER'; payload: string }
-  | { type: 'SET_PDF_FOLDER'; payload: string }
-  | { type: 'SET_SOURCE_IMAGE_FOLDER'; payload: string }
-  | { type: 'SET_IMAGE_FILE_PATH'; payload: string }
-  | { type: 'SET_PDF_FILE_PATH'; payload: string }
-  | { type: 'SET_MAX_WORKERS'; payload: number }
-  | { type: 'SET_ERROR'; payload: string }
-  | { type: 'SET_BACKGROUND_PROCESSING_ENABLED'; payload: boolean }
-  | { type: 'SET_BACKGROUND_METHOD'; payload: 'smart_detect' }
-  | { type: 'SET_QUALITY'; payload: number }
-  | { type: 'SET_EDGE_THRESHOLD'; payload: number }
-  | { type: 'INITIALIZE_FROM_CONFIG'; payload: DownloadConfig };
-
-// Initial state
-const initialState: ColumnSelectionState = {
-  partNoColumn: '',
-  imageColumns: [],
-  pdfColumn: '',
-  filenameColumn: '',
-  imageFolder: '',
-  pdfFolder: '',
-  sourceImageFolder: '',
-  imageFilePath: '',
-  pdfFilePath: '',
-  maxWorkers: CONSTANTS.DOWNLOAD.DEFAULT_WORKERS,
-  error: '',
-  backgroundProcessingEnabled: true,
-  backgroundMethod: 'smart_detect',
-  quality: CONSTANTS.IMAGE.DEFAULT_QUALITY,
-  edgeThreshold: CONSTANTS.IMAGE.DEFAULT_EDGE_THRESHOLD,
-};
-
-// Reducer function
-const columnSelectionReducer = (
-  state: ColumnSelectionState,
-  action: ColumnSelectionAction
-): ColumnSelectionState => {
-  switch (action.type) {
-    case 'SET_PART_NO_COLUMN':
-      return { ...state, partNoColumn: action.payload };
-    case 'SET_IMAGE_COLUMNS':
-      return { ...state, imageColumns: action.payload };
-    case 'SET_PDF_COLUMN':
-      return { ...state, pdfColumn: action.payload };
-    case 'SET_FILENAME_COLUMN':
-      return { ...state, filenameColumn: action.payload };
-    case 'SET_IMAGE_FOLDER':
-      return { ...state, imageFolder: action.payload };
-    case 'SET_PDF_FOLDER':
-      return { ...state, pdfFolder: action.payload };
-    case 'SET_SOURCE_IMAGE_FOLDER':
-      return { ...state, sourceImageFolder: action.payload };
-    case 'SET_IMAGE_FILE_PATH':
-      return { ...state, imageFilePath: action.payload };
-    case 'SET_PDF_FILE_PATH':
-      return { ...state, pdfFilePath: action.payload };
-    case 'SET_MAX_WORKERS':
-      return { ...state, maxWorkers: action.payload };
-    case 'SET_ERROR':
-      return { ...state, error: action.payload };
-    case 'SET_BACKGROUND_PROCESSING_ENABLED':
-      return { ...state, backgroundProcessingEnabled: action.payload };
-    case 'SET_BACKGROUND_METHOD':
-      return { ...state, backgroundMethod: action.payload };
-    case 'SET_QUALITY':
-      return { ...state, quality: action.payload };
-    case 'SET_EDGE_THRESHOLD':
-      return { ...state, edgeThreshold: action.payload };
-    case 'INITIALIZE_FROM_CONFIG':
-      return {
-        ...state,
-        partNoColumn: action.payload.partNoColumn || '',
-        imageColumns: action.payload.imageColumns || [],
-        pdfColumn: action.payload.pdfColumn || '',
-        filenameColumn: action.payload.filenameColumn || '',
-        imageFolder: action.payload.imageFolder || '',
-        pdfFolder: action.payload.pdfFolder || '',
-        sourceImageFolder: action.payload.sourceImageFolder || '',
-        imageFilePath: action.payload.imageFilePath || '',
-        pdfFilePath: action.payload.pdfFilePath || '',
-        maxWorkers:
-          action.payload.maxWorkers || CONSTANTS.DOWNLOAD.DEFAULT_WORKERS,
-        backgroundProcessingEnabled:
-          action.payload.backgroundProcessing?.enabled ?? true,
-        backgroundMethod:
-          action.payload.backgroundProcessing?.method || 'smart_detect',
-        quality:
-          action.payload.backgroundProcessing?.quality ||
-          CONSTANTS.IMAGE.DEFAULT_QUALITY,
-        edgeThreshold:
-          action.payload.backgroundProcessing?.edgeThreshold ||
-          CONSTANTS.IMAGE.DEFAULT_EDGE_THRESHOLD,
-      };
-    default:
-      return state;
-  }
-};
-
+import {
+  useColumnSelectionState,
+  useNetworkPathDefaults,
+} from '@/renderer/hooks';
 import {
   ColumnMappingPanel,
   FolderConfigurationPanel,
@@ -144,7 +23,23 @@ const ColumnSelectionTab: React.FC<ColumnSelectionTabProps> = ({
   onConfigurationComplete,
   initialConfig,
 }) => {
-  const [state, dispatch] = useReducer(columnSelectionReducer, initialState);
+  const {
+    state,
+    columnOptions,
+    setPartNoColumn,
+    setImageColumns,
+    setPdfColumn,
+    setFilenameColumn,
+    setImageFolder,
+    setPdfFolder,
+    setSourceImageFolder,
+    setImageFilePath,
+    setPdfFilePath,
+    setError,
+    error,
+    currentConfig,
+    handleNext,
+  } = useColumnSelectionState({ data, initialConfig, onConfigurationComplete });
 
   const {
     partNoColumn,
@@ -156,291 +51,14 @@ const ColumnSelectionTab: React.FC<ColumnSelectionTabProps> = ({
     sourceImageFolder,
     imageFilePath,
     pdfFilePath,
-    maxWorkers,
-    error,
-    backgroundProcessingEnabled,
-    backgroundMethod,
-    quality,
-    edgeThreshold,
   } = state;
 
-  // Wrapper functions for component props
-  const setPartNoColumn = useCallback(
-    (value: string) => dispatch({ type: 'SET_PART_NO_COLUMN', payload: value }),
-    []
-  );
-  const setImageColumns = useCallback(
-    (value: string[]) =>
-      dispatch({ type: 'SET_IMAGE_COLUMNS', payload: value }),
-    []
-  );
-  const setPdfColumn = useCallback(
-    (value: string) => dispatch({ type: 'SET_PDF_COLUMN', payload: value }),
-    []
-  );
-  const setFilenameColumn = useCallback(
-    (value: string) =>
-      dispatch({ type: 'SET_FILENAME_COLUMN', payload: value }),
-    []
-  );
-  const setImageFolder = useCallback(
-    (value: string) => dispatch({ type: 'SET_IMAGE_FOLDER', payload: value }),
-    []
-  );
-  const setPdfFolder = useCallback(
-    (value: string) => dispatch({ type: 'SET_PDF_FOLDER', payload: value }),
-    []
-  );
-  const setSourceImageFolder = useCallback(
-    (value: string) =>
-      dispatch({ type: 'SET_SOURCE_IMAGE_FOLDER', payload: value }),
-    []
-  );
-  const setImageFilePath = useCallback(
-    (value: string) =>
-      dispatch({ type: 'SET_IMAGE_FILE_PATH', payload: value }),
-    []
-  );
-  const setPdfFilePath = useCallback(
-    (value: string) => dispatch({ type: 'SET_PDF_FILE_PATH', payload: value }),
-    []
-  );
-  const setError = useCallback(
-    (value: string) => dispatch({ type: 'SET_ERROR', payload: value }),
-    []
-  );
-
-  // Memoized column options for Select components
-  const columnOptions = useMemo(
-    () => data.columns.map(column => ({ value: column, label: column })),
-    [data.columns]
-  );
-
-  // Load saved settings on component mount
-  useEffect(() => {
-    let isMounted = true;
-
-    const loadSavedSettings = async () => {
-      try {
-        const settings = await configurationService.loadUserSettings();
-        if (!isMounted) {
-          return;
-        }
-
-        dispatch({
-          type: 'SET_IMAGE_FILE_PATH',
-          payload: settings.defaultPaths.imageNetworkPath || '',
-        });
-        dispatch({
-          type: 'SET_PDF_FILE_PATH',
-          payload: settings.defaultPaths.pdfNetworkPath || '',
-        });
-      } catch (error) {
-        logger.error(
-          'ColumnSelectionTab: Error loading settings',
-          error instanceof Error ? error : new Error(String(error)),
-          'ColumnSelectionTab'
-        );
-        if (!isMounted) {
-          return;
-        }
-        // Start with empty paths on error
-        setImageFilePath('');
-        setPdfFilePath('');
-      }
-    };
-
-    loadSavedSettings();
-
-    return () => {
-      isMounted = false;
-    };
-  }, [setImageFilePath, setPdfFilePath]); // Run once on mount
-
-  // Load initial configuration with defaults
-  useEffect(() => {
-    if (initialConfig) {
-      dispatch({
-        type: 'SET_PART_NO_COLUMN',
-        payload: initialConfig.partNoColumn || '',
-      });
-      dispatch({
-        type: 'SET_IMAGE_COLUMNS',
-        payload: initialConfig.imageColumns || [],
-      });
-      dispatch({
-        type: 'SET_PDF_COLUMN',
-        payload: initialConfig.pdfColumn || '',
-      });
-      dispatch({
-        type: 'SET_FILENAME_COLUMN',
-        payload: initialConfig.filenameColumn || '',
-      });
-      dispatch({
-        type: 'SET_IMAGE_FOLDER',
-        payload: initialConfig.imageFolder || '',
-      });
-      dispatch({
-        type: 'SET_PDF_FOLDER',
-        payload: initialConfig.pdfFolder || '',
-      });
-      dispatch({
-        type: 'SET_SOURCE_IMAGE_FOLDER',
-        payload: initialConfig.sourceImageFolder || '',
-      });
-      // Use network paths from config if available and current paths are empty
-      if (initialConfig.imageFilePath && !imageFilePath) {
-        dispatch({
-          type: 'SET_IMAGE_FILE_PATH',
-          payload: initialConfig.imageFilePath,
-        });
-      }
-      if (initialConfig.pdfFilePath && !pdfFilePath) {
-        dispatch({
-          type: 'SET_PDF_FILE_PATH',
-          payload: initialConfig.pdfFilePath,
-        });
-      }
-      dispatch({
-        type: 'SET_MAX_WORKERS',
-        payload: initialConfig.maxWorkers || 5,
-      });
-      dispatch({
-        type: 'SET_BACKGROUND_PROCESSING_ENABLED',
-        payload: initialConfig.backgroundProcessing?.enabled ?? true,
-      });
-      dispatch({
-        type: 'SET_BACKGROUND_METHOD',
-        payload: initialConfig.backgroundProcessing?.method || 'smart_detect',
-      });
-      dispatch({
-        type: 'SET_QUALITY',
-        payload: initialConfig.backgroundProcessing?.quality || 95,
-      });
-      dispatch({
-        type: 'SET_EDGE_THRESHOLD',
-        payload: initialConfig.backgroundProcessing?.edgeThreshold || 30,
-      });
-    }
-  }, [initialConfig, imageFilePath, pdfFilePath]);
-
-  // Save settings whenever network paths change
-  const saveNetworkPathSettings = useCallback(async () => {
-    try {
-      const currentSettings = await configurationService.loadUserSettings();
-      const updatedSettings = {
-        ...currentSettings,
-        defaultPaths: {
-          ...currentSettings.defaultPaths,
-          imageNetworkPath: imageFilePath,
-          pdfNetworkPath: pdfFilePath,
-        },
-      };
-      await configurationService.saveUserSettings(updatedSettings);
-    } catch (error) {
-      logger.error(
-        'ColumnSelectionTab: Error saving default network paths',
-        error instanceof Error ? error : new Error(String(error)),
-        'ColumnSelectionTab'
-      );
-    }
-  }, [imageFilePath, pdfFilePath]);
-
-  // Save settings when paths change (with debounce to avoid too many saves)
-  useEffect(() => {
-    const timeoutId = setTimeout(() => {
-      if (imageFilePath && pdfFilePath) {
-        saveNetworkPathSettings();
-      }
-    }, 1000); // 1 second debounce
-
-    return () => clearTimeout(timeoutId);
-  }, [imageFilePath, pdfFilePath, saveNetworkPathSettings]);
-
-  const validateConfiguration = useCallback((): boolean => {
-    dispatch({ type: 'SET_ERROR', payload: '' });
-
-    if (!partNoColumn) {
-      dispatch({
-        type: 'SET_ERROR',
-        payload: 'Please select a Part Number column.',
-      });
-      return false;
-    }
-
-    if (imageColumns.length === 0 && !pdfColumn) {
-      dispatch({
-        type: 'SET_ERROR',
-        payload: 'Please select at least one Image URL column or PDF column.',
-      });
-      return false;
-    }
-
-    if (imageColumns.length > 0 && !imageFolder) {
-      dispatch({
-        type: 'SET_ERROR',
-        payload: 'Please select an image download folder.',
-      });
-      return false;
-    }
-
-    if (pdfColumn && !pdfFolder) {
-      dispatch({
-        type: 'SET_ERROR',
-        payload: 'Please select a PDF download folder.',
-      });
-      return false;
-    }
-
-    return true;
-  }, [partNoColumn, imageColumns, pdfColumn, imageFolder, pdfFolder]);
-
-  const handleNext = useCallback(() => {
-    if (!validateConfiguration()) {
-      return;
-    }
-
-    const config: DownloadConfig = {
-      excelFile: data.filePath,
-      sheetName: data.sheetName,
-      partNoColumn,
-      imageColumns,
-      pdfColumn,
-      filenameColumn,
-      imageFolder,
-      pdfFolder,
-      sourceImageFolder,
-      imageFilePath,
-      pdfFilePath,
-      maxWorkers,
-      backgroundProcessing: {
-        enabled: backgroundProcessingEnabled,
-        method: backgroundMethod,
-        quality,
-        edgeThreshold,
-      },
-    };
-
-    onConfigurationComplete(config);
-  }, [
-    data,
-    partNoColumn,
-    imageColumns,
-    pdfColumn,
-    filenameColumn,
-    imageFolder,
-    pdfFolder,
-    sourceImageFolder,
+  useNetworkPathDefaults({
     imageFilePath,
     pdfFilePath,
-    maxWorkers,
-    backgroundProcessingEnabled,
-    backgroundMethod,
-    quality,
-    edgeThreshold,
-    onConfigurationComplete,
-    validateConfiguration,
-  ]);
+    setImageFilePath,
+    setPdfFilePath,
+  });
 
   return (
     <div className="tab-panel">
@@ -498,29 +116,8 @@ const ColumnSelectionTab: React.FC<ColumnSelectionTabProps> = ({
           type="button"
           className="btn btn-secondary"
           onClick={async () => {
-            const configToSave: DownloadConfig = {
-              excelFile: data.filePath,
-              sheetName: data.sheetName,
-              partNoColumn,
-              imageColumns,
-              pdfColumn,
-              filenameColumn,
-              imageFolder,
-              pdfFolder,
-              sourceImageFolder,
-              imageFilePath,
-              pdfFilePath,
-              maxWorkers,
-              backgroundProcessing: {
-                enabled: backgroundProcessingEnabled,
-                method: backgroundMethod,
-                quality,
-                edgeThreshold,
-              },
-            };
-
             const result =
-              await configurationService.saveDownloadConfig(configToSave);
+              await configurationService.saveDownloadConfig(currentConfig);
 
             if (!result.success) {
               logger.error(
