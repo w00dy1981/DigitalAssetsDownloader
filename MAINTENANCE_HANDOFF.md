@@ -225,6 +225,163 @@ npm run lint -- --fix
 - `docs/archive/PHASE_6_HANDOFF_COMPLETE.md` - Completed phase tracking
 - `.github/copilot-instructions.md` - Development guidelines
 
+## 🧹 Comprehensive Codebase Cleanup Plan
+
+### Executive Summary
+
+**Target:** Reduce ESLint warnings from 181 to <100 while maintaining full functionality  
+**Focus:** Type safety enhancement and React hook optimization  
+**Impact:** Low risk - quality-of-life improvements only  
+
+### Phase 1: Type Safety Enhancement (Priority 1)
+
+**Objective:** Eliminate 80+ `any` types across critical files
+
+#### 1.1 IPC Interface Type Definitions
+- **Files:** `src/main/preload.ts` (40+ any types)
+- **Target:** Zero `any` types in IPC layer
+- **Deliverables:**
+  - [ ] FileDialogOptions interface
+  - [ ] FolderDialogOptions interface  
+  - [ ] DownloadConfigParams interface
+  - [ ] UpdateInfo interface
+  - [ ] ProgressInfo interface
+  - [ ] Auto-updater event types
+  - [ ] Update all 40+ IPC method signatures
+
+#### 1.2 Main Process Type Safety
+- **Files:** `src/main/main.ts` (5 any types)
+- **Target:** Fully typed main process
+- **Deliverables:**
+  - [ ] Event handler parameter types
+  - [ ] IPC handler return types
+  - [ ] Menu action types
+
+#### 1.3 Error Handling Types
+- **Files:** `src/services/ErrorHandlingService.ts` (3 any types)
+- **Target:** Type-safe error handling
+- **Deliverables:**
+  - [ ] ValidationValue type union
+  - [ ] validateDownloadConfig typed parameter
+  - [ ] ValidationError.value proper type
+
+### Phase 2: React Hook Optimization (Priority 2)
+
+**Objective:** Resolve all React hook dependency warnings
+
+#### 2.1 ProcessTab Hook Dependencies
+- **File:** `src/renderer/components/ProcessTab.tsx`
+- **Issue:** Missing dependencies: 'config' and 'onConfigurationChange'
+- **Deliverables:**
+  - [ ] Add missing dependencies to useEffect
+  - [ ] Implement useCallback for parent functions
+  - [ ] Test for infinite re-render prevention
+  - [ ] Verify functional behavior maintained
+
+#### 2.2 SettingsTab Hook Dependencies  
+- **File:** `src/renderer/components/SettingsTab.tsx`
+- **Issue:** 2 missing dependency warnings
+- **Deliverables:**
+  - [ ] Fix missing dependency warnings
+  - [ ] Optimize re-render behavior
+  - [ ] Verify settings persistence works
+
+### Phase 3: Service Layer Type Refinement
+
+**Objective:** Improve service layer type safety (30+ any types)
+
+#### 3.1 Service Method Parameters
+- **Files:** Various service files
+- **Deliverables:**
+  - [ ] Type all service method parameters
+  - [ ] Create proper return type interfaces
+  - [ ] Document service contracts
+
+#### 3.2 Test Type Safety
+- **Files:** *.test.ts files
+- **Deliverables:**
+  - [ ] Remove unnecessary test mock `any` types
+  - [ ] Maintain test coverage levels
+
+### Phase 4: Component Props & Events
+
+**Objective:** Type-safe component interactions (20+ any types)
+
+#### 4.1 Component Interfaces
+- **Files:** Component files with any types
+- **Deliverables:**
+  - [ ] Define event handler types
+  - [ ] Create component prop interfaces
+  - [ ] Type all callback functions
+
+### 📊 Progress Tracking
+
+#### Current Baseline (26 Sep 2025)
+- ✅ ESLint errors: 0
+- ⚠️ ESLint warnings: 181
+- ✅ Tests: 241 passing
+- ✅ Build: Clean compilation
+
+#### Target Goals
+- 🎯 ESLint warnings: <100 (reduce by 45%)
+- 🎯 Type coverage: 95%+ in critical files
+- 🎯 Hook warnings: 0
+- 🎯 Maintain: 241 passing tests
+
+#### Implementation Checkpoints
+
+**Checkpoint 1: IPC Type Safety**
+- [ ] Complete Phase 1.1 - IPC Interface Types
+- [ ] Verify: `npm run lint` shows <150 warnings
+- [ ] Verify: `npm test` - all tests pass
+- [ ] Verify: `npm run dev` - app functions normally
+
+**Checkpoint 2: Main Process & Error Handling**
+- [ ] Complete Phase 1.2 & 1.3
+- [ ] Verify: `npm run lint` shows <130 warnings
+- [ ] Verify: Main process handlers work correctly
+
+**Checkpoint 3: React Hook Optimization**
+- [ ] Complete Phase 2.1 & 2.2
+- [ ] Verify: Zero React hook warnings
+- [ ] Verify: UI behavior unchanged
+
+**Final Verification**
+- [ ] Complete all phases
+- [ ] Verify: <100 ESLint warnings total
+- [ ] Verify: All 241 tests passing
+- [ ] Verify: Clean TypeScript compilation
+- [ ] Verify: Full application functionality
+
+### 🚨 Safety Guidelines
+
+**Critical Rules:**
+1. **ONE FILE AT A TIME** - Never modify multiple files simultaneously
+2. **TEST AFTER EACH CHANGE** - Run `npm test` and `npm run dev` after each file
+3. **PRESERVE FUNCTIONALITY** - No breaking changes to working features
+4. **BACKUP WORKING STATE** - Commit after each successful file completion
+
+**Testing Checklist (After Each File):**
+- [ ] `npm run build` - TypeScript compilation successful
+- [ ] `npm run lint` - Error count remains 0
+- [ ] `npm test` - All 241 tests pass
+- [ ] `npm run dev` - Application starts and all tabs functional
+
+### 📋 Implementation Notes
+
+**Order of Operations:**
+1. Start with type definitions in `src/shared/types.ts`
+2. Update IPC interfaces in `preload.ts`
+3. Fix main process handlers
+4. Address service layer types
+5. Resolve React hook warnings
+6. Final verification and documentation
+
+**Rollback Strategy:**
+- Each file change is atomic and reversible
+- Maintain git history for easy rollback
+- If any checkpoint fails, revert and reassess
+
 ## 🎉 Final Notes
 
 This is a **healthy, production-ready codebase** with:
