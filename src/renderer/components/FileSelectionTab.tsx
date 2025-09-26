@@ -1,34 +1,34 @@
 import React, { useState, useCallback } from 'react';
 import { SpreadsheetData } from '@/shared/types';
 import { logger } from '@/services/LoggingService';
+import { ipcService } from '@/services/IPCService';
 
 /**
  * Simple update notification banner - KISS implementation
  */
 const UpdateNotificationBanner: React.FC = () => {
   const [isWorking, setIsWorking] = useState(false);
+  const [statusMessage, setStatusMessage] = useState<string | null>(null);
 
   const handleUpdateClick = useCallback(async () => {
     try {
       setIsWorking(true);
+      setStatusMessage('Checking for updates...');
 
       // Simple flow: trigger update check, then user can go to Settings to complete
-      await window.electronAPI.checkForUpdates();
+      await ipcService.checkForUpdates();
 
-      // Show success message and direct to settings
-      setTimeout(() => {
-        alert(
-          'Update check initiated!\n\nGo to Settings tab to complete the update process.'
-        );
-        setIsWorking(false);
-      }, 1000);
+      setStatusMessage(
+        'Update check initiated. Open the Settings tab to continue the process.'
+      );
+      setIsWorking(false);
     } catch (error) {
       logger.error(
         'Update check failed',
         error instanceof Error ? error : new Error(String(error)),
         'UpdateBanner'
       );
-      alert('Update check failed. Please try again later.');
+      setStatusMessage('Update check failed. Please try again later.');
       setIsWorking(false);
     }
   }, []);
@@ -69,6 +69,11 @@ const UpdateNotificationBanner: React.FC = () => {
       >
         {isWorking ? 'Checking...' : 'Update Now'}
       </button>
+      {statusMessage && (
+        <span className="ml-3" style={{ fontSize: '0.85rem' }}>
+          {statusMessage}
+        </span>
+      )}
     </div>
   );
 };
@@ -91,10 +96,33 @@ const FileSelectionTab: React.FC<FileSelectionTabProps> = ({
   const [error, setError] = useState<string>('');
   const [isDragOver, setIsDragOver] = useState<boolean>(false);
 
+  const loadSheetNamesForFile = useCallback(async (filePath: string) => {
+    if (filePath.toLowerCase().endsWith('.csv')) {
+      setAvailableSheets(['Sheet1']);
+      setSelectedSheet('Sheet1');
+    } else {
+      setIsLoading(true);
+      try {
+        const sheets = await ipcService.getSheetNames(filePath);
+        setAvailableSheets(sheets);
+        setSelectedSheet(sheets[0] || '');
+      } catch (err) {
+        setError('Failed to load sheet names from the Excel file.');
+        logger.error(
+          'Error loading sheet names',
+          err instanceof Error ? err : new Error(String(err)),
+          'FileSelectionTab'
+        );
+      } finally {
+        setIsLoading(false);
+      }
+    }
+  }, []);
+
   const handleFileSelect = useCallback(async () => {
     try {
       setError('');
-      const result = await window.electronAPI.openFileDialog({
+      const result = await ipcService.openFileDialog({
         title: 'Select Excel or CSV File',
         properties: ['openFile'],
         filters: [
@@ -121,7 +149,7 @@ const FileSelectionTab: React.FC<FileSelectionTabProps> = ({
         'FileSelectionTab'
       );
     }
-  }, []);
+  }, [loadSheetNamesForFile]);
 
   const handleSheetChange = useCallback(
     (e: React.ChangeEvent<HTMLSelectElement>) => {
@@ -140,10 +168,7 @@ const FileSelectionTab: React.FC<FileSelectionTabProps> = ({
     setError('');
 
     try {
-      const data = await window.electronAPI.loadSheetData(
-        selectedFile,
-        selectedSheet
-      );
+      const data = await ipcService.loadSheetData(selectedFile, selectedSheet);
 
       if (!data || !data.columns || !data.rows) {
         setError('Failed to load data from the selected sheet.');
@@ -184,78 +209,60 @@ const FileSelectionTab: React.FC<FileSelectionTabProps> = ({
     setIsDragOver(false);
   }, []);
 
-  const handleDrop = useCallback(async (e: React.DragEvent) => {
-    e.preventDefault();
-    e.stopPropagation();
-    setIsDragOver(false);
+  const handleDrop = useCallback(
+    async (e: React.DragEvent) => {
+      e.preventDefault();
+      e.stopPropagation();
+      setIsDragOver(false);
 
-    const files = Array.from(e.dataTransfer.files);
-    const file = files[0];
+      const files = Array.from(e.dataTransfer.files);
+      const file = files[0];
 
-    if (!file) return;
+      if (!file) return;
 
-    // For Electron, we can access the file path with proper type checking
-    let filePath: string;
+      // For Electron, we can access the file path with proper type checking
+      let filePath: string;
 
-    // Check if file has a path property (Electron-specific)
-    if (file && typeof file === 'object' && 'path' in file) {
-      const fileWithPath = file as File & { path?: string };
-      filePath = fileWithPath.path || file.name;
-    } else {
-      filePath = file.name;
-    }
-
-    // Validate the file path is a string and not empty
-    if (!filePath || typeof filePath !== 'string' || filePath.trim() === '') {
-      setError('Unable to get valid file path.');
-      return;
-    }
-
-    // Additional security check: ensure filename doesn't contain path traversal
-    if (filePath.includes('..') || filePath.includes('\0')) {
-      setError('Invalid file path detected.');
-      return;
-    }
-
-    const validExtensions = ['.xlsx', '.xls', '.xlsm', '.csv'];
-    const hasValidExtension = validExtensions.some(ext =>
-      filePath.toLowerCase().endsWith(ext)
-    );
-
-    if (!hasValidExtension) {
-      setError('Please select a valid Excel (.xlsx, .xls, .xlsm) or CSV file.');
-      return;
-    }
-
-    setSelectedFile(filePath);
-    setError('');
-
-    // Load sheet names
-    await loadSheetNamesForFile(filePath);
-  }, []);
-
-  const loadSheetNamesForFile = async (filePath: string) => {
-    if (filePath.toLowerCase().endsWith('.csv')) {
-      setAvailableSheets(['Sheet1']);
-      setSelectedSheet('Sheet1');
-    } else {
-      setIsLoading(true);
-      try {
-        const sheets = await window.electronAPI.getSheetNames(filePath);
-        setAvailableSheets(sheets);
-        setSelectedSheet(sheets[0] || '');
-      } catch (err) {
-        setError('Failed to load sheet names from the Excel file.');
-        logger.error(
-          'Error loading sheet names',
-          err instanceof Error ? err : new Error(String(err)),
-          'FileSelectionTab'
-        );
-      } finally {
-        setIsLoading(false);
+      // Check if file has a path property (Electron-specific)
+      if (file && typeof file === 'object' && 'path' in file) {
+        const fileWithPath = file as File & { path?: string };
+        filePath = fileWithPath.path || file.name;
+      } else {
+        filePath = file.name;
       }
-    }
-  };
+
+      // Validate the file path is a string and not empty
+      if (!filePath || typeof filePath !== 'string' || filePath.trim() === '') {
+        setError('Unable to get valid file path.');
+        return;
+      }
+
+      // Additional security check: ensure filename doesn't contain path traversal
+      if (filePath.includes('..') || filePath.includes('\0')) {
+        setError('Invalid file path detected.');
+        return;
+      }
+
+      const validExtensions = ['.xlsx', '.xls', '.xlsm', '.csv'];
+      const hasValidExtension = validExtensions.some(ext =>
+        filePath.toLowerCase().endsWith(ext)
+      );
+
+      if (!hasValidExtension) {
+        setError(
+          'Please select a valid Excel (.xlsx, .xls, .xlsm) or CSV file.'
+        );
+        return;
+      }
+
+      setSelectedFile(filePath);
+      setError('');
+
+      // Load sheet names
+      await loadSheetNamesForFile(filePath);
+    },
+    [loadSheetNamesForFile]
+  );
 
   return (
     <div className="tab-panel">

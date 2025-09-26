@@ -1,6 +1,8 @@
 import React, { useReducer, useEffect, useCallback, useMemo } from 'react';
 import { SpreadsheetData, DownloadConfig } from '@/shared/types';
 import { CONSTANTS } from '@/shared/constants';
+import { configurationService } from '@/services/ConfigurationService';
+import { logger } from '@/services/LoggingService';
 
 // State interface for useReducer
 interface ColumnSelectionState {
@@ -216,26 +218,32 @@ const ColumnSelectionTab: React.FC<ColumnSelectionTabProps> = ({
 
   // Load saved settings on component mount
   useEffect(() => {
+    let isMounted = true;
+
     const loadSavedSettings = async () => {
       try {
-        const settings = await window.electronAPI.loadSettings();
-        if (settings?.defaultPaths) {
-          // Use saved paths (may be empty if user hasn't configured them)
-          dispatch({
-            type: 'SET_IMAGE_FILE_PATH',
-            payload: settings.defaultPaths.imageNetworkPath || '',
-          });
-          dispatch({
-            type: 'SET_PDF_FILE_PATH',
-            payload: settings.defaultPaths.pdfNetworkPath || '',
-          });
-        } else {
-          // No settings available - start with empty paths
-          dispatch({ type: 'SET_IMAGE_FILE_PATH', payload: '' });
-          dispatch({ type: 'SET_PDF_FILE_PATH', payload: '' });
+        const settings = await configurationService.loadUserSettings();
+        if (!isMounted) {
+          return;
         }
+
+        dispatch({
+          type: 'SET_IMAGE_FILE_PATH',
+          payload: settings.defaultPaths.imageNetworkPath || '',
+        });
+        dispatch({
+          type: 'SET_PDF_FILE_PATH',
+          payload: settings.defaultPaths.pdfNetworkPath || '',
+        });
       } catch (error) {
-        console.error('Error loading settings:', error);
+        logger.error(
+          'ColumnSelectionTab: Error loading settings',
+          error instanceof Error ? error : new Error(String(error)),
+          'ColumnSelectionTab'
+        );
+        if (!isMounted) {
+          return;
+        }
         // Start with empty paths on error
         setImageFilePath('');
         setPdfFilePath('');
@@ -243,7 +251,11 @@ const ColumnSelectionTab: React.FC<ColumnSelectionTabProps> = ({
     };
 
     loadSavedSettings();
-  }, []); // Run once on mount
+
+    return () => {
+      isMounted = false;
+    };
+  }, [setImageFilePath, setPdfFilePath]); // Run once on mount
 
   // Load initial configuration with defaults
   useEffect(() => {
@@ -315,7 +327,7 @@ const ColumnSelectionTab: React.FC<ColumnSelectionTabProps> = ({
   // Save settings whenever network paths change
   const saveNetworkPathSettings = useCallback(async () => {
     try {
-      const currentSettings = (await window.electronAPI.loadSettings()) || {};
+      const currentSettings = await configurationService.loadUserSettings();
       const updatedSettings = {
         ...currentSettings,
         defaultPaths: {
@@ -324,9 +336,13 @@ const ColumnSelectionTab: React.FC<ColumnSelectionTabProps> = ({
           pdfNetworkPath: pdfFilePath,
         },
       };
-      await window.electronAPI.saveSettings(updatedSettings);
+      await configurationService.saveUserSettings(updatedSettings);
     } catch (error) {
-      console.error('Error saving settings:', error);
+      logger.error(
+        'ColumnSelectionTab: Error saving default network paths',
+        error instanceof Error ? error : new Error(String(error)),
+        'ColumnSelectionTab'
+      );
     }
   }, [imageFilePath, pdfFilePath]);
 
@@ -481,8 +497,8 @@ const ColumnSelectionTab: React.FC<ColumnSelectionTabProps> = ({
         <button
           type="button"
           className="btn btn-secondary"
-          onClick={() =>
-            window.electronAPI.saveConfig({
+          onClick={async () => {
+            const configToSave: DownloadConfig = {
               excelFile: data.filePath,
               sheetName: data.sheetName,
               partNoColumn,
@@ -501,8 +517,19 @@ const ColumnSelectionTab: React.FC<ColumnSelectionTabProps> = ({
                 quality,
                 edgeThreshold,
               },
-            })
-          }
+            };
+
+            const result =
+              await configurationService.saveDownloadConfig(configToSave);
+
+            if (!result.success) {
+              logger.error(
+                'ColumnSelectionTab: Error saving configuration',
+                new Error(result.message),
+                'ColumnSelectionTab'
+              );
+            }
+          }}
         >
           Save Configuration
         </button>

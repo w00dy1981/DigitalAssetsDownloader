@@ -5,13 +5,15 @@ import ColumnSelectionTab from './components/ColumnSelectionTab';
 import ProcessTab from './components/ProcessTab';
 import SettingsTab from './components/SettingsTab';
 import { useEventListeners } from './hooks/useEventListeners';
+import { configurationService } from '@/services/ConfigurationService';
+import { logger } from '@/services/LoggingService';
+import { useStatusMessage } from './hooks/useStatusMessage';
 import './App.css';
 
 // Version injected by webpack at build time (KISS - single source of truth)
 const APP_VERSION = process.env.APP_VERSION || 'development';
 
 const App: React.FC = () => {
-  console.log('[App] Component initializing');
   const [activeTab, setActiveTab] = useState<number>(0);
   const [spreadsheetData, setSpreadsheetData] =
     useState<SpreadsheetData | null>(null);
@@ -20,6 +22,7 @@ const App: React.FC = () => {
   );
   // Simple update notification state - Issue #14
   const [hasUpdateAvailable, setHasUpdateAvailable] = useState<boolean>(false);
+  const [statusMessage, showStatusMessage] = useStatusMessage();
 
   // Event listeners using custom hook
   useEventListeners([
@@ -58,11 +61,30 @@ const App: React.FC = () => {
     if (!downloadConfig) return;
 
     try {
-      await window.electronAPI.saveConfig(downloadConfig);
-      alert('Configuration saved successfully!');
+      const result =
+        await configurationService.saveDownloadConfig(downloadConfig);
+      if (result.success) {
+        showStatusMessage(result.message, 3000);
+        logger.info('App: Configuration saved successfully', 'App');
+      } else {
+        showStatusMessage(result.message, 3000);
+        logger.error(
+          'App: Error saving configuration',
+          new Error(result.message),
+          'App'
+        );
+      }
     } catch (error) {
-      console.error('Error saving configuration:', error);
-      alert('Failed to save configuration.');
+      const message =
+        error instanceof Error
+          ? error.message
+          : 'Failed to save configuration.';
+      showStatusMessage(message, 3000);
+      logger.error(
+        'App: Unexpected error saving configuration',
+        error instanceof Error ? error : new Error(message),
+        'App'
+      );
     }
   };
 
@@ -79,11 +101,11 @@ const App: React.FC = () => {
   const handleTabChange = (tabIndex: number) => {
     // Validate before allowing tab change (Settings tab is always accessible)
     if (tabIndex === 1 && !spreadsheetData) {
-      alert('Please load an Excel file first.');
+      showStatusMessage('Please load an Excel file first.', 3000);
       return;
     }
     if (tabIndex === 2 && !downloadConfig) {
-      alert('Please complete column selection first.');
+      showStatusMessage('Please complete column selection first.', 3000);
       return;
     }
     // Settings tab (index 3) is always accessible
@@ -101,6 +123,19 @@ const App: React.FC = () => {
           )}
         </div>
       </header>
+
+      {statusMessage && (
+        <div
+          className={`app-status ${
+            statusMessage.toLowerCase().includes('error') ||
+            statusMessage.toLowerCase().includes('fail')
+              ? 'error'
+              : 'info'
+          }`}
+        >
+          {statusMessage}
+        </div>
+      )}
 
       <nav className="tab-navigation">
         <button

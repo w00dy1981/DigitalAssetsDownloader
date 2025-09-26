@@ -1,8 +1,15 @@
 import React, { useState, useEffect, useCallback } from 'react';
-import { DownloadConfig, DownloadProgress, IPC_CHANNELS } from '@/shared/types';
+import {
+  DownloadConfig,
+  DownloadProgress,
+  DownloadCompletionEvent,
+  IPC_CHANNELS,
+} from '@/shared/types';
 import { ProcessControls, ProgressDisplay, ActivityLog } from './process';
 import { logger } from '@/services/LoggingService';
 import { errorHandler } from '@/services/ErrorHandlingService';
+import { ipcService } from '@/services/IPCService';
+import { configurationService } from '@/services/ConfigurationService';
 
 interface ProcessTabProps {
   config: DownloadConfig;
@@ -36,102 +43,89 @@ const ProcessTab: React.FC<ProcessTabProps> = ({
       setProgress(data);
     };
 
-    const handleComplete = (data: any) => {
+    const handleComplete = (data: DownloadCompletionEvent) => {
       logger.info('ProcessTab: Download complete', 'ProcessTab', data);
       setIsDownloading(false);
       setIsStartPending(false);
       setIsCancelPending(false);
 
-      if (data.error) {
-        const errorMessage = `Download error: ${data.error}`;
+      const {
+        error,
+        cancelled,
+        successful = 0,
+        failed = 0,
+        backgroundProcessed = 0,
+        logFile,
+      } = data;
+
+      if (error) {
+        const errorMessage = `Download error: ${error}`;
         logger.error(
           'ProcessTab: Download completed with error',
-          new Error(data.error),
+          new Error(error),
           'ProcessTab'
         );
         setLogs(prev => [...prev, errorMessage]);
-      } else if (data.cancelled) {
-        const cancelMessage = `Downloads cancelled: ${data.successful || 0} successful, ${data.failed || 0} failed`;
+      } else if (cancelled) {
+        const cancelMessage = `Downloads cancelled: ${successful} successful, ${failed} failed`;
         logger.warn('ProcessTab: Downloads were cancelled', 'ProcessTab', {
-          successful: data.successful || 0,
-          failed: data.failed || 0,
+          successful,
+          failed,
         });
         setLogs(prev => [...prev, cancelMessage]);
       } else {
         const messages = [
-          `Downloads complete: ${data.successful || 0} successful, ${data.failed || 0} failed`,
+          `Downloads complete: ${successful} successful, ${failed} failed`,
         ];
 
-        if (data.backgroundProcessed > 0) {
+        if (backgroundProcessed > 0) {
           messages.push(
-            `Background processing: ${data.backgroundProcessed} images had backgrounds fixed`
+            `Background processing: ${backgroundProcessed} images had backgrounds fixed`
           );
         }
 
-        if (data.logFile) {
-          messages.push(`Log file saved: ${data.logFile}`);
+        if (logFile) {
+          messages.push(`Log file saved: ${logFile}`);
         }
 
         logger.info(
           'ProcessTab: Downloads completed successfully',
           'ProcessTab',
           {
-            successful: data.successful || 0,
-            failed: data.failed || 0,
-            backgroundProcessed: data.backgroundProcessed || 0,
-            logFile: data.logFile,
+            successful,
+            failed,
+            backgroundProcessed,
+            logFile,
           }
         );
         setLogs(prev => [...prev, ...messages]);
       }
     };
 
-    window.electronAPI.onDownloadProgress(handleProgress);
-    window.electronAPI.onDownloadComplete(handleComplete);
+    ipcService.onDownloadProgress(handleProgress);
+    ipcService.onDownloadComplete(handleComplete);
 
     return () => {
-      window.electronAPI.removeAllListeners(
-        IPC_CHANNELS.DOWNLOAD_PROGRESS as any
-      );
-      window.electronAPI.removeAllListeners(
-        IPC_CHANNELS.DOWNLOAD_COMPLETE as any
-      );
+      ipcService.cleanup([
+        IPC_CHANNELS.DOWNLOAD_PROGRESS,
+        IPC_CHANNELS.DOWNLOAD_COMPLETE,
+      ]);
     };
   }, []);
 
-  const validateDownloadConfig = useCallback((): string | null => {
-    if (!config.partNoColumn) {
-      const message = 'Error: Please select a Part Number column';
+  const validateDownloadConfig = useCallback((): string[] => {
+    const validation = configurationService.validateDownloadConfig(config);
+
+    if (!validation.isValid) {
       logger.error(
-        'ProcessTab: Validation failed - missing part number column',
-        new Error(message),
+        'ProcessTab: Download configuration validation failed',
+        new Error(validation.errors.join(', ')),
         'ProcessTab'
       );
-      return message;
+      return validation.errors.map(error => `Error: ${error}`);
     }
 
-    if (!config.imageColumns.length && !config.pdfColumn) {
-      const message =
-        'Error: Please select at least one Image URL column or PDF column';
-      logger.error(
-        'ProcessTab: Validation failed - no columns selected',
-        new Error(message),
-        'ProcessTab'
-      );
-      return message;
-    }
-
-    if (!config.imageFolder && !config.pdfFolder) {
-      const message = 'Error: Please select download folders';
-      logger.error(
-        'ProcessTab: Validation failed - no download folders',
-        new Error(message),
-        'ProcessTab'
-      );
-      return message;
-    }
-
-    return null;
+    return [];
   }, [config]);
 
   const initializeDownloadState = useCallback(() => {
@@ -151,7 +145,7 @@ const ProcessTab: React.FC<ProcessTabProps> = ({
   }, []);
 
   const executeDownload = useCallback(async (): Promise<void> => {
-    const result = await window.electronAPI.startDownloads(config);
+    const result = await ipcService.startDownloads(config);
     if (result.success) {
       logger.info('ProcessTab: Download startup successful', 'ProcessTab', {
         message: result.message,
@@ -173,6 +167,14 @@ const ProcessTab: React.FC<ProcessTabProps> = ({
     const handledError = errorHandler.handleError(
       error,
       'ProcessTab.handleStartDownloads'
+    );
+
+    logger.error(
+      'ProcessTab: Error starting downloads',
+      handledError instanceof Error
+        ? handledError
+        : new Error(String(handledError)),
+      'ProcessTab'
     );
 
     // Handle specific race condition errors
@@ -208,9 +210,9 @@ const ProcessTab: React.FC<ProcessTabProps> = ({
     });
 
     // Validate configuration
-    const validationError = validateDownloadConfig();
-    if (validationError) {
-      setLogs(prev => [...prev, validationError]);
+    const validationErrors = validateDownloadConfig();
+    if (validationErrors.length > 0) {
+      setLogs(prev => [...prev, ...validationErrors]);
       setIsStartPending(false);
       return;
     }
@@ -251,7 +253,7 @@ const ProcessTab: React.FC<ProcessTabProps> = ({
     setLogs(prev => [...prev, 'Cancelling downloads...']);
 
     try {
-      await window.electronAPI.cancelDownloads();
+      await ipcService.cancelDownloads();
       logger.info('ProcessTab: Download cancellation requested', 'ProcessTab');
       setLogs(prev => [...prev, 'Downloads cancellation requested']);
     } catch (error) {
@@ -268,20 +270,6 @@ const ProcessTab: React.FC<ProcessTabProps> = ({
       setIsCancelPending(false);
     }
   }, [isDownloading, isCancelPending]);
-
-  // Initialize default ERP paths when component mounts (only if empty)
-  useEffect(() => {
-    // Set default paths only if they are empty/undefined
-    const updates: Partial<DownloadConfig> = {};
-
-    // Keep paths empty if not configured - don't auto-assign hardcoded defaults
-    // Users should configure these in Settings if needed
-
-    // Only update if there are changes to avoid infinite re-renders
-    if (Object.keys(updates).length > 0) {
-      onConfigurationChange({ ...config, ...updates });
-    }
-  }, []);
 
   return (
     <div className="tab-panel">

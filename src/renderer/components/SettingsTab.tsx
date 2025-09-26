@@ -8,106 +8,76 @@ import {
   UIPreferencesSection,
   UpdateSettingsSection,
 } from './settings';
-import { CONSTANTS } from '@/shared/constants';
+import { configurationService } from '@/services/ConfigurationService';
+import { logger } from '@/services/LoggingService';
 
 interface SettingsTabProps {
   onSettingsChange?: (settings: UserSettings) => void;
 }
 
 const SettingsTab: React.FC<SettingsTabProps> = ({ onSettingsChange }) => {
-  // Default settings values
-  const defaultSettings: UserSettings = {
-    defaultPaths: {
-      lastFileDialogPath: '',
-      imageDownloadFolder: '',
-      pdfDownloadFolder: '',
-      sourceImageFolder: '',
-      imageNetworkPath: '',
-      pdfNetworkPath: '',
-    },
-    downloadBehavior: {
-      defaultConcurrentDownloads: CONSTANTS.DOWNLOAD.DEFAULT_WORKERS,
-      connectionTimeout: CONSTANTS.NETWORK.CONNECTION_TIMEOUT / 1000, // Convert to seconds
-      readTimeout: CONSTANTS.NETWORK.READ_TIMEOUT / 1000, // Convert to seconds
-      retryAttempts: CONSTANTS.DOWNLOAD.DEFAULT_RETRY_ATTEMPTS,
-    },
-    imageProcessing: {
-      enabledByDefault: true,
-      defaultMethod: 'smart_detect',
-      defaultQuality: CONSTANTS.IMAGE.DEFAULT_QUALITY,
-      defaultEdgeThreshold: CONSTANTS.IMAGE.DEFAULT_EDGE_THRESHOLD,
-    },
-    uiPreferences: {
-      rememberFileDialogPath: true,
-      showAdvancedOptions: false,
-      startupTab: 'file',
-    },
-    updateSettings: {
-      enableAutoUpdates: true,
-      checkForUpdatesOnStartup: true,
-      updateChannel: 'stable',
-      downloadUpdatesAutomatically: false,
-    },
-  };
-
   // State for all settings
-  const [settings, setSettings] = useState<UserSettings>(defaultSettings);
+  const [settings, setSettings] = useState<UserSettings>(() =>
+    configurationService.getDefaultUserSettings()
+  );
   const [hasChanges, setHasChanges] = useState<boolean>(false);
   const [saveStatus, showSaveStatus] = useStatusMessage();
 
   // Load settings on component mount
   useEffect(() => {
+    let isMounted = true;
+
     const loadSettings = async () => {
       try {
-        const savedSettings = await window.electronAPI.loadSettings();
-        if (savedSettings) {
-          // Merge with defaults to ensure all properties exist
-          const mergedSettings = {
-            ...defaultSettings,
-            ...savedSettings,
-            defaultPaths: {
-              ...defaultSettings.defaultPaths,
-              ...savedSettings.defaultPaths,
-            },
-            downloadBehavior: {
-              ...defaultSettings.downloadBehavior,
-              ...savedSettings.downloadBehavior,
-            },
-            imageProcessing: {
-              ...defaultSettings.imageProcessing,
-              ...savedSettings.imageProcessing,
-            },
-            uiPreferences: {
-              ...defaultSettings.uiPreferences,
-              ...savedSettings.uiPreferences,
-            },
-            updateSettings: {
-              ...defaultSettings.updateSettings,
-              ...savedSettings.updateSettings,
-            },
-          };
-          setSettings(mergedSettings);
+        const savedSettings = await configurationService.loadUserSettings();
+        if (isMounted) {
+          setSettings(savedSettings);
+          setHasChanges(false);
+          onSettingsChange?.(savedSettings);
         }
       } catch (error) {
-        console.error('Error loading settings:', error);
+        logger.error(
+          'SettingsTab: Error loading settings',
+          error instanceof Error ? error : new Error(String(error)),
+          'SettingsTab'
+        );
+        showSaveStatus('Error loading settings', 2000);
       }
     };
 
     loadSettings();
-  }, []);
+
+    return () => {
+      isMounted = false;
+    };
+  }, [onSettingsChange, showSaveStatus]);
 
   // Save settings function
   const saveSettings = useCallback(async () => {
     try {
-      await window.electronAPI.saveSettings(settings);
-      showSaveStatus('Settings saved successfully', 2000);
-      setHasChanges(false);
-      onSettingsChange?.(settings);
+      const result = await configurationService.saveUserSettings(settings);
+
+      if (result.success) {
+        showSaveStatus(result.message, 2000);
+        setHasChanges(false);
+        onSettingsChange?.(settings);
+      } else {
+        showSaveStatus(result.message, 2000);
+        logger.error(
+          'SettingsTab: Error saving settings',
+          new Error(result.message),
+          'SettingsTab'
+        );
+      }
     } catch (error) {
-      console.error('Error saving settings:', error);
+      logger.error(
+        'SettingsTab: Unexpected error saving settings',
+        error instanceof Error ? error : new Error(String(error)),
+        'SettingsTab'
+      );
       showSaveStatus('Error saving settings', 2000);
     }
-  }, [settings, onSettingsChange]);
+  }, [settings, onSettingsChange, showSaveStatus]);
 
   // Auto-save with debounce
   useEffect(() => {
@@ -122,28 +92,15 @@ const SettingsTab: React.FC<SettingsTabProps> = ({ onSettingsChange }) => {
 
   // Reset to defaults
   const resetToDefaults = useCallback(() => {
-    setSettings(defaultSettings);
+    setSettings(configurationService.getDefaultUserSettings());
     setHasChanges(true);
   }, []);
 
   // Update setting helper
-  const updateSetting = useCallback((path: string, value: any) => {
-    setSettings(prev => {
-      const newSettings = { ...prev };
-      const pathParts = path.split('.');
-
-      if (pathParts.length === 2) {
-        const [section, key] = pathParts;
-        if (section in newSettings) {
-          (newSettings as any)[section] = {
-            ...(newSettings as any)[section],
-            [key]: value,
-          };
-        }
-      }
-
-      return newSettings;
-    });
+  const updateSetting = useCallback((path: string, value: unknown) => {
+    setSettings(prev =>
+      configurationService.updateUserSetting(prev, path, value)
+    );
     setHasChanges(true);
   }, []);
 

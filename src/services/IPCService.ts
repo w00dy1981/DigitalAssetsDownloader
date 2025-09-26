@@ -14,6 +14,7 @@ import {
   AppConfig,
   SpreadsheetData,
   DownloadProgress,
+  DownloadCompletionEvent,
   IPC_CHANNELS,
 } from '@/shared/types';
 
@@ -46,7 +47,7 @@ export interface DownloadStartResult {
 
 // Event callback types
 export type ProgressCallback = (data: DownloadProgress) => void;
-export type DownloadCompleteCallback = (data: any) => void;
+export type DownloadCompleteCallback = (data: DownloadCompletionEvent) => void;
 export type MenuCallback = () => void;
 export type UpdateCallback = (updateInfo: any) => void;
 export type UpdateErrorCallback = (error: string) => void;

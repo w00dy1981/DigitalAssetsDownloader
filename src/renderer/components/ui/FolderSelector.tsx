@@ -1,5 +1,7 @@
 import React from 'react';
 import { useFolderDialog } from '../../hooks/useFolderDialog';
+import { ipcService } from '@/services/IPCService';
+import { logger } from '@/services/LoggingService';
 
 interface FolderSelectorProps {
   value: string;
@@ -29,26 +31,34 @@ export const FolderSelector: React.FC<FolderSelectorProps> = ({
 }) => {
   const { openFolderDialog } = useFolderDialog();
 
-  const handleBrowse = () => {
+  const handleBrowse = async () => {
     // For enhanced mode, use direct electronAPI call to match existing behavior
     if (editable && dialogTitle) {
-      window.electronAPI
-        .openFolderDialog({
+      try {
+        const result = await ipcService.openFolderDialog({
           title: dialogTitle,
           properties: ['openDirectory'],
-        })
-        .then(result => {
-          if (result.filePaths && result.filePaths.length > 0) {
-            onChange(result.filePaths[0]);
-          }
-        })
-        .catch(error => {
-          if (onError) {
-            onError(error.message);
-          } else {
-            console.error(error);
-          }
         });
+
+        if (
+          !result.canceled &&
+          result.filePaths &&
+          result.filePaths.length > 0
+        ) {
+          onChange(result.filePaths[0]);
+        }
+      } catch (error) {
+        const message = error instanceof Error ? error.message : String(error);
+        if (onError) {
+          onError(message);
+        } else {
+          logger.error(
+            'FolderSelector: Error opening folder dialog',
+            error instanceof Error ? error : new Error(message),
+            'FolderSelector'
+          );
+        }
+      }
     } else {
       // Use existing hook for backward compatibility
       openFolderDialog(

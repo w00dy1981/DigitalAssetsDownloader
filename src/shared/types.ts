@@ -49,6 +49,16 @@ export interface DownloadProgress {
   backgroundProcessed: number; // Count of images that had background processing applied
 }
 
+export interface DownloadCompletionEvent {
+  successful: number;
+  failed: number;
+  total: number;
+  backgroundProcessed: number;
+  logFile?: string;
+  cancelled?: boolean;
+  error?: string;
+}
+
 export interface DownloadResult {
   success: boolean;
   url: string;
