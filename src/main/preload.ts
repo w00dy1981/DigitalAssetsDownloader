@@ -2,14 +2,19 @@ import { contextBridge, ipcRenderer } from 'electron';
 import { IPC_CHANNELS, IpcChannelType } from '@/shared/types';
 
 // Provide require function for webpack externals
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
 (window as any).require = (moduleName: string) => {
   switch (moduleName) {
     case 'react':
+      // eslint-disable-next-line @typescript-eslint/no-require-imports
       return require('react');
     case 'react-dom':
+      // eslint-disable-next-line @typescript-eslint/no-require-imports
       return require('react-dom');
     default:
-      throw new Error(`Module '${moduleName}' is not available in renderer process`);
+      throw new Error(
+        `Module '${moduleName}' is not available in renderer process`
+      );
   }
 };
 import * as fs from 'fs';
