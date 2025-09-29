@@ -1,6 +1,29 @@
 import { contextBridge, ipcRenderer } from 'electron';
 import { IPC_CHANNELS, IpcChannelType } from '@/shared/types';
 
+// Provide require function for webpack externals
+(window as any).require = (moduleName: string) => {
+  switch (moduleName) {
+    case 'react':
+      return require('react');
+    case 'react-dom':
+      return require('react-dom');
+    default:
+      throw new Error(`Module '${moduleName}' is not available in renderer process`);
+  }
+};
+import * as fs from 'fs';
+import * as fsPromises from 'fs/promises';
+import * as path from 'path';
+import * as os from 'os';
+import * as crypto from 'crypto';
+import * as stream from 'stream';
+import * as events from 'events';
+import * as util from 'util';
+import * as url from 'url';
+import * as querystring from 'querystring';
+import * as child_process from 'child_process';
+
 // Expose protected methods that allow the renderer process to use
 // the ipcRenderer without exposing the entire object
 contextBridge.exposeInMainWorld('electronAPI', {
@@ -96,6 +119,36 @@ contextBridge.exposeInMainWorld('electronAPI', {
   },
 });
 
+// Expose Node.js modules for services that need them
+contextBridge.exposeInMainWorld('require', (module: string) => {
+  switch (module) {
+    case 'fs':
+      return fs;
+    case 'fs/promises':
+      return fsPromises;
+    case 'path':
+      return path;
+    case 'os':
+      return os;
+    case 'crypto':
+      return crypto;
+    case 'stream':
+      return stream;
+    case 'events':
+      return events;
+    case 'util':
+      return util;
+    case 'url':
+      return url;
+    case 'querystring':
+      return querystring;
+    case 'child_process':
+      return child_process;
+    default:
+      throw new Error(`Module ${module} is not available`);
+  }
+});
+
 // Type definition for the exposed API
 declare global {
   interface Window {
@@ -131,5 +184,6 @@ declare global {
       onUpdateDownloadProgress: (callback: (progressInfo: any) => void) => void;
       removeAllListeners: (channel: IpcChannelType) => void;
     };
+    require: (module: string) => any;
   }
 }
