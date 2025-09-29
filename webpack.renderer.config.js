@@ -7,19 +7,8 @@ module.exports = {
   target: 'electron-renderer',
   entry: './src/renderer/index.tsx',
   externals: {
-    // Exclude Node.js built-ins from renderer bundle
-    'fs': 'commonjs fs',
-    'fs/promises': 'commonjs fs/promises',
-    'path': 'commonjs path',
-    'os': 'commonjs os',
-    'crypto': 'commonjs crypto',
-    'stream': 'commonjs stream',
-    'events': 'commonjs events',
-    'util': 'commonjs util',
-    'url': 'commonjs url',
-    'querystring': 'commonjs querystring',
-    'child_process': 'commonjs child_process',
-    // Exclude native modules
+    // Only exclude modules that should truly be external in renderer
+    // Node.js built-ins should not be external - let webpack handle them or use browser alternatives
     'electron': 'commonjs electron',
     'sharp': 'commonjs sharp',
   },

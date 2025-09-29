@@ -1,6 +1,7 @@
 import { app, BrowserWindow, ipcMain, dialog, Menu, MenuItem } from 'electron';
 import { autoUpdater } from 'electron-updater';
 import log from 'electron-log';
+import * as fs from 'fs';
 import * as path from 'path';
 import Store from 'electron-store';
 import { IPC_CHANNELS, AppConfig, DownloadConfig } from '@/shared/types';
@@ -27,6 +28,7 @@ class DigitalAssetDownloaderApp {
   private excelService: ExcelService;
   private downloadService: DownloadService;
   private currentSpreadsheetData: any[] | null = null;
+  private canUseAutoUpdater = false;
 
   constructor() {
     // Initialize electron-log as early as possible with fallback
@@ -478,6 +480,16 @@ class DigitalAssetDownloaderApp {
     this.mainWindow?.webContents.send('menu-open-settings');
   }
 
+  private hasUpdateConfiguration(): boolean {
+    const configPath = path.join(process.resourcesPath, 'app-update.yml');
+    try {
+      return fs.existsSync(configPath);
+    } catch (error) {
+      log.warn('Unable to verify auto-update configuration', error);
+      return false;
+    }
+  }
+
   private setupAutoUpdater(): void {
     // Configure auto-updater logging
     log.transports.file.maxSize =
@@ -490,8 +502,18 @@ class DigitalAssetDownloaderApp {
     });
     log.info('Auto-updater initialized');
 
+    this.canUseAutoUpdater = this.hasUpdateConfiguration();
+    if (!this.canUseAutoUpdater) {
+      console.log(
+        '⚠️ Auto-updater configuration not found. Skipping live update checks until a packaged build provides app-update.yml.'
+      );
+      log.warn(
+        'Auto-updater disabled: configuration file app-update.yml missing'
+      );
+    }
+
     // Force production mode for auto-updater
-    if (process.env.NODE_ENV !== 'production') {
+    if (process.env.NODE_ENV !== 'production' && this.canUseAutoUpdater) {
       console.log(
         '⚠️ Development mode detected - overriding for auto-updater compatibility'
       );
@@ -572,6 +594,18 @@ class DigitalAssetDownloaderApp {
 
     // Enhanced IPC handler with comprehensive error handling and timeout
     ipcMain.handle(IPC_CHANNELS.CHECK_FOR_UPDATES, async () => {
+      if (!this.canUseAutoUpdater) {
+        console.log(
+          '🔍 Update check skipped: auto-updater disabled for this build (missing configuration).'
+        );
+        log.warn('Manual update check skipped - auto-updater disabled');
+        this.mainWindow?.webContents.send(IPC_CHANNELS.UPDATE_NOT_AVAILABLE, {
+          version: app.getVersion(),
+          reason: 'auto-update-disabled',
+        });
+        return { type: 'auto-update-disabled' };
+      }
+
       console.log('🔍 Manual update check requested by user');
       log.info('Manual update check requested');
 
@@ -670,12 +704,28 @@ class DigitalAssetDownloaderApp {
     });
 
     ipcMain.handle(IPC_CHANNELS.INSTALL_UPDATE, () => {
+      if (!this.canUseAutoUpdater) {
+        console.log(
+          '🔄 Install update skipped: auto-updater disabled for this build (missing configuration).'
+        );
+        log.warn('Install update skipped - auto-updater disabled');
+        return;
+      }
+
       console.log('🔄 Install update requested - quitting and installing...');
       log.info('Install update requested');
       autoUpdater.quitAndInstall();
     });
 
     ipcMain.handle('download-update', () => {
+      if (!this.canUseAutoUpdater) {
+        console.log(
+          '📥 Download update skipped: auto-updater disabled for this build (missing configuration).'
+        );
+        log.warn('Download update skipped - auto-updater disabled');
+        return { skipped: true };
+      }
+
       console.log('📥 Download update requested');
       log.info('Download update requested');
       return autoUpdater.downloadUpdate();
@@ -686,6 +736,14 @@ class DigitalAssetDownloaderApp {
   }
 
   private async checkForUpdatesOnStartup(): Promise<void> {
+    if (!this.canUseAutoUpdater) {
+      console.log(
+        '⏸️ Auto-updater disabled for this build. Startup update check skipped.'
+      );
+      log.info('Startup update check skipped - auto-updater disabled');
+      return;
+    }
+
     try {
       const userSettings = this.store.get('userSettings');
 

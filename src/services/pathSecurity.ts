@@ -1,10 +1,32 @@
-import * as path from 'path';
-import * as fs from 'fs/promises';
-
 /**
  * Path Security Utilities
  * Prevents path traversal attacks and validates file system access
  */
+
+type NodeRequireFunction = (moduleId: string) => unknown;
+
+interface PathModule {
+  sep: string;
+  normalize(pathValue: string): string;
+  resolve(...paths: string[]): string;
+  join(...paths: string[]): string;
+  isAbsolute(pathValue: string): boolean;
+}
+
+const nodeRequireFn = getNodeRequire();
+const nativePathModule = nodeRequireFn
+  ? safeRequire<PathModule>(nodeRequireFn, 'path')
+  : null;
+
+const pathModule: PathModule = nativePathModule ?? createBrowserPathModule();
+
+const nativeFsPromises = nodeRequireFn
+  ? (safeRequire<typeof import('fs/promises')>(nodeRequireFn, 'fs/promises') ??
+    (() => {
+      const fsModule = safeRequire<typeof import('fs')>(nodeRequireFn, 'fs');
+      return fsModule?.promises ?? null;
+    })())
+  : null;
 
 export interface PathValidationOptions {
   allowedRoots?: string[];
@@ -39,15 +61,12 @@ export function sanitizePath(
     throw new PathSecurityError('Invalid path provided', inputPath);
   }
 
-  // Detect obvious traversal attempts
   if (inputPath.includes('..') || inputPath.includes('\0')) {
     throw new PathSecurityError('Path traversal attempt detected', inputPath);
   }
 
-  // Normalize the path to resolve any relative components
-  const normalizedPath = path.normalize(inputPath);
+  const normalizedPath = pathModule.normalize(inputPath);
 
-  // Check for traversal attempts in normalized path
   if (normalizedPath.includes('..')) {
     throw new PathSecurityError(
       'Path traversal attempt detected after normalization',
@@ -55,35 +74,34 @@ export function sanitizePath(
     );
   }
 
-  // If no allowed root specified, return normalized path
   if (!allowedRoot) {
-    return path.resolve(normalizedPath);
+    const resolved = pathModule.isAbsolute(normalizedPath)
+      ? normalizedPath
+      : pathModule.resolve(normalizedPath);
+    return formatOutputPath(resolved, inputPath);
   }
 
-  // Resolve both paths to absolute paths
-  const resolvedAllowedRoot = path.resolve(allowedRoot);
-  const resolvedPath = path.resolve(resolvedAllowedRoot, normalizedPath);
+  const resolvedAllowedRoot = pathModule.normalize(allowedRoot);
+  const resolvedPath = pathModule.normalize(
+    pathModule.isAbsolute(normalizedPath)
+      ? normalizedPath
+      : pathModule.join(resolvedAllowedRoot, normalizedPath)
+  );
 
-  // Ensure the resolved path is within the allowed root
-  if (
-    !resolvedPath.startsWith(resolvedAllowedRoot + path.sep) &&
-    resolvedPath !== resolvedAllowedRoot
-  ) {
+  if (!isWithinRoot(resolvedPath, resolvedAllowedRoot)) {
     throw new PathSecurityError(
       `Path outside allowed directory: ${resolvedPath} not within ${resolvedAllowedRoot}`,
       inputPath
     );
   }
 
-  // Check against allowed roots if multiple are specified
   if (options.allowedRoots && options.allowedRoots.length > 0) {
-    const isAllowed = options.allowedRoots.some(root => {
-      const resolvedRoot = path.resolve(root);
-      return (
-        resolvedPath.startsWith(resolvedRoot + path.sep) ||
-        resolvedPath === resolvedRoot
-      );
-    });
+    const normalizedRoots = options.allowedRoots.map(root =>
+      pathModule.normalize(root)
+    );
+    const isAllowed = normalizedRoots.some(root =>
+      isWithinRoot(resolvedPath, root)
+    );
 
     if (!isAllowed) {
       throw new PathSecurityError(
@@ -93,7 +111,7 @@ export function sanitizePath(
     }
   }
 
-  return resolvedPath;
+  return formatOutputPath(resolvedPath, allowedRoot);
 }
 
 /**
@@ -111,7 +129,6 @@ export function isPathSafe(filePath: string, allowedRoot?: string): boolean {
       console.warn(`Unsafe path detected: ${error.message}`);
       return false;
     }
-    // Re-throw non-security errors
     throw error;
   }
 }
@@ -119,7 +136,7 @@ export function isPathSafe(filePath: string, allowedRoot?: string): boolean {
 /**
  * Safely joins path components, preventing traversal attacks
  * @param basePath Base directory path
- * @param ...components Path components to join
+ * @param components Path components to join
  * @returns Sanitized joined path
  */
 export function safeJoin(basePath: string, ...components: string[]): string {
@@ -127,7 +144,6 @@ export function safeJoin(basePath: string, ...components: string[]): string {
     throw new PathSecurityError('Invalid base path provided', basePath);
   }
 
-  // Validate each component
   for (const component of components) {
     if (!component || typeof component !== 'string') {
       throw new PathSecurityError('Invalid path component', component);
@@ -136,13 +152,13 @@ export function safeJoin(basePath: string, ...components: string[]): string {
     if (
       component.includes('..') ||
       component.includes('\0') ||
-      path.isAbsolute(component)
+      pathModule.isAbsolute(component)
     ) {
       throw new PathSecurityError('Unsafe path component detected', component);
     }
   }
 
-  const joinedPath = path.join(basePath, ...components);
+  const joinedPath = pathModule.join(basePath, ...components);
   return sanitizePath(joinedPath, basePath);
 }
 
@@ -159,10 +175,13 @@ export async function validateFileAccess(
   try {
     const safePath = sanitizePath(filePath, allowedRoot);
 
-    // Check if file exists and is accessible
-    const stats = await fs.stat(safePath);
+    if (!nativeFsPromises) {
+      console.warn('File system validation attempted without fs access.');
+      return false;
+    }
 
-    // Additional security check: ensure it's actually a file
+    const stats = await nativeFsPromises.stat(safePath);
+
     if (!stats.isFile()) {
       console.warn(`Path is not a file: ${safePath}`);
       return false;
@@ -174,7 +193,6 @@ export async function validateFileAccess(
       console.warn(`File access denied: ${error.message}`);
       return false;
     }
-    // File doesn't exist or other I/O error
     return false;
   }
 }
@@ -191,13 +209,20 @@ export async function safeReadDir(
 ): Promise<string[]> {
   const safeDirPath = sanitizePath(dirPath, allowedRoot);
 
+  if (!nativeFsPromises) {
+    throw new PathSecurityError(
+      'File system access is not available in this environment',
+      dirPath
+    );
+  }
+
   try {
-    const stats = await fs.stat(safeDirPath);
+    const stats = await nativeFsPromises.stat(safeDirPath);
     if (!stats.isDirectory()) {
       throw new PathSecurityError('Path is not a directory', dirPath);
     }
 
-    const entries = await fs.readdir(safeDirPath);
+    const entries = await nativeFsPromises.readdir(safeDirPath);
     const safePaths: string[] = [];
 
     for (const entry of entries) {
@@ -219,8 +244,235 @@ export async function safeReadDir(
       throw error;
     }
     throw new PathSecurityError(
-      `Failed to read directory: ${error instanceof Error ? error.message : 'Unknown error'}`,
+      `Failed to read directory: ${
+        error instanceof Error ? error.message : 'Unknown error'
+      }`,
       dirPath
     );
   }
+}
+
+function getNodeRequire(): NodeRequireFunction | null {
+  // In renderer process, don't attempt to access Node.js require
+  if (typeof window !== 'undefined') {
+    return null;
+  }
+
+  if (typeof globalThis === 'undefined') {
+    return null;
+  }
+
+  const globalRequire = (globalThis as { require?: NodeRequireFunction })
+    .require;
+  if (typeof globalRequire === 'function') {
+    return globalRequire;
+  }
+
+  try {
+    const evaluated = eval(
+      'typeof require !== "undefined" ? require : undefined'
+    );
+    if (typeof evaluated === 'function') {
+      return evaluated as NodeRequireFunction;
+    }
+  } catch {
+    // Ignore lookup failures
+  }
+
+  const nonWebpack = (
+    globalThis as {
+      __non_webpack_require__?: NodeRequireFunction;
+    }
+  ).__non_webpack_require__;
+  if (typeof nonWebpack === 'function') {
+    return nonWebpack;
+  }
+
+  return null;
+}
+
+function safeRequire<T>(req: NodeRequireFunction, moduleId: string): T | null {
+  try {
+    return req(moduleId) as T;
+  } catch {
+    return null;
+  }
+}
+
+function createBrowserPathModule(): PathModule {
+  const sep = '/';
+
+  const normalize = (input: string): string => {
+    if (!input) {
+      return '.';
+    }
+
+    const normalizedInput = normalizeSlashes(input);
+    const { prefix, rest, absolute } = splitPrefix(normalizedInput);
+    const segments = collapseSegments(rest, absolute || Boolean(prefix));
+    const hadTrailingSlash =
+      rest.endsWith('/') || (rest === '' && normalizedInput.endsWith('/'));
+
+    let result = segments.join('/');
+    if (prefix) {
+      const base = absolute ? `${prefix}/` : `${prefix}`;
+      result = result ? `${base}${result}` : base;
+    } else if (absolute) {
+      result = result ? `/${result}` : '/';
+    } else if (!result) {
+      result = '.';
+    }
+
+    if (hadTrailingSlash && result !== '/' && !result.endsWith('/')) {
+      result += '/';
+    }
+
+    return result;
+  };
+
+  const isAbsolute = (value: string): boolean => {
+    const normalized = normalizeSlashes(value);
+    return (
+      normalized.startsWith('/') ||
+      /^[a-zA-Z]:\//.test(normalized) ||
+      normalized.startsWith('//')
+    );
+  };
+
+  const join = (...segments: string[]): string => {
+    if (!segments.length) {
+      return '.';
+    }
+
+    const filtered = segments
+      .filter(segment => typeof segment === 'string' && segment.length > 0)
+      .map(normalizeSlashes);
+
+    if (!filtered.length) {
+      return '.';
+    }
+
+    return normalize(filtered.join('/'));
+  };
+
+  const resolve = (...segments: string[]): string => {
+    if (!segments.length) {
+      return '.';
+    }
+
+    let resolved = '';
+    for (const segment of segments) {
+      if (!segment) {
+        continue;
+      }
+
+      if (isAbsolute(segment)) {
+        resolved = normalize(segment);
+      } else if (resolved) {
+        resolved = normalize(`${resolved}/${segment}`);
+      } else {
+        resolved = normalize(segment);
+      }
+    }
+
+    return resolved || '.';
+  };
+
+  return { sep, normalize, join, resolve, isAbsolute };
+}
+
+function normalizeSlashes(value: string): string {
+  return value.replace(/\\/g, '/');
+}
+
+function splitPrefix(value: string): {
+  prefix: string;
+  rest: string;
+  absolute: boolean;
+} {
+  if (value.startsWith('//')) {
+    const withoutSlashes = value.replace(/^\/+/, '');
+    const parts = withoutSlashes.split('/');
+    const host = parts.shift() ?? '';
+    const share = parts.shift() ?? '';
+    const prefix = `//${host}${share ? `/${share}` : ''}`;
+    const rest = parts.join('/');
+    return { prefix, rest, absolute: true };
+  }
+
+  const driveMatch = value.match(/^([a-zA-Z]:)(.*)$/);
+  if (driveMatch) {
+    const drive = driveMatch[1];
+    const remainder = driveMatch[2] || '';
+    const absolute = remainder.startsWith('/');
+    const rest = absolute ? remainder.slice(1) : remainder;
+    return { prefix: drive, rest, absolute };
+  }
+
+  const absolute = value.startsWith('/');
+  const rest = absolute ? value.slice(1) : value;
+  return { prefix: '', rest, absolute };
+}
+
+function collapseSegments(pathPart: string, absolute: boolean): string[] {
+  if (!pathPart) {
+    return [];
+  }
+
+  const rawSegments = pathPart.split('/');
+  const stack: string[] = [];
+
+  for (const segment of rawSegments) {
+    if (!segment || segment === '.') {
+      continue;
+    }
+
+    if (segment === '..') {
+      if (stack.length > 0) {
+        stack.pop();
+      } else if (!absolute) {
+        stack.push('..');
+      }
+      continue;
+    }
+
+    stack.push(segment);
+  }
+
+  return stack;
+}
+
+function toComparisonPath(pathValue: string): string {
+  const normalized = pathModule.normalize(pathValue);
+  const forward = normalizeSlashes(normalized);
+  if (forward.length > 1 && forward.endsWith('/')) {
+    return forward.replace(/\/+$/, '');
+  }
+  return forward;
+}
+
+function isWithinRoot(candidate: string, root: string): boolean {
+  const normalizedCandidate = toComparisonPath(candidate);
+  const normalizedRoot = toComparisonPath(root);
+
+  if (normalizedRoot === '/' || normalizedRoot === '') {
+    return normalizedCandidate.startsWith('/');
+  }
+
+  return (
+    normalizedCandidate === normalizedRoot ||
+    normalizedCandidate.startsWith(`${normalizedRoot}/`)
+  );
+}
+
+function formatOutputPath(pathValue: string, reference?: string): string {
+  if (nativePathModule) {
+    return pathValue;
+  }
+
+  if (reference && reference.includes('\\')) {
+    return pathValue.replace(/\//g, '\\');
+  }
+
+  return pathValue;
 }

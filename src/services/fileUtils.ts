@@ -2,7 +2,28 @@
  * File utility functions for cross-platform file operations
  * Provides case-insensitive file extension checking for Windows compatibility
  */
-import path from 'path';
+
+/**
+ * Browser-safe path.extname implementation
+ * @param filePath - The file path
+ * @returns The file extension (including the dot)
+ */
+const getFileExtension = (filePath: string): string => {
+  if (!filePath || typeof filePath !== 'string') return '';
+
+  const lastDotIndex = filePath.lastIndexOf('.');
+  const lastSlashIndex = Math.max(
+    filePath.lastIndexOf('/'),
+    filePath.lastIndexOf('\\')
+  );
+
+  // If there's no dot or the dot is before the last slash/backslash, no extension
+  if (lastDotIndex === -1 || lastDotIndex < lastSlashIndex) {
+    return '';
+  }
+
+  return filePath.substring(lastDotIndex);
+};
 
 /**
  * Check if a file has a specific extension (case-insensitive)
@@ -38,7 +59,7 @@ export const hasAnyExtension = (
  * @returns The lowercase extension (including the dot)
  */
 export const getExtension = (filePath: string): string => {
-  return path.extname(filePath).toLowerCase();
+  return getFileExtension(filePath).toLowerCase();
 };
 
 /**
