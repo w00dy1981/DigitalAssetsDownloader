@@ -22,11 +22,23 @@ export const useEventListeners = (listeners: EventListenerConfig[]) => {
         case 'menu-open-settings':
           ipcService.onMenuOpenSettings(handler);
           break;
+        case 'update-checking':
+          ipcService.onUpdateChecking(handler as () => void);
+          break;
         case 'update-available':
-          ipcService.onUpdateAvailable(handler as () => void);
+          ipcService.onUpdateAvailable(updateInfo => handler(updateInfo));
           break;
         case 'update-not-available':
-          ipcService.onUpdateNotAvailable(handler as () => void);
+          ipcService.onUpdateNotAvailable(updateInfo => handler(updateInfo));
+          break;
+        case 'update-download-progress':
+          ipcService.onUpdateDownloadProgress(progress => handler(progress));
+          break;
+        case 'update-downloaded':
+          ipcService.onUpdateDownloaded(updateInfo => handler(updateInfo));
+          break;
+        case 'update-error':
+          ipcService.onUpdateError(error => handler(error));
           break;
         default:
           logger.warn(

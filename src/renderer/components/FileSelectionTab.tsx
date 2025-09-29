@@ -1,79 +1,157 @@
 import React, { useState, useCallback } from 'react';
+import type { UpdateInfo } from 'electron-updater';
 import { SpreadsheetData } from '@/shared/types';
 import { logger } from '@/services/LoggingService';
 import { ipcService } from '@/services/IPCService';
 
 /**
- * Simple update notification banner - KISS implementation
+ * Update notification banner with inline update controls
  */
-const UpdateNotificationBanner: React.FC = () => {
-  const [isWorking, setIsWorking] = useState(false);
-  const [statusMessage, setStatusMessage] = useState<string | null>(null);
+interface UpdateNotificationBannerProps {
+  currentVersion: string;
+  updateInfo: UpdateInfo;
+  statusMessage?: string | null;
+  isChecking?: boolean;
+  isDownloading?: boolean;
+  isDownloaded?: boolean;
+  downloadProgress?: number | null;
+  onDownload?: () => void | Promise<void>;
+  onInstall?: () => void | Promise<void>;
+  onDismiss?: () => void;
+}
 
-  const handleUpdateClick = useCallback(async () => {
+const UpdateNotificationBanner: React.FC<UpdateNotificationBannerProps> = ({
+  currentVersion,
+  updateInfo,
+  statusMessage,
+  isChecking = false,
+  isDownloading = false,
+  isDownloaded = false,
+  downloadProgress,
+  onDownload,
+  onInstall,
+  onDismiss,
+}) => {
+  const progressValue = Math.max(0, Math.min(100, downloadProgress ?? 0));
+
+  const handleDownloadClick = async () => {
+    if (!onDownload) return;
     try {
-      setIsWorking(true);
-      setStatusMessage('Checking for updates...');
-
-      // Simple flow: trigger update check, then user can go to Settings to complete
-      await ipcService.checkForUpdates();
-
-      setStatusMessage(
-        'Update check initiated. Open the Settings tab to continue the process.'
-      );
-      setIsWorking(false);
+      await onDownload();
     } catch (error) {
       logger.error(
-        'Update check failed',
+        'UpdateBanner: Download failed',
         error instanceof Error ? error : new Error(String(error)),
         'UpdateBanner'
       );
-      setStatusMessage('Update check failed. Please try again later.');
-      setIsWorking(false);
     }
-  }, []);
+  };
+
+  const handleInstallClick = async () => {
+    if (!onInstall) return;
+    try {
+      await onInstall();
+    } catch (error) {
+      logger.error(
+        'UpdateBanner: Install failed',
+        error instanceof Error ? error : new Error(String(error)),
+        'UpdateBanner'
+      );
+    }
+  };
 
   return (
     <div
       style={{
-        background: 'linear-gradient(135deg, #28a745 0%, #20c997 100%)',
-        border: '1px solid #1e7e34',
-        borderRadius: '8px',
-        padding: '16px',
+        background: 'linear-gradient(135deg, #1a6fd6 0%, #4c8af0 100%)',
+        border: '1px solid #1456a3',
+        borderRadius: '12px',
+        padding: '18px',
         marginBottom: '20px',
         color: 'white',
         display: 'flex',
-        alignItems: 'center',
-        justifyContent: 'space-between',
+        flexDirection: 'column',
+        gap: '14px',
       }}
     >
-      <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
-        <span style={{ fontSize: '24px' }}>🔄</span>
-        <div>
-          <strong style={{ display: 'block', marginBottom: '4px' }}>
-            Update Available!
-          </strong>
-          <div style={{ fontSize: '14px', opacity: 0.9 }}>
-            A new version is ready to download.
-          </div>
+      <div>
+        <strong style={{ fontSize: '1.1rem' }}>
+          New version available: v{updateInfo.version}
+        </strong>
+        <div style={{ fontSize: '0.95rem', opacity: 0.9, marginTop: '4px' }}>
+          Current version: v{currentVersion}
         </div>
+        {statusMessage && (
+          <div style={{ fontSize: '0.9rem', marginTop: '8px' }}>
+            {statusMessage}
+          </div>
+        )}
+        {isChecking && (
+          <div style={{ fontSize: '0.85rem', marginTop: '8px', opacity: 0.85 }}>
+            Checking for updates...
+          </div>
+        )}
+        {isDownloading && (
+          <div style={{ marginTop: '10px' }}>
+            <div
+              style={{
+                backgroundColor: 'rgba(255, 255, 255, 0.2)',
+                borderRadius: '6px',
+                height: '8px',
+                overflow: 'hidden',
+              }}
+            >
+              <div
+                style={{
+                  width: `${progressValue}%`,
+                  backgroundColor: '#00d8ff',
+                  height: '100%',
+                  transition: 'width 0.3s ease',
+                }}
+              />
+            </div>
+            <div style={{ fontSize: '0.85rem', marginTop: '6px' }}>
+              Downloading update... {progressValue.toFixed(0)}%
+            </div>
+          </div>
+        )}
+        {isDownloaded && (
+          <div style={{ fontSize: '0.85rem', marginTop: '8px' }}>
+            Update downloaded. Restart to install when ready.
+          </div>
+        )}
       </div>
-      <button
-        className="btn btn-light"
-        onClick={handleUpdateClick}
-        disabled={isWorking}
-        style={{
-          fontWeight: '500',
-          opacity: isWorking ? 0.7 : 1,
-        }}
-      >
-        {isWorking ? 'Checking...' : 'Update Now'}
-      </button>
-      {statusMessage && (
-        <span className="ml-3" style={{ fontSize: '0.85rem' }}>
-          {statusMessage}
-        </span>
-      )}
+
+      <div style={{ display: 'flex', gap: '10px', flexWrap: 'wrap' }}>
+        <button
+          className="btn btn-light"
+          onClick={handleDownloadClick}
+          disabled={isDownloading || isDownloaded}
+          style={{ minWidth: '160px' }}
+        >
+          {isDownloading
+            ? `Downloading… ${progressValue.toFixed(0)}%`
+            : isDownloaded
+              ? 'Update Ready'
+              : 'Download Update'}
+        </button>
+        {isDownloaded && (
+          <button
+            className="btn btn-success"
+            onClick={handleInstallClick}
+            style={{ minWidth: '160px' }}
+          >
+            Install & Restart
+          </button>
+        )}
+        <button
+          className="btn btn-outline-light"
+          onClick={onDismiss}
+          style={{ minWidth: '140px' }}
+        >
+          Remind Me Later
+        </button>
+      </div>
     </div>
   );
 };
@@ -82,12 +160,30 @@ interface FileSelectionTabProps {
   onDataLoaded: (data: SpreadsheetData) => void;
   currentData: SpreadsheetData | null;
   hasUpdateAvailable?: boolean;
+  updateInfo?: UpdateInfo | null;
+  updateStatus?: string | null;
+  isCheckingForUpdate?: boolean;
+  isDownloadingUpdate?: boolean;
+  updateDownloadProgress?: number | null;
+  isUpdateDownloaded?: boolean;
+  onDownloadUpdate?: () => Promise<void> | void;
+  onInstallUpdate?: () => Promise<void> | void;
+  onUpdateHandled?: () => void;
 }
 
 const FileSelectionTab: React.FC<FileSelectionTabProps> = ({
   onDataLoaded,
   currentData,
   hasUpdateAvailable,
+  updateInfo,
+  updateStatus,
+  isCheckingForUpdate,
+  isDownloadingUpdate,
+  updateDownloadProgress,
+  isUpdateDownloaded,
+  onDownloadUpdate,
+  onInstallUpdate,
+  onUpdateHandled,
 }) => {
   const [selectedFile, setSelectedFile] = useState<string>('');
   const [availableSheets, setAvailableSheets] = useState<string[]>([]);
@@ -95,6 +191,41 @@ const FileSelectionTab: React.FC<FileSelectionTabProps> = ({
   const [isLoading, setIsLoading] = useState<boolean>(false);
   const [error, setError] = useState<string>('');
   const [isDragOver, setIsDragOver] = useState<boolean>(false);
+
+  const appVersion = process.env.APP_VERSION || 'development';
+  const showUpdateBanner = Boolean(hasUpdateAvailable && updateInfo);
+
+  const handleDownloadUpdate = useCallback(async () => {
+    if (!onDownloadUpdate) return;
+    try {
+      await onDownloadUpdate();
+    } catch (err) {
+      logger.error(
+        'FileSelectionTab: Update download failed',
+        err instanceof Error ? err : new Error(String(err)),
+        'FileSelectionTab'
+      );
+    }
+  }, [onDownloadUpdate]);
+
+  const handleInstallUpdate = useCallback(async () => {
+    if (!onInstallUpdate) return;
+    try {
+      await onInstallUpdate();
+    } catch (err) {
+      logger.error(
+        'FileSelectionTab: Update install failed',
+        err instanceof Error ? err : new Error(String(err)),
+        'FileSelectionTab'
+      );
+    }
+  }, [onInstallUpdate]);
+
+  const handleDismissUpdate = useCallback(() => {
+    if (onUpdateHandled) {
+      onUpdateHandled();
+    }
+  }, [onUpdateHandled]);
 
   const loadSheetNamesForFile = useCallback(async (filePath: string) => {
     if (filePath.toLowerCase().endsWith('.csv')) {
@@ -267,7 +398,20 @@ const FileSelectionTab: React.FC<FileSelectionTabProps> = ({
   return (
     <div className="tab-panel">
       {/* Update Notification Banner */}
-      {hasUpdateAvailable && <UpdateNotificationBanner />}
+      {showUpdateBanner && updateInfo && (
+        <UpdateNotificationBanner
+          currentVersion={appVersion}
+          updateInfo={updateInfo}
+          statusMessage={updateStatus ?? null}
+          isChecking={!!isCheckingForUpdate}
+          isDownloading={!!isDownloadingUpdate}
+          isDownloaded={!!isUpdateDownloaded}
+          downloadProgress={updateDownloadProgress ?? null}
+          onDownload={handleDownloadUpdate}
+          onInstall={handleInstallUpdate}
+          onDismiss={handleDismissUpdate}
+        />
+      )}
 
       <h2>File Selection</h2>
       <p>

@@ -1,4 +1,5 @@
-import React, { useState } from 'react';
+import React, { useState, useCallback } from 'react';
+import type { UpdateInfo } from 'electron-updater';
 import { SpreadsheetData, DownloadConfig } from '@/shared/types';
 import FileSelectionTab from './components/FileSelectionTab';
 import ColumnSelectionTab from './components/ColumnSelectionTab';
@@ -7,6 +8,7 @@ import SettingsTab from './components/SettingsTab';
 import { useEventListeners } from './hooks/useEventListeners';
 import { configurationService } from '@/services/ConfigurationService';
 import { logger } from '@/services/LoggingService';
+import { ipcService } from '@/services/IPCService';
 import { useStatusMessage } from './hooks/useStatusMessage';
 import './App.css';
 
@@ -22,7 +24,27 @@ const App: React.FC = () => {
   );
   // Simple update notification state - Issue #14
   const [hasUpdateAvailable, setHasUpdateAvailable] = useState<boolean>(false);
+  const [updateInfo, setUpdateInfo] = useState<UpdateInfo | null>(null);
+  const [updateStatus, setUpdateStatus] = useState<string | null>(null);
+  const [isCheckingForUpdate, setIsCheckingForUpdate] =
+    useState<boolean>(false);
+  const [isDownloadingUpdate, setIsDownloadingUpdate] =
+    useState<boolean>(false);
+  const [updateDownloadProgress, setUpdateDownloadProgress] = useState<
+    number | null
+  >(null);
+  const [isUpdateDownloaded, setIsUpdateDownloaded] = useState<boolean>(false);
   const [statusMessage, showStatusMessage] = useStatusMessage();
+
+  const clearUpdateNotification = useCallback(() => {
+    setHasUpdateAvailable(false);
+    setUpdateInfo(null);
+    setUpdateStatus(null);
+    setIsCheckingForUpdate(false);
+    setIsDownloadingUpdate(false);
+    setUpdateDownloadProgress(null);
+    setIsUpdateDownloaded(false);
+  }, []);
 
   // Event listeners using custom hook
   useEventListeners([
@@ -46,13 +68,78 @@ const App: React.FC = () => {
       dependencies: [],
     },
     {
+      channel: 'update-checking',
+      handler: () => {
+        setIsCheckingForUpdate(true);
+        setUpdateStatus('Checking for updates...');
+        setIsDownloadingUpdate(false);
+        setUpdateDownloadProgress(null);
+      },
+      dependencies: [],
+    },
+    {
       channel: 'update-available',
-      handler: () => setHasUpdateAvailable(true),
+      handler: info => {
+        setHasUpdateAvailable(true);
+        setUpdateInfo((info as UpdateInfo) ?? null);
+        setIsCheckingForUpdate(false);
+        setIsDownloadingUpdate(false);
+        setUpdateDownloadProgress(null);
+        setIsUpdateDownloaded(false);
+        setUpdateStatus('Update available. Ready to download.');
+      },
       dependencies: [],
     },
     {
       channel: 'update-not-available',
-      handler: () => setHasUpdateAvailable(false),
+      handler: () => {
+        clearUpdateNotification();
+        setUpdateStatus('You are running the latest version.');
+      },
+      dependencies: [clearUpdateNotification],
+    },
+    {
+      channel: 'update-download-progress',
+      handler: progress => {
+        const percent =
+          typeof (progress as { percent?: number }).percent === 'number'
+            ? ((progress as { percent?: number }).percent as number)
+            : 0;
+        setIsDownloadingUpdate(true);
+        setIsCheckingForUpdate(false);
+        setUpdateDownloadProgress(percent);
+        setUpdateStatus(`Downloading update... ${Math.round(percent)}%`);
+      },
+      dependencies: [],
+    },
+    {
+      channel: 'update-downloaded',
+      handler: info => {
+        setIsDownloadingUpdate(false);
+        setIsCheckingForUpdate(false);
+        setUpdateDownloadProgress(100);
+        setIsUpdateDownloaded(true);
+        if (info) {
+          setUpdateInfo((info as UpdateInfo) ?? null);
+        }
+        setHasUpdateAvailable(true);
+        setUpdateStatus('Update downloaded. Ready to install.');
+      },
+      dependencies: [],
+    },
+    {
+      channel: 'update-error',
+      handler: errorMessage => {
+        const message =
+          typeof errorMessage === 'string'
+            ? errorMessage
+            : 'An unexpected error occurred during update.';
+        setUpdateStatus(`Update error: ${message}`);
+        setIsCheckingForUpdate(false);
+        setIsDownloadingUpdate(false);
+        setUpdateDownloadProgress(null);
+        logger.error('App: Auto-update error', new Error(message), 'App');
+      },
       dependencies: [],
     },
   ]);
@@ -111,6 +198,39 @@ const App: React.FC = () => {
     // Settings tab (index 3) is always accessible
     setActiveTab(tabIndex);
   };
+
+  const handleDownloadUpdate = useCallback(async () => {
+    try {
+      setUpdateStatus('Starting update download...');
+      setIsCheckingForUpdate(false);
+      setIsDownloadingUpdate(true);
+      await ipcService.downloadUpdate();
+    } catch (error) {
+      const message = error instanceof Error ? error.message : String(error);
+      setUpdateStatus(`Download failed: ${message}`);
+      setIsDownloadingUpdate(false);
+      logger.error(
+        'App: Update download failed',
+        error instanceof Error ? error : new Error(message),
+        'App'
+      );
+    }
+  }, []);
+
+  const handleInstallUpdate = useCallback(async () => {
+    try {
+      setUpdateStatus('Installing update...');
+      await ipcService.installUpdate();
+    } catch (error) {
+      const message = error instanceof Error ? error.message : String(error);
+      setUpdateStatus(`Install failed: ${message}`);
+      logger.error(
+        'App: Update install failed',
+        error instanceof Error ? error : new Error(message),
+        'App'
+      );
+    }
+  }, []);
 
   return (
     <div className="app">
@@ -172,6 +292,15 @@ const App: React.FC = () => {
             onDataLoaded={handleDataLoaded}
             currentData={spreadsheetData}
             hasUpdateAvailable={hasUpdateAvailable}
+            updateInfo={updateInfo}
+            updateStatus={updateStatus}
+            isCheckingForUpdate={isCheckingForUpdate}
+            isDownloadingUpdate={isDownloadingUpdate}
+            updateDownloadProgress={updateDownloadProgress}
+            isUpdateDownloaded={isUpdateDownloaded}
+            onDownloadUpdate={handleDownloadUpdate}
+            onInstallUpdate={handleInstallUpdate}
+            onUpdateHandled={clearUpdateNotification}
           />
         )}
         {activeTab === 1 && spreadsheetData && (
