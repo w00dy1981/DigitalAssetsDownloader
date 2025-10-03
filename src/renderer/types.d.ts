@@ -55,6 +55,7 @@ declare global {
       // Remove listeners
       removeAllListeners: (channel: IpcChannelType) => void;
     };
+    require: (module: string) => any;
   }
 
   // Extend File interface to include path property (for Electron)
