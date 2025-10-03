@@ -50,6 +50,9 @@ module.exports = {
   plugins: [
     new HtmlWebpackPlugin({
       template: './src/renderer/index.html',
+      inject: true,              // Explicitly inject scripts for cross-platform reliability
+      scriptLoading: 'blocking', // Ensure blocking load for Electron
+      cache: false,              // Prevent caching issues on Windows builds
     }),
     new webpack.DefinePlugin({
       'process.env.APP_VERSION': JSON.stringify(packageJson.version),
