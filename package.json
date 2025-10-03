@@ -116,6 +116,7 @@
           "x64"
         ]
       },
+      "icon": "build/icon.png",
       "artifactName": "${productName}-Setup-${version}.${ext}",
       "requestedExecutionLevel": "asInvoker"
     },
