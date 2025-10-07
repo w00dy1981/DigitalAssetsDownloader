@@ -292,7 +292,6 @@ describe('IPCService', () => {
       updateSettings: {
         enableAutoUpdates: true,
         checkForUpdatesOnStartup: true,
-        updateChannel: 'stable',
         downloadUpdatesAutomatically: false,
       },
     };

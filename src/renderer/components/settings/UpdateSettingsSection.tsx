@@ -213,25 +213,6 @@ export const UpdateSettingsSection: React.FC<UpdateSettingsSectionProps> = ({
       </div>
 
       <div className="form-group">
-        <label htmlFor="update-channel">Update channel</label>
-        <select
-          id="update-channel"
-          value={settings.updateSettings.updateChannel}
-          onChange={e =>
-            handleUpdateSettingChange('updateChannel', e.target.value)
-          }
-          className="form-control"
-          disabled={!settings.updateSettings.enableAutoUpdates}
-        >
-          <option value="stable">Stable (recommended)</option>
-          <option value="beta">Beta (early access)</option>
-        </select>
-        <small className="text-muted">
-          Stable releases are tested and recommended for production use
-        </small>
-      </div>
-
-      <div className="form-group">
         <label>
           <input
             type="checkbox"

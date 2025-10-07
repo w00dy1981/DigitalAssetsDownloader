@@ -147,7 +147,6 @@ describe('ConfigurationService', () => {
         updateSettings: {
           enableAutoUpdates: true,
           checkForUpdatesOnStartup: true,
-          updateChannel: 'stable',
           downloadUpdatesAutomatically: false,
         },
       };

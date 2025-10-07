@@ -108,7 +108,6 @@ export interface UserSettings {
   updateSettings: {
     enableAutoUpdates: boolean; // Enable/disable automatic updates
     checkForUpdatesOnStartup: boolean; // Check for updates when app starts
-    updateChannel: 'stable' | 'beta'; // Update channel preference
     downloadUpdatesAutomatically: boolean; // Auto-download vs prompt user
   };
   // Enhanced configuration options (Issue #23)

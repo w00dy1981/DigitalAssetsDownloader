@@ -106,7 +106,6 @@ describe('AppConstantsService', () => {
         updateSettings: {
           enableAutoUpdates: true,
           checkForUpdatesOnStartup: true,
-          updateChannel: 'stable',
           downloadUpdatesAutomatically: false,
         },
       };
@@ -148,7 +147,6 @@ describe('AppConstantsService', () => {
         updateSettings: {
           enableAutoUpdates: true,
           checkForUpdatesOnStartup: true,
-          updateChannel: 'stable',
           downloadUpdatesAutomatically: false,
         },
         advanced: {
@@ -221,7 +219,6 @@ describe('AppConstantsService', () => {
         updateSettings: {
           enableAutoUpdates: true,
           checkForUpdatesOnStartup: true,
-          updateChannel: 'stable',
           downloadUpdatesAutomatically: false,
         },
       };
