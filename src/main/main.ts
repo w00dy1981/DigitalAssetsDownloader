@@ -613,39 +613,46 @@ class DigitalAssetDownloaderApp {
       return new Promise((resolve, reject) => {
         let resolved = false;
 
-        // Set up one-time listeners for this specific check
-        const cleanup = () => {
-          autoUpdater.removeAllListeners('update-available');
-          autoUpdater.removeAllListeners('update-not-available');
-          autoUpdater.removeAllListeners('error');
+        const handleCleanup = () => {
+          autoUpdater.removeListener(
+            'update-available',
+            handleUpdateAvailable
+          );
+          autoUpdater.removeListener(
+            'update-not-available',
+            handleUpdateNotAvailable
+          );
+          autoUpdater.removeListener('error', handleUpdateError);
         };
 
         const handleResponse = (type: string, data?: any) => {
           if (!resolved) {
             resolved = true;
-            cleanup();
+            handleCleanup();
             log.info(`Update check completed with result: ${type}`, data);
             resolve({ type, data });
           }
         };
 
-        // Set up temporary event listeners for this check
-        autoUpdater.once('update-available', info => {
+        const handleUpdateAvailable = (info: any) =>
           handleResponse('available', info);
-        });
-
-        autoUpdater.once('update-not-available', info => {
+        const handleUpdateNotAvailable = (info: any) =>
           handleResponse('not-available', info);
-        });
+        const handleUpdateError = (err: unknown) =>
+          handleResponse(
+            'error',
+            err instanceof Error ? err.message : String(err)
+          );
 
-        autoUpdater.once('error', err => {
-          handleResponse('error', err.message);
-        });
+        // Set up temporary event listeners for this check
+        autoUpdater.on('update-available', handleUpdateAvailable);
+        autoUpdater.on('update-not-available', handleUpdateNotAvailable);
+        autoUpdater.on('error', handleUpdateError);
 
         // Add timeout to catch silent failures
         const timeoutId = setTimeout(() => {
           if (!resolved) {
-            cleanup();
+            handleCleanup();
             const timeout =
               appConstants.getNetworkTimeouts().updateCheckTimeout;
             console.error(
