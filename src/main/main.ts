@@ -614,10 +614,7 @@ class DigitalAssetDownloaderApp {
         let resolved = false;
 
         const handleCleanup = () => {
-          autoUpdater.removeListener(
-            'update-available',
-            handleUpdateAvailable
-          );
+          autoUpdater.removeListener('update-available', handleUpdateAvailable);
           autoUpdater.removeListener(
             'update-not-available',
             handleUpdateNotAvailable

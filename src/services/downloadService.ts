@@ -780,6 +780,13 @@ export class DownloadService extends EventEmitter {
       const networkImagePaths: string[] = [];
       const urls: string[] = [];
 
+      // Current workflow: Multiple image columns represent fallback sources for the same product
+      // (e.g., different competitor websites). All columns use the same filename intentionally,
+      // so whichever source succeeds provides the image for that part number.
+      //
+      // Future enhancement: Could add a filenameStrategy config option:
+      //   'partNumber' (current): Same filename for all columns (fallback sources)
+      //   'partNumber_columnIndex': Unique per column (e.g., front/side/back views)
       for (const column of config.imageColumns) {
         const url = row[column];
         if (url) {
@@ -968,52 +975,66 @@ export class DownloadService extends EventEmitter {
 
   /**
    * Process a batch of download items
+   * Downloads are processed in parallel up to maxWorkers concurrency
    */
   private async processBatch(
     batch: DownloadJobItem[],
     config: DownloadConfig,
     logFile: string
   ): Promise<void> {
+    // Collect all download tasks from the batch
+    const downloadTasks: Array<{
+      item: DownloadJobItem;
+      url: string;
+      filePath: string;
+      networkPath: string;
+      type: 'image' | 'pdf';
+    }> = [];
+
     for (const item of batch) {
+      // Add image downloads
+      for (let i = 0; i < item.imageFilePaths.length; i++) {
+        downloadTasks.push({
+          item,
+          url: item.urls[i],
+          filePath: item.imageFilePaths[i],
+          networkPath: item.networkImagePaths[i],
+          type: 'image',
+        });
+      }
+
+      // Add PDF download if present
+      if (item.pdfFilePath && item.pdfUrl) {
+        downloadTasks.push({
+          item,
+          url: item.pdfUrl,
+          filePath: item.pdfFilePath,
+          networkPath: item.networkPdfPath!,
+          type: 'pdf',
+        });
+      }
+    }
+
+    // Process downloads in parallel chunks respecting maxWorkers
+    for (let i = 0; i < downloadTasks.length; i += config.maxWorkers) {
       if (this.cancelled || this.currentAbortController?.signal.aborted) break;
 
-      // Download images sequentially with cancellation checks
-      for (let i = 0; i < item.imageFilePaths.length; i++) {
-        if (this.cancelled || this.currentAbortController?.signal.aborted)
-          break;
+      const chunk = downloadTasks.slice(i, i + config.maxWorkers);
 
-        const url = item.urls[i];
-        const filePath = item.imageFilePaths[i];
-        const networkPath = item.networkImagePaths[i];
-
-        await this.downloadSingleFile(
-          item,
-          url,
-          filePath,
-          networkPath,
-          'image',
-          config,
-          logFile
-        );
-      }
-
-      // Download PDF if not cancelled
-      if (
-        !this.cancelled &&
-        !this.currentAbortController?.signal.aborted &&
-        item.pdfFilePath &&
-        item.pdfUrl
-      ) {
-        await this.downloadSingleFile(
-          item,
-          item.pdfUrl,
-          item.pdfFilePath,
-          item.networkPdfPath!,
-          'pdf',
-          config,
-          logFile
-        );
-      }
+      // Execute chunk in parallel
+      await Promise.allSettled(
+        chunk.map(task =>
+          this.downloadSingleFile(
+            task.item,
+            task.url,
+            task.filePath,
+            task.networkPath,
+            task.type,
+            config,
+            logFile
+          )
+        )
+      );
     }
   }
 
@@ -1133,7 +1154,7 @@ export class DownloadService extends EventEmitter {
         result.httpStatus || 0,
         `"${result.contentType || ''}"`,
         result.fileSize || 0,
-        `"${result.error || result.success ? 'Success' : 'Unknown error'}"`,
+        `"${result.success ? 'Success' : result.error || 'Unknown error'}"`,
         `"${localPath}"`,
         `"${networkPath}"`,
         backgroundProcessed,
