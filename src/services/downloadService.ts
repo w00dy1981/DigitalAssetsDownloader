@@ -106,14 +106,13 @@ export class DownloadService extends EventEmitter {
         { throwOnError: false }
       );
       logger.error(
-        'Advanced image processing failed, attempting basic PNG to JPEG conversion',
+        'Image processing failed',
         processedError,
         'DownloadService'
       );
 
-      // With @napi-rs/canvas, we don't need a fallback - throw error to fail download properly
       throw new Error(
-        `Cannot convert PNG to JPEG - image processing failed: ${processedError.message}`
+        `Image conversion failed: ${processedError.message}`
       );
     }
   }
@@ -289,7 +288,7 @@ export class DownloadService extends EventEmitter {
         let processedContent = content;
         let backgroundProcessed = false;
 
-        const isImageFile = /\.(jpg|jpeg|png|gif|bmp)$/i.test(url);
+        const isImageFile = /\.(jpg|jpeg|png|gif|bmp|webp)$/i.test(url);
         if (isImageFile) {
           try {
             const result = await this.convertToJpg(
@@ -387,7 +386,8 @@ export class DownloadService extends EventEmitter {
   }> {
     const headers = {
       'User-Agent':
-        'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36',
+        'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
+      Accept: 'image/webp,image/avif,image/png,image/jpeg,image/*,*/*;q=0.8',
     };
 
     for (let attempt = 0; attempt < retryCount; attempt++) {
@@ -443,6 +443,15 @@ export class DownloadService extends EventEmitter {
           message: 'Success',
         };
       } catch (error) {
+        // 404 is permanent — skip retries immediately
+        if (axios.isAxiosError(error) && error.response?.status === 404) {
+          return {
+            success: false,
+            httpStatus: 404,
+            message: 'File not found (404)',
+          };
+        }
+
         if (attempt === retryCount - 1) {
           // Last attempt failed
           if (axios.isAxiosError(error)) {
@@ -600,7 +609,7 @@ export class DownloadService extends EventEmitter {
         let processedContent = sourceResult.content;
         let backgroundProcessed = false;
 
-        const isImageFile = /\.(jpg|jpeg|png|gif|bmp)$/i.test(
+        const isImageFile = /\.(jpg|jpeg|png|gif|bmp|webp)$/i.test(
           sourceResult.filePath
         );
         if (isImageFile) {

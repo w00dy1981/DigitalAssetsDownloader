@@ -344,4 +344,36 @@ describe('ImageProcessingService', () => {
       expect(needsProcessing).toBe(true);
     });
   });
+
+  describe('WebP Fallback Handling', () => {
+    test('should return original WebP buffer when Jimp cannot decode it', async () => {
+      const { Jimp } = require('jimp');
+      Jimp.fromBuffer.mockRejectedValueOnce(
+        new Error('Could not find MIME for Buffer')
+      );
+
+      // Valid WebP magic bytes: RIFF + 4 padding bytes + WEBP
+      const webpBuffer = Buffer.concat([
+        Buffer.from('RIFF', 'ascii'),
+        Buffer.from([0x00, 0x00, 0x00, 0x00]),
+        Buffer.from('WEBP', 'ascii'),
+      ]);
+
+      const result = await service.convertToJpeg(webpBuffer);
+      expect(result.buffer).toBe(webpBuffer);
+      expect(result.backgroundProcessed).toBe(false);
+      expect(result.format).toBe('webp');
+    });
+
+    test('should process WebP files in background processing detection', async () => {
+      const webpBuffer = Buffer.concat([
+        Buffer.from('RIFF', 'ascii'),
+        Buffer.from([0x00, 0x00, 0x00, 0x00]),
+        Buffer.from('WEBP', 'ascii'),
+      ]);
+      const needsProcessing =
+        await service.needsBackgroundProcessing(webpBuffer);
+      expect(needsProcessing).toBe(true);
+    });
+  });
 });

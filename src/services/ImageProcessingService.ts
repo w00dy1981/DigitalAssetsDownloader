@@ -265,6 +265,23 @@ export class ImageProcessingService {
         height: originalHeight,
       };
     } catch (error) {
+      // Jimp v1.x has incomplete WebP decoder support. If a WebP image fails to
+      // load, return the original buffer so the download succeeds rather than
+      // failing the entire operation.
+      const format = this.detectImageFormat(imageBuffer);
+      if (format === 'webp') {
+        logger.warn(
+          'WebP image could not be processed by Jimp — saving original WebP buffer',
+          'ImageProcessingService',
+          { bufferSize: imageBuffer.length }
+        );
+        return {
+          buffer: imageBuffer,
+          backgroundProcessed: false,
+          format: 'webp',
+        };
+      }
+
       const processedError = errorHandler.handleError(
         error,
         'ImageProcessingService',
@@ -276,7 +293,6 @@ export class ImageProcessingService {
         'ImageProcessingService'
       );
 
-      // Throw error instead of returning original buffer (better error visibility)
       throw new Error(`Image conversion failed: ${processedError.message}`);
     }
   }
