@@ -288,8 +288,8 @@ export class DownloadService extends EventEmitter {
         let processedContent = content;
         let backgroundProcessed = false;
 
-        const isImageFile = /\.(jpg|jpeg|png|gif|bmp|webp)$/i.test(url);
-        if (isImageFile) {
+        const shouldProcessImage = isImageFile(path.basename(safeUrl));
+        if (shouldProcessImage) {
           try {
             const result = await this.convertToJpg(
               content,
@@ -387,7 +387,7 @@ export class DownloadService extends EventEmitter {
     const headers = {
       'User-Agent':
         'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
-      Accept: 'image/webp,image/avif,image/png,image/jpeg,image/*,*/*;q=0.8',
+      Accept: 'image/webp,image/png,image/jpeg,image/*,*/*;q=0.8',
     };
 
     for (let attempt = 0; attempt < retryCount; attempt++) {
@@ -609,10 +609,8 @@ export class DownloadService extends EventEmitter {
         let processedContent = sourceResult.content;
         let backgroundProcessed = false;
 
-        const isImageFile = /\.(jpg|jpeg|png|gif|bmp|webp)$/i.test(
-          sourceResult.filePath
-        );
-        if (isImageFile) {
+        const shouldProcessImage = isImageFile(sourceResult.filePath);
+        if (shouldProcessImage) {
           try {
             const result = await this.convertToJpg(
               sourceResult.content,

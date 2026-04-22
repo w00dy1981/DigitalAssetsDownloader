@@ -8,6 +8,7 @@ import {
   imageProcessor,
   ImageProcessingOptions,
 } from './ImageProcessingService';
+import { Jimp } from 'jimp';
 
 // Mock logger and error handler
 jest.mock('./LoggingService', () => ({
@@ -347,8 +348,7 @@ describe('ImageProcessingService', () => {
 
   describe('WebP Fallback Handling', () => {
     test('should return original WebP buffer when Jimp cannot decode it', async () => {
-      const { Jimp } = require('jimp');
-      Jimp.fromBuffer.mockRejectedValueOnce(
+      (Jimp.fromBuffer as jest.Mock).mockRejectedValueOnce(
         new Error('Could not find MIME for Buffer')
       );
 
