@@ -716,7 +716,9 @@ export class DownloadService extends EventEmitter {
         httpResult.httpStatus || 200,
         httpResult.contentType || '',
         httpResult.content!.length,
-        httpResult.message || 'Success',
+        httpResult.actualFormat === 'webp'
+          ? 'Success (WebP saved — JPEG conversion not supported for this image)'
+          : httpResult.message || 'Success',
         httpResult.backgroundProcessed || false
       );
     } catch (error) {
