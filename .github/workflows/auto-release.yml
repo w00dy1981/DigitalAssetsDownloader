@@ -35,9 +35,8 @@ jobs:
       - name: Install Wine (for Windows builds on Linux)
         run: |
           sudo apt update
-          sudo dpkg --add-architecture i386
-          sudo apt update
-          sudo apt install -y wine64 wine32:i386
+          sudo apt install -y wine64
+          sudo update-alternatives --install /usr/bin/wine wine /usr/bin/wine64 100
           wine --version
 
       - name: Run tests
