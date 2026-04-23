@@ -50,9 +50,8 @@ jobs:
       - name: Check if version bump needed
         id: version-check
         run: |
-          # Check if this is a version bump commit (only check first line of commit message)
-          commit_first_line="${{ github.event.head_commit.message }}"
-          commit_first_line="${commit_first_line%%$'\n'*}"  # Get only first line
+          # Read the checked-out commit subject to avoid multiline shell interpolation issues.
+          commit_first_line="$(git log -1 --pretty=%s)"
           if [[ "$commit_first_line" =~ ^[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
             echo "skip-bump=true" >> $GITHUB_OUTPUT
           else
@@ -63,9 +62,8 @@ jobs:
         id: bump-type
         if: steps.version-check.outputs.skip-bump == 'false'
         run: |
-          # Use first line of commit message for version bump detection
-          commit_first_line="${{ github.event.head_commit.message }}"
-          commit_first_line="${commit_first_line%%$'\n'*}"  # Get only first line
+          # Read the checked-out commit subject to avoid multiline shell interpolation issues.
+          commit_first_line="$(git log -1 --pretty=%s)"
           
           # Major release indicators
           if [[ "$commit_first_line" =~ (BREAKING|major|Major|MAJOR) ]]; then
