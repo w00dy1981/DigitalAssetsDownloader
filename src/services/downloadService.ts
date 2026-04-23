@@ -1030,14 +1030,19 @@ export class DownloadService extends EventEmitter {
       }
     }
 
-    // Process downloads in parallel chunks respecting maxWorkers
+    // Collect all results from parallel chunks
+    const allResults: Array<{
+      item: DownloadJobItem;
+      result: DownloadResult;
+      type: 'image' | 'pdf';
+    }> = [];
+
     for (let i = 0; i < downloadTasks.length; i += config.maxWorkers) {
       if (this.cancelled || this.currentAbortController?.signal.aborted) break;
 
       const chunk = downloadTasks.slice(i, i + config.maxWorkers);
 
-      // Execute chunk in parallel
-      await Promise.allSettled(
+      const settled = await Promise.allSettled(
         chunk.map(task =>
           this.downloadSingleFile(
             task.item,
@@ -1045,16 +1050,59 @@ export class DownloadService extends EventEmitter {
             task.filePath,
             task.networkPath,
             task.type,
-            config,
-            logFile
+            config
           )
         )
       );
+
+      for (const s of settled) {
+        if (s.status === 'fulfilled') allResults.push(s.value);
+      }
+    }
+
+    // Aggregate results by product (rowNumber), keeping best result per type
+    const productMap = new Map<
+      number,
+      { item: DownloadJobItem; imageResult?: DownloadResult; pdfResult?: DownloadResult }
+    >();
+
+    for (const { item, result, type } of allResults) {
+      if (!productMap.has(item.rowNumber)) {
+        productMap.set(item.rowNumber, { item });
+      }
+      const entry = productMap.get(item.rowNumber)!;
+      if (type === 'image') {
+        // Prefer the first successful image; otherwise keep updating until success
+        if (!entry.imageResult || result.success) entry.imageResult = result;
+      } else {
+        if (!entry.pdfResult || result.success) entry.pdfResult = result;
+      }
+    }
+
+    // Write one row per product in original spreadsheet order
+    const sortedProducts = Array.from(productMap.entries()).sort(([a], [b]) => a - b);
+
+    for (const [, { item, imageResult, pdfResult }] of sortedProducts) {
+      const productDataSheet = item.pdfFilePath ? `${item.partNumber}.PDF` : '';
+
+      if (imageResult) {
+        // Normal case: use image result; Photo File Path comes from image network path
+        await this.writeToLog(logFile, item, imageResult, productDataSheet);
+      } else if (pdfResult) {
+        // PDF-only product: use PDF result for status/URL info but clear image path columns
+        const logResult: DownloadResult = {
+          ...pdfResult,
+          filePath: '',
+          networkPath: '',
+        };
+        await this.writeToLog(logFile, item, logResult, productDataSheet);
+      }
     }
   }
 
   /**
-   * Download a single file and log the result
+   * Download a single file and return the result for aggregation.
+   * Progress counters are updated here; log writing is deferred to processBatch.
    */
   private async downloadSingleFile(
     item: DownloadJobItem,
@@ -1062,10 +1110,15 @@ export class DownloadService extends EventEmitter {
     filePath: string,
     networkPath: string,
     type: 'image' | 'pdf',
-    config: DownloadConfig,
-    logFile: string
-  ): Promise<void> {
-    if (this.cancelled) return;
+    config: DownloadConfig
+  ): Promise<{ item: DownloadJobItem; result: DownloadResult; type: 'image' | 'pdf' }> {
+    if (this.cancelled) {
+      return {
+        item,
+        result: { success: false, url, filePath, networkPath, error: 'Cancelled', backgroundProcessed: false },
+        type,
+      };
+    }
 
     const filename = path.basename(filePath);
     this.updateProgress({ currentFile: filename });
@@ -1095,14 +1148,13 @@ export class DownloadService extends EventEmitter {
         this.progress.failed++;
       }
 
-      // Log to CSV
-      await this.writeToLog(logFile, item, result);
-
       this.updateProgress({
         successful: this.progress.successful,
         failed: this.progress.failed,
         backgroundProcessed: this.progress.backgroundProcessed,
       });
+
+      return { item, result, type };
     } catch (error) {
       this.progress.failed++;
 
@@ -1115,11 +1167,9 @@ export class DownloadService extends EventEmitter {
         backgroundProcessed: false,
       };
 
-      await this.writeToLog(logFile, item, failedResult);
+      this.updateProgress({ failed: this.progress.failed });
 
-      this.updateProgress({
-        failed: this.progress.failed,
-      });
+      return { item, result: failedResult, type };
     }
   }
 
@@ -1139,6 +1189,7 @@ export class DownloadService extends EventEmitter {
       'Message',
       'Local File Path',
       'Photo File Path',
+      'Product Data Sheet',
       'Background Processed',
     ];
 
@@ -1153,7 +1204,8 @@ export class DownloadService extends EventEmitter {
   private async writeToLog(
     logFile: string,
     item: DownloadJobItem,
-    result: DownloadResult
+    result: DownloadResult,
+    productDataSheet: string
   ): Promise<void> {
     try {
       const status = result.success ? 'Success' : 'Failure';
@@ -1172,6 +1224,7 @@ export class DownloadService extends EventEmitter {
         `"${result.success ? 'Success' : result.error || 'Unknown error'}"`,
         `"${localPath}"`,
         `"${networkPath}"`,
+        `"${productDataSheet}"`,
         backgroundProcessed,
       ];
 
