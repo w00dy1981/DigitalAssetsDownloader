@@ -8,6 +8,7 @@ import {
   imageProcessor,
   ImageProcessingOptions,
 } from './ImageProcessingService';
+import { Jimp } from 'jimp';
 
 // Mock logger and error handler
 jest.mock('./LoggingService', () => ({
@@ -341,6 +342,37 @@ describe('ImageProcessingService', () => {
       ]);
       const needsProcessing =
         await service.needsBackgroundProcessing(pngBuffer);
+      expect(needsProcessing).toBe(true);
+    });
+  });
+
+  describe('WebP Fallback Handling', () => {
+    test('should return original WebP buffer when Jimp cannot decode it', async () => {
+      (Jimp.fromBuffer as jest.Mock).mockRejectedValueOnce(
+        new Error('Could not find MIME for Buffer')
+      );
+
+      // Valid WebP magic bytes: RIFF + 4 padding bytes + WEBP
+      const webpBuffer = Buffer.concat([
+        Buffer.from('RIFF', 'ascii'),
+        Buffer.from([0x00, 0x00, 0x00, 0x00]),
+        Buffer.from('WEBP', 'ascii'),
+      ]);
+
+      const result = await service.convertToJpeg(webpBuffer);
+      expect(result.buffer).toBe(webpBuffer);
+      expect(result.backgroundProcessed).toBe(false);
+      expect(result.format).toBe('webp');
+    });
+
+    test('should process WebP files in background processing detection', async () => {
+      const webpBuffer = Buffer.concat([
+        Buffer.from('RIFF', 'ascii'),
+        Buffer.from([0x00, 0x00, 0x00, 0x00]),
+        Buffer.from('WEBP', 'ascii'),
+      ]);
+      const needsProcessing =
+        await service.needsBackgroundProcessing(webpBuffer);
       expect(needsProcessing).toBe(true);
     });
   });
