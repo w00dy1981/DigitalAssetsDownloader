@@ -69,6 +69,7 @@ export interface DownloadResult {
   contentType?: string;
   fileSize?: number;
   backgroundProcessed: boolean;
+  cancelled?: boolean;
 }
 
 export interface WindowState {

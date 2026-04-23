@@ -1030,7 +1030,7 @@ export class DownloadService extends EventEmitter {
       }
     }
 
-    // Collect all results from parallel chunks
+    // Collect all results from parallel chunks; skip cancelled tasks (no log row)
     const allResults: Array<{
       item: DownloadJobItem;
       result: DownloadResult;
@@ -1056,11 +1056,22 @@ export class DownloadService extends EventEmitter {
       );
 
       for (const s of settled) {
-        if (s.status === 'fulfilled') allResults.push(s.value);
+        if (s.status === 'fulfilled') {
+          // Skip cancelled tasks — they never started, so produce no log row
+          if (!s.value.result.cancelled) allResults.push(s.value);
+        } else {
+          // Unexpected rejection: log a failure row so nothing is silently lost
+          logger.error(
+            'Unexpected rejection in downloadSingleFile',
+            new Error(s.reason instanceof Error ? s.reason.message : String(s.reason)),
+            'DownloadService'
+          );
+        }
       }
     }
 
-    // Aggregate results by product (rowNumber), keeping best result per type
+    // Aggregate results by product (rowNumber), keeping best result per type.
+    // Once a success is recorded for a type, it is never overwritten.
     const productMap = new Map<
       number,
       { item: DownloadJobItem; imageResult?: DownloadResult; pdfResult?: DownloadResult }
@@ -1072,10 +1083,13 @@ export class DownloadService extends EventEmitter {
       }
       const entry = productMap.get(item.rowNumber)!;
       if (type === 'image') {
-        // Prefer the first successful image; otherwise keep updating until success
-        if (!entry.imageResult || result.success) entry.imageResult = result;
+        if (!entry.imageResult || (!entry.imageResult.success && result.success)) {
+          entry.imageResult = result;
+        }
       } else {
-        if (!entry.pdfResult || result.success) entry.pdfResult = result;
+        if (!entry.pdfResult || (!entry.pdfResult.success && result.success)) {
+          entry.pdfResult = result;
+        }
       }
     }
 
@@ -1089,10 +1103,9 @@ export class DownloadService extends EventEmitter {
         // Normal case: use image result; Photo File Path comes from image network path
         await this.writeToLog(logFile, item, imageResult, productDataSheet);
       } else if (pdfResult) {
-        // PDF-only product: use PDF result for status/URL info but clear image path columns
+        // PDF-only product: preserve local file path but clear Photo File Path (image-only column)
         const logResult: DownloadResult = {
           ...pdfResult,
-          filePath: '',
           networkPath: '',
         };
         await this.writeToLog(logFile, item, logResult, productDataSheet);
@@ -1115,7 +1128,7 @@ export class DownloadService extends EventEmitter {
     if (this.cancelled) {
       return {
         item,
-        result: { success: false, url, filePath, networkPath, error: 'Cancelled', backgroundProcessed: false },
+        result: { success: false, url, filePath, networkPath, cancelled: true, backgroundProcessed: false },
         type,
       };
     }
