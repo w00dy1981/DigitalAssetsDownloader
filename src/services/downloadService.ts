@@ -75,7 +75,7 @@ export class DownloadService extends EventEmitter {
     imageBuffer: Buffer,
     quality = appConstants.getDefaultQuality(),
     config?: DownloadConfig
-  ): Promise<{ buffer: Buffer; backgroundProcessed: boolean }> {
+  ): Promise<{ buffer: Buffer; backgroundProcessed: boolean; format?: string }> {
     // Check for cancellation before processing
     if (this.cancelled || this.currentAbortController?.signal.aborted) {
       throw new Error('Image processing cancelled');
@@ -90,6 +90,7 @@ export class DownloadService extends EventEmitter {
       return {
         buffer: result.buffer,
         backgroundProcessed: result.backgroundProcessed,
+        format: result.format,
       };
     } catch (error) {
       // Using withErrorHandling utility would simplify this pattern:
@@ -383,6 +384,7 @@ export class DownloadService extends EventEmitter {
     httpStatus?: number;
     message?: string;
     backgroundProcessed?: boolean;
+    actualFormat?: string;
   }> {
     const headers = {
       'User-Agent':
@@ -412,6 +414,8 @@ export class DownloadService extends EventEmitter {
         let processedContent = content;
         let backgroundProcessed = false;
 
+        let actualFormat: string | undefined;
+
         if (this.isImageContent(url, contentType, content)) {
           try {
             const result = await this.convertToJpg(
@@ -421,6 +425,7 @@ export class DownloadService extends EventEmitter {
             );
             processedContent = result.buffer;
             backgroundProcessed = result.backgroundProcessed;
+            actualFormat = result.format;
           } catch (error) {
             if (attempt === retryCount - 1) {
               return {
@@ -440,6 +445,7 @@ export class DownloadService extends EventEmitter {
           contentType,
           httpStatus: response.status,
           backgroundProcessed,
+          actualFormat,
           message: 'Success',
         };
       } catch (error) {
