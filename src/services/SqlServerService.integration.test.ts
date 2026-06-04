@@ -3,7 +3,12 @@ import * as path from 'path';
 import { SqlServerService } from './SqlServerService';
 
 jest.mock('./LoggingService', () => ({
-  logger: { error: jest.fn(), info: jest.fn(), warn: jest.fn(), debug: jest.fn() },
+  logger: {
+    error: jest.fn(),
+    info: jest.fn(),
+    warn: jest.fn(),
+    debug: jest.fn(),
+  },
 }));
 
 function loadEnvFile(filePath: string): Record<string, string> {
@@ -16,7 +21,10 @@ function loadEnvFile(filePath: string): Record<string, string> {
         .map(line => {
           const eq = line.indexOf('=');
           if (eq === -1) return null;
-          const val = line.slice(eq + 1).trim().replace(/^(['"])(.*)\1$/, '$2');
+          const val = line
+            .slice(eq + 1)
+            .trim()
+            .replace(/^(['"])(.*)\1$/, '$2');
           return [line.slice(0, eq).trim(), val];
         })
         .filter((e): e is [string, string] => e !== null && e[0] !== '')
@@ -36,8 +44,10 @@ const SQL_QUERY = creds.TEST_SQL_QUERY || 'SELECT TOP 1 1 AS test_col';
 
 const PLACEHOLDER = 'your-password-here';
 const hasCreds = !!(
-  SQL_SERVER && SQL_SERVER !== 'your-server-name' &&
-  SQL_PASSWORD && SQL_PASSWORD !== PLACEHOLDER
+  SQL_SERVER &&
+  SQL_SERVER !== 'your-server-name' &&
+  SQL_PASSWORD &&
+  SQL_PASSWORD !== PLACEHOLDER
 );
 
 const describeIf = hasCreds ? describe : describe.skip;
@@ -77,7 +87,11 @@ describeIf('SqlServerService integration (requires live SQL Server)', () => {
   }, 30000);
 
   it('previewQuery returns columns and rows', async () => {
-    const result = await service.previewQuery({ ...base, query: SQL_QUERY, rowLimit: 50 });
+    const result = await service.previewQuery({
+      ...base,
+      query: SQL_QUERY,
+      rowLimit: 50,
+    });
     expect(result.columns.length).toBeGreaterThan(0);
     expect(Array.isArray(result.rows)).toBe(true);
     expect(result.rowCount).toBeGreaterThanOrEqual(0);
@@ -85,7 +99,11 @@ describeIf('SqlServerService integration (requires live SQL Server)', () => {
   }, 30000);
 
   it('loadQueryData returns sourceLabel and row count', async () => {
-    const result = await service.loadQueryData({ ...base, query: SQL_QUERY, rowLimit: 10000 });
+    const result = await service.loadQueryData({
+      ...base,
+      query: SQL_QUERY,
+      rowLimit: 10000,
+    });
     expect(result.columns.length).toBeGreaterThan(0);
     expect(result.sourceLabel).toBe(`${SQL_SERVER} / ${SQL_DATABASE}`);
     expect(result.rowCount).toBeGreaterThanOrEqual(0);

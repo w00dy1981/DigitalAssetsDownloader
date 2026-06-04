@@ -1,3 +1,4 @@
+import * as mssql from 'mssql';
 import {
   applySqlRowLimit,
   redactSqlRequest,
@@ -189,7 +190,6 @@ describe('SqlServerService execution', () => {
   });
 
   it('propagates queryTimeoutMs to the connection config', async () => {
-    const { ConnectionPool } = require('mssql') as jest.Mocked<typeof import('mssql')>;
     const service = new SqlServerService();
     await service.testConnection({
       server: 'test-server',
@@ -199,7 +199,7 @@ describe('SqlServerService execution', () => {
       queryTimeoutMs: 5000,
       connectionTimeoutMs: 15000,
     });
-    const config = (ConnectionPool as jest.Mock).mock.calls[0][0];
+    const config = (mssql.ConnectionPool as jest.Mock).mock.calls[0][0];
     expect(config.requestTimeout).toBe(5000);
   });
 });
