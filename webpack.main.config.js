@@ -36,6 +36,9 @@ module.exports = {
   },
   externals: {
     electron: 'commonjs electron',
+    mssql: 'commonjs mssql',
+    'electron-log': 'commonjs electron-log',
+    'electron-updater': 'commonjs electron-updater',
   },
   node: {
     __dirname: false,
