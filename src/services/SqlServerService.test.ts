@@ -106,9 +106,15 @@ describe('SqlServerService query limiting', () => {
     );
   });
 
-  it('does not alter queries that already have TOP', () => {
+  it('does not alter queries that already have TOP (n)', () => {
     expect(applySqlRowLimit('SELECT TOP (5) PartNo FROM Products', 50)).toBe(
       'SELECT TOP (5) PartNo FROM Products'
+    );
+  });
+
+  it('does not alter queries that already have TOP n (no parens)', () => {
+    expect(applySqlRowLimit('SELECT TOP 10 * FROM Products', 50)).toBe(
+      'SELECT TOP 10 * FROM Products'
     );
   });
 });

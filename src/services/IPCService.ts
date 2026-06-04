@@ -16,6 +16,10 @@ import {
   DownloadProgress,
   DownloadCompletionEvent,
   IPC_CHANNELS,
+  SqlConnectionTestRequest,
+  SqlLoadRequest,
+  SqlPreviewRequest,
+  SqlQueryResult,
 } from '@/shared/types';
 
 // Type definitions for IPC operations
@@ -101,6 +105,12 @@ export class IPCService {
       return result;
     } catch (error) {
       logger.error(`IPC call failed: ${operation}`, error as Error, logContext);
+      if (error instanceof Error) {
+        const match = error.message.match(
+          /^Error invoking remote method '[^']+': (?:Error: )?(.+)$/s
+        );
+        if (match) throw new Error(match[1]);
+      }
       throw error;
     }
   }
@@ -163,6 +173,32 @@ export class IPCService {
       'loadSheetData',
       () => window.electronAPI.loadSheetData(filePath, sheetName),
       'Excel'
+    );
+  }
+
+  async testSqlConnection(
+    request: SqlConnectionTestRequest
+  ): Promise<{ success: true }> {
+    return this.safeIPC(
+      'testSqlConnection',
+      () => window.electronAPI.testSqlConnection(request),
+      'SQL'
+    );
+  }
+
+  async previewSqlQuery(request: SqlPreviewRequest): Promise<SqlQueryResult> {
+    return this.safeIPC(
+      'previewSqlQuery',
+      () => window.electronAPI.previewSqlQuery(request),
+      'SQL'
+    );
+  }
+
+  async loadSqlQueryData(request: SqlLoadRequest): Promise<SqlQueryResult> {
+    return this.safeIPC(
+      'loadSqlQueryData',
+      () => window.electronAPI.loadSqlQueryData(request),
+      'SQL'
     );
   }
 
@@ -474,6 +510,11 @@ export interface IPCHookMethods {
     filePath: string,
     sheetName: string
   ) => Promise<SpreadsheetData>;
+  testSqlConnection: (
+    request: SqlConnectionTestRequest
+  ) => Promise<{ success: true }>;
+  previewSqlQuery: (request: SqlPreviewRequest) => Promise<SqlQueryResult>;
+  loadSqlQueryData: (request: SqlLoadRequest) => Promise<SqlQueryResult>;
 
   // Configuration
   saveConfig: (config: DownloadConfig) => Promise<IPCResponse>;
@@ -521,6 +562,9 @@ export const useIPCService = (): IPCHookMethods => {
     loadExcelFile: service.loadExcelFile.bind(service),
     getSheetNames: service.getSheetNames.bind(service),
     loadSheetData: service.loadSheetData.bind(service),
+    testSqlConnection: service.testSqlConnection.bind(service),
+    previewSqlQuery: service.previewSqlQuery.bind(service),
+    loadSqlQueryData: service.loadSqlQueryData.bind(service),
 
     // Configuration
     saveConfig: service.saveConfig.bind(service),
