@@ -1,8 +1,9 @@
-import React, { useState, useCallback } from 'react';
+import React, { useState, useCallback, useEffect } from 'react';
 import type { UpdateInfo } from 'electron-updater';
-import { SpreadsheetData } from '@/shared/types';
+import { SpreadsheetData, SqlQueryResult } from '@/shared/types';
 import { logger } from '@/services/LoggingService';
 import { ipcService } from '@/services/IPCService';
+import { CONSTANTS } from '@/shared/constants';
 
 /**
  * Update notification banner with inline update controls
@@ -185,15 +186,62 @@ const FileSelectionTab: React.FC<FileSelectionTabProps> = ({
   onInstallUpdate,
   onUpdateHandled,
 }) => {
+  const [inputMode, setInputMode] = useState<'file' | 'sql'>('file');
   const [selectedFile, setSelectedFile] = useState<string>('');
   const [availableSheets, setAvailableSheets] = useState<string[]>([]);
   const [selectedSheet, setSelectedSheet] = useState<string>('');
+  const [sqlServer, setSqlServer] = useState<string>('');
+  const [sqlDatabase, setSqlDatabase] = useState<string>(
+    CONSTANTS.SQL.DEFAULT_DATABASE
+  );
+  const [sqlUsername, setSqlUsername] = useState<string>(
+    CONSTANTS.SQL.DEFAULT_USERNAME
+  );
+  const [sqlPassword, setSqlPassword] = useState<string>('');
+  const [sqlQuery, setSqlQuery] = useState<string>('');
+  const [previewData, setPreviewData] = useState<SqlQueryResult | null>(null);
+  const [loadedSqlRowCount, setLoadedSqlRowCount] = useState<number | null>(
+    null
+  );
   const [isLoading, setIsLoading] = useState<boolean>(false);
   const [error, setError] = useState<string>('');
+  const [connectionSuccessMsg, setConnectionSuccessMsg] = useState<string>('');
   const [isDragOver, setIsDragOver] = useState<boolean>(false);
 
   const appVersion = process.env.APP_VERSION || 'development';
   const showUpdateBanner = Boolean(hasUpdateAvailable && updateInfo);
+
+  useEffect(() => {
+    const loadSavedSqlConnectionDetails = async () => {
+      try {
+        const appConfig = await ipcService.loadConfig();
+        const sqlDetails = appConfig?.sqlConnectionDetails;
+        if (sqlDetails) {
+          setSqlServer(sqlDetails.server || '');
+          setSqlDatabase(sqlDetails.database || CONSTANTS.SQL.DEFAULT_DATABASE);
+          setSqlUsername(sqlDetails.username || CONSTANTS.SQL.DEFAULT_USERNAME);
+        }
+      } catch (err) {
+        logger.warn(
+          'FileSelectionTab: Failed to load saved SQL connection details',
+          'FileSelectionTab',
+          err
+        );
+      }
+    };
+
+    loadSavedSqlConnectionDetails();
+  }, []);
+
+  const handleInputModeChange = useCallback((mode: 'file' | 'sql') => {
+    if (mode !== 'sql') {
+      setSqlPassword('');
+      setPreviewData(null);
+    }
+    setError('');
+    setConnectionSuccessMsg('');
+    setInputMode(mode);
+  }, []);
 
   const handleDownloadUpdate = useCallback(async () => {
     if (!onDownloadUpdate) return;
@@ -311,6 +359,8 @@ const FileSelectionTab: React.FC<FileSelectionTabProps> = ({
         rows: data.rows,
         sheetName: selectedSheet,
         filePath: selectedFile,
+        sourceType: 'file',
+        sourceLabel: selectedFile,
       };
 
       onDataLoaded(spreadsheetData);
@@ -327,6 +377,155 @@ const FileSelectionTab: React.FC<FileSelectionTabProps> = ({
       setIsLoading(false);
     }
   }, [selectedFile, selectedSheet, onDataLoaded]);
+
+  const buildSqlRequest = useCallback(
+    (rowLimit: number) => ({
+      server: sqlServer.trim(),
+      database: sqlDatabase.trim(),
+      username: sqlUsername.trim(),
+      password: sqlPassword,
+      query: sqlQuery.trim(),
+      rowLimit,
+      queryTimeoutMs: CONSTANTS.SQL.QUERY_TIMEOUT_MS,
+      connectionTimeoutMs: CONSTANTS.SQL.CONNECTION_TIMEOUT_MS,
+    }),
+    [sqlDatabase, sqlPassword, sqlQuery, sqlServer, sqlUsername]
+  );
+
+  const validateSqlInputs = useCallback(
+    (requireQuery: boolean): boolean => {
+      if (!sqlServer.trim()) {
+        setError('Please enter a SQL Server name.');
+        return false;
+      }
+      if (!sqlDatabase.trim()) {
+        setError('Please enter a SQL database name.');
+        return false;
+      }
+      if (!sqlUsername.trim()) {
+        setError('Please enter a SQL username.');
+        return false;
+      }
+      if (!sqlPassword) {
+        setError('Please enter the SQL password.');
+        return false;
+      }
+      if (requireQuery && !sqlQuery.trim()) {
+        setError('Please enter a SQL SELECT query.');
+        return false;
+      }
+      if (requireQuery && !/^(select|with)\b/i.test(sqlQuery.trim())) {
+        setError('Only SELECT-style SQL queries are allowed.');
+        return false;
+      }
+      return true;
+    },
+    [sqlDatabase, sqlPassword, sqlQuery, sqlServer, sqlUsername]
+  );
+
+  const handleTestSqlConnection = useCallback(async () => {
+    if (!validateSqlInputs(false)) return;
+
+    setIsLoading(true);
+    setError('');
+    setConnectionSuccessMsg('');
+    try {
+      await ipcService.testSqlConnection({
+        server: sqlServer.trim(),
+        database: sqlDatabase.trim(),
+        username: sqlUsername.trim(),
+        password: sqlPassword,
+        queryTimeoutMs: CONSTANTS.SQL.QUERY_TIMEOUT_MS,
+        connectionTimeoutMs: CONSTANTS.SQL.CONNECTION_TIMEOUT_MS,
+      });
+      setConnectionSuccessMsg(
+        `Connected to ${sqlServer.trim()} / ${sqlDatabase.trim()}`
+      );
+      setLoadedSqlRowCount(null);
+    } catch (err) {
+      setError(
+        err instanceof Error ? err.message : 'Failed to connect to SQL Server.'
+      );
+      logger.error(
+        'FileSelectionTab: SQL connection test failed',
+        err instanceof Error ? err : new Error(String(err)),
+        'FileSelectionTab'
+      );
+    } finally {
+      setIsLoading(false);
+    }
+  }, [sqlDatabase, sqlPassword, sqlServer, sqlUsername, validateSqlInputs]);
+
+  const handlePreviewSqlQuery = useCallback(async () => {
+    if (!validateSqlInputs(true)) return;
+
+    setIsLoading(true);
+    setError('');
+    try {
+      const result = await ipcService.previewSqlQuery(
+        buildSqlRequest(CONSTANTS.SQL.PREVIEW_ROW_LIMIT)
+      );
+      setPreviewData(result);
+      setLoadedSqlRowCount(null);
+    } catch (err) {
+      setError(
+        err instanceof Error ? err.message : 'Failed to preview SQL query.'
+      );
+      logger.error(
+        'FileSelectionTab: SQL preview failed',
+        err instanceof Error ? err : new Error(String(err)),
+        'FileSelectionTab'
+      );
+    } finally {
+      setIsLoading(false);
+    }
+  }, [buildSqlRequest, validateSqlInputs]);
+
+  const handleLoadSqlQuery = useCallback(async () => {
+    if (!validateSqlInputs(true)) return;
+
+    const shouldContinue = window.confirm(
+      `This will load up to ${CONSTANTS.SQL.FULL_LOAD_ROW_LIMIT.toLocaleString()} rows from SQL Server. Continue?`
+    );
+    if (!shouldContinue) return;
+
+    setIsLoading(true);
+    setError('');
+    try {
+      const result = await ipcService.loadSqlQueryData(
+        buildSqlRequest(CONSTANTS.SQL.FULL_LOAD_ROW_LIMIT)
+      );
+
+      if (!result.columns.length) {
+        setError('The SQL query returned no columns.');
+        return;
+      }
+
+      const spreadsheetData: SpreadsheetData = {
+        columns: result.columns,
+        rows: result.rows,
+        sheetName: 'SQL Query',
+        filePath: result.sourceLabel,
+        sourceType: 'sql',
+        sourceLabel: result.sourceLabel,
+      };
+
+      setLoadedSqlRowCount(result.rowCount);
+      setSqlPassword('');
+      onDataLoaded(spreadsheetData);
+    } catch (err) {
+      setError(
+        err instanceof Error ? err.message : 'Failed to load SQL query data.'
+      );
+      logger.error(
+        'FileSelectionTab: SQL load failed',
+        err instanceof Error ? err : new Error(String(err)),
+        'FileSelectionTab'
+      );
+    } finally {
+      setIsLoading(false);
+    }
+  }, [buildSqlRequest, onDataLoaded, validateSqlInputs]);
 
   const handleDragOver = useCallback((e: React.DragEvent) => {
     e.preventDefault();
@@ -413,55 +612,266 @@ const FileSelectionTab: React.FC<FileSelectionTabProps> = ({
         />
       )}
 
-      <h2>File Selection</h2>
+      <h2>Input Selection</h2>
       <p>
-        Select an Excel file (.xlsx, .xls, .xlsm) or CSV file to begin
-        processing.
+        Select an Excel/CSV file or load rows from a SQL Server SELECT query to
+        begin processing.
       </p>
 
       {error && <div className="alert alert-danger mb-3">{error}</div>}
 
-      {/* File Selection */}
       <div className="form-group">
-        <label htmlFor="file-input">Excel or CSV File</label>
-        <div
-          className={`file-drop-zone ${isDragOver ? 'drag-over' : ''}`}
-          onDragOver={handleDragOver}
-          onDragLeave={handleDragLeave}
-          onDrop={handleDrop}
-        >
-          <input
-            id="file-input"
-            type="text"
-            value={selectedFile}
-            readOnly
-            placeholder="Click 'Browse' to select a file or drag & drop here"
-            className="form-control"
-          />
-          <div className="d-flex align-items-center mt-2">
+        <label>Input Type</label>
+        <div className="btn-group">
+          <button
+            type="button"
+            className={`btn ${inputMode === 'file' ? 'btn-primary' : 'btn-secondary'}`}
+            onClick={() => handleInputModeChange('file')}
+            disabled={isLoading}
+          >
+            Excel / CSV
+          </button>
+          <button
+            type="button"
+            className={`btn ${inputMode === 'sql' ? 'btn-primary' : 'btn-secondary'}`}
+            onClick={() => handleInputModeChange('sql')}
+            disabled={isLoading}
+          >
+            SQL Server
+          </button>
+        </div>
+      </div>
+
+      {/* File Selection */}
+      {inputMode === 'file' && (
+        <div className="form-group">
+          <label htmlFor="file-input">Excel or CSV File</label>
+          <div
+            className={`file-drop-zone ${isDragOver ? 'drag-over' : ''}`}
+            onDragOver={handleDragOver}
+            onDragLeave={handleDragLeave}
+            onDrop={handleDrop}
+          >
+            <input
+              id="file-input"
+              type="text"
+              value={selectedFile}
+              readOnly
+              placeholder="Click 'Browse' to select a file or drag & drop here"
+              className="form-control"
+            />
+            <div className="d-flex align-items-center mt-2">
+              <button
+                type="button"
+                className="btn btn-primary"
+                onClick={handleFileSelect}
+                disabled={isLoading}
+              >
+                {isLoading ? 'Loading...' : 'Browse...'}
+              </button>
+              {selectedFile && (
+                <span className="text-success ml-2">✓ File selected</span>
+              )}
+            </div>
+          </div>
+          <small className="text-muted">
+            Supported formats: Excel (.xlsx, .xls, .xlsm) and CSV (.csv) files
+            <br />
+            💡 <strong>Tip:</strong> You can also drag and drop files directly
+            into the area above
+          </small>
+        </div>
+      )}
+
+      {inputMode === 'sql' && (
+        <div className="sql-input-section">
+          <div className="form-group">
+            <label htmlFor="sql-server">SQL Server</label>
+            <input
+              id="sql-server"
+              type="text"
+              value={sqlServer}
+              onChange={e => setSqlServer(e.target.value)}
+              className="form-control"
+              placeholder="server or server\\instance"
+              disabled={isLoading}
+            />
+          </div>
+
+          <div className="form-group">
+            <label htmlFor="sql-database">Database</label>
+            <input
+              id="sql-database"
+              type="text"
+              value={sqlDatabase}
+              onChange={e => setSqlDatabase(e.target.value)}
+              className="form-control"
+              disabled={isLoading}
+            />
+          </div>
+
+          <div className="form-group">
+            <label htmlFor="sql-username">Username</label>
+            <input
+              id="sql-username"
+              type="text"
+              value={sqlUsername}
+              onChange={e => setSqlUsername(e.target.value)}
+              className="form-control"
+              disabled={isLoading}
+            />
+          </div>
+
+          <div className="form-group">
+            <label htmlFor="sql-password">Password</label>
+            <input
+              id="sql-password"
+              type="password"
+              value={sqlPassword}
+              onChange={e => setSqlPassword(e.target.value)}
+              className="form-control"
+              disabled={isLoading}
+              autoComplete="off"
+            />
+          </div>
+
+          <div className="form-group">
+            <label htmlFor="sql-query">SQL Query</label>
+            <textarea
+              id="sql-query"
+              value={sqlQuery}
+              onChange={e => setSqlQuery(e.target.value)}
+              className="form-control"
+              rows={8}
+              placeholder="SELECT PartNumber, ImageUrl, PdfUrl FROM ..."
+              disabled={isLoading}
+            />
+            <small className="text-muted">
+              Query text is session-only and is not saved. Preview loads up to{' '}
+              {CONSTANTS.SQL.PREVIEW_ROW_LIMIT} rows. Full load loads up to{' '}
+              {CONSTANTS.SQL.FULL_LOAD_ROW_LIMIT.toLocaleString()} rows.
+            </small>
+          </div>
+
+          <div className="btn-group">
+            <button
+              type="button"
+              className="btn btn-secondary"
+              onClick={handleTestSqlConnection}
+              disabled={isLoading}
+            >
+              Test Connection
+            </button>
             <button
               type="button"
               className="btn btn-primary"
-              onClick={handleFileSelect}
+              onClick={handlePreviewSqlQuery}
               disabled={isLoading}
             >
-              {isLoading ? 'Loading...' : 'Browse...'}
+              Preview Query
             </button>
-            {selectedFile && (
-              <span className="text-success ml-2">✓ File selected</span>
-            )}
+            <button
+              type="button"
+              className="btn btn-success"
+              onClick={handleLoadSqlQuery}
+              disabled={isLoading}
+            >
+              Load SQL Data
+            </button>
           </div>
+
+          {connectionSuccessMsg && (
+            <div className="alert alert-success mt-3">
+              {connectionSuccessMsg}
+            </div>
+          )}
+
+          {previewData && (
+            <div className="data-summary mt-4">
+              <h3>
+                Preview — {previewData.rowCount} rows,{' '}
+                {previewData.columns.length} columns
+              </h3>
+              <div
+                style={{
+                  overflowX: 'auto',
+                  overflowY: 'auto',
+                  maxHeight: '300px',
+                  border: '1px solid #4a5568',
+                  borderRadius: '4px',
+                }}
+              >
+                <table
+                  style={{
+                    width: '100%',
+                    borderCollapse: 'collapse',
+                    fontSize: '12px',
+                  }}
+                >
+                  <thead>
+                    <tr>
+                      {previewData.columns.map(col => (
+                        <th
+                          key={col}
+                          style={{
+                            padding: '6px 10px',
+                            background: '#2d3748',
+                            color: '#e2e8f0',
+                            border: '1px solid #4a5568',
+                            whiteSpace: 'nowrap',
+                            position: 'sticky',
+                            top: 0,
+                            fontWeight: 600,
+                          }}
+                        >
+                          {col}
+                        </th>
+                      ))}
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {previewData.rows.map((row, i) => (
+                      <tr
+                        key={i}
+                        style={{
+                          background: i % 2 === 0 ? '#3a4556' : '#4a5568',
+                        }}
+                      >
+                        {previewData.columns.map(col => (
+                          <td
+                            key={col}
+                            style={{
+                              padding: '4px 10px',
+                              border: '1px solid #4a5568',
+                              color: '#e2e8f0',
+                              maxWidth: '200px',
+                              overflow: 'hidden',
+                              textOverflow: 'ellipsis',
+                              whiteSpace: 'nowrap',
+                            }}
+                            title={String(row[col] ?? '')}
+                          >
+                            {String(row[col] ?? '')}
+                          </td>
+                        ))}
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          )}
+
+          {loadedSqlRowCount !== null && (
+            <div className="alert alert-success mt-3">
+              Loaded {loadedSqlRowCount.toLocaleString()} SQL rows.
+            </div>
+          )}
         </div>
-        <small className="text-muted">
-          Supported formats: Excel (.xlsx, .xls, .xlsm) and CSV (.csv) files
-          <br />
-          💡 <strong>Tip:</strong> You can also drag and drop files directly
-          into the area above
-        </small>
-      </div>
+      )}
 
       {/* Sheet Selection */}
-      {selectedFile && availableSheets.length > 0 && (
+      {inputMode === 'file' && selectedFile && availableSheets.length > 0 && (
         <div className="form-group">
           <label htmlFor="sheet-select">Select Sheet</label>
           <select
@@ -482,7 +892,7 @@ const FileSelectionTab: React.FC<FileSelectionTabProps> = ({
       )}
 
       {/* Load Sheet Button */}
-      {selectedFile && selectedSheet && (
+      {inputMode === 'file' && selectedFile && selectedSheet && (
         <div className="form-group">
           <button
             type="button"
@@ -501,10 +911,11 @@ const FileSelectionTab: React.FC<FileSelectionTabProps> = ({
           <h3>✅ Loaded Data Summary</h3>
           <div className="summary-card">
             <p>
-              <strong>File:</strong> {currentData.filePath}
+              <strong>Input Source:</strong>{' '}
+              {currentData.sourceLabel || currentData.filePath}
             </p>
             <p>
-              <strong>Sheet:</strong> {currentData.sheetName}
+              <strong>Dataset:</strong> {currentData.sheetName}
             </p>
             <p>
               <strong>Columns:</strong> {currentData.columns.length} (
@@ -524,7 +935,7 @@ const FileSelectionTab: React.FC<FileSelectionTabProps> = ({
       {/* Loading Indicator */}
       {isLoading && (
         <div className="text-center mt-3">
-          <p className="text-info">⏳ Loading file data...</p>
+          <p className="text-info">Loading input data...</p>
         </div>
       )}
     </div>

@@ -188,7 +188,7 @@ const App: React.FC = () => {
   const handleTabChange = (tabIndex: number) => {
     // Validate before allowing tab change (Settings tab is always accessible)
     if (tabIndex === 1 && !spreadsheetData) {
-      showStatusMessage('Please load an Excel file first.', 3000);
+      showStatusMessage('Please load input data first.', 3000);
       return;
     }
     if (tabIndex === 2 && !downloadConfig) {
@@ -262,7 +262,7 @@ const App: React.FC = () => {
           className={`tab-button ${activeTab === 0 ? 'active' : ''}`}
           onClick={() => handleTabChange(0)}
         >
-          1. File Selection
+          1. Input Selection
         </button>
         <button
           className={`tab-button ${activeTab === 1 ? 'active' : ''}`}
@@ -287,7 +287,7 @@ const App: React.FC = () => {
       </nav>
 
       <main className="tab-content">
-        {activeTab === 0 && (
+        <div style={{ display: activeTab === 0 ? '' : 'none' }}>
           <FileSelectionTab
             onDataLoaded={handleDataLoaded}
             currentData={spreadsheetData}
@@ -302,7 +302,7 @@ const App: React.FC = () => {
             onInstallUpdate={handleInstallUpdate}
             onUpdateHandled={clearUpdateNotification}
           />
-        )}
+        </div>
         {activeTab === 1 && spreadsheetData && (
           <ColumnSelectionTab
             data={spreadsheetData}

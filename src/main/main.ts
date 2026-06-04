@@ -4,10 +4,18 @@ import log from 'electron-log';
 import * as fs from 'fs';
 import * as path from 'path';
 import Store from 'electron-store';
-import { IPC_CHANNELS, AppConfig, DownloadConfig } from '@/shared/types';
+import {
+  IPC_CHANNELS,
+  AppConfig,
+  DownloadConfig,
+  SqlConnectionTestRequest,
+  SqlLoadRequest,
+  SqlPreviewRequest,
+} from '@/shared/types';
 import { ExcelService } from '@/services/excelService';
 import { DownloadService } from '@/services/downloadService';
 import { appConstants } from '@/services/AppConstantsService';
+import { SqlServerService } from '@/services/SqlServerService';
 
 // Global error handlers to catch crashes
 process.on('uncaughtException', error => {
@@ -27,6 +35,7 @@ class DigitalAssetDownloaderApp {
   private store: Store<AppConfig>;
   private excelService: ExcelService;
   private downloadService: DownloadService;
+  private sqlServerService: SqlServerService;
   private currentSpreadsheetData: any[] | null = null;
   private canUseAutoUpdater = false;
 
@@ -57,6 +66,7 @@ class DigitalAssetDownloaderApp {
     });
     this.excelService = new ExcelService();
     this.downloadService = new DownloadService();
+    this.sqlServerService = new SqlServerService();
     this.currentSpreadsheetData = null;
 
     log.info('Application constructor completed successfully');
@@ -297,8 +307,10 @@ class DigitalAssetDownloaderApp {
     });
 
     ipcMain.handle(IPC_CHANNELS.LOAD_CONFIG, async () => {
-      const config = this.store.get('lastConfiguration');
-      return config || null;
+      const lastConfiguration = this.store.get('lastConfiguration') as DownloadConfig | undefined;
+      const sqlConnectionDetails = this.store.get('sqlConnectionDetails');
+      if (!lastConfiguration && !sqlConnectionDetails) return null;
+      return { lastConfiguration, sqlConnectionDetails } as Partial<AppConfig>;
     });
 
     // Excel/CSV handlers - Implemented with ExcelService
@@ -342,6 +354,64 @@ class DigitalAssetDownloaderApp {
           console.error('Error loading sheet data:', error);
           const errorMessage =
             error instanceof Error ? error.message : 'Unknown error';
+          throw new Error(errorMessage);
+        }
+      }
+    );
+
+    ipcMain.handle(
+      IPC_CHANNELS.TEST_SQL_CONNECTION,
+      async (_, request: SqlConnectionTestRequest) => {
+        try {
+          const result = await this.sqlServerService.testConnection(request);
+          this.store.set(
+            'sqlConnectionDetails',
+            this.sqlServerService.getSafeConnectionDetails(request)
+          );
+          return result;
+        } catch (error) {
+          console.error('Error testing SQL connection');
+          const errorMessage =
+            error instanceof Error ? error.message : 'Unknown SQL error';
+          throw new Error(errorMessage);
+        }
+      }
+    );
+
+    ipcMain.handle(
+      IPC_CHANNELS.PREVIEW_SQL_QUERY,
+      async (_, request: SqlPreviewRequest) => {
+        try {
+          const result = await this.sqlServerService.previewQuery(request);
+          this.store.set(
+            'sqlConnectionDetails',
+            this.sqlServerService.getSafeConnectionDetails(request)
+          );
+          return result;
+        } catch (error) {
+          console.error('Error previewing SQL query');
+          const errorMessage =
+            error instanceof Error ? error.message : 'Unknown SQL error';
+          throw new Error(errorMessage);
+        }
+      }
+    );
+
+    ipcMain.handle(
+      IPC_CHANNELS.LOAD_SQL_QUERY_DATA,
+      async (_, request: SqlLoadRequest) => {
+        try {
+          const result = await this.sqlServerService.loadQueryData(request);
+          this.currentSpreadsheetData = result.rows;
+          this.store.set(
+            'sqlConnectionDetails',
+            this.sqlServerService.getSafeConnectionDetails(request)
+          );
+          return result;
+        } catch (error) {
+          console.error('Error loading SQL query data');
+          const errorMessage =
+            error instanceof Error ? error.message : 'Unknown SQL error';
           throw new Error(errorMessage);
         }
       }
