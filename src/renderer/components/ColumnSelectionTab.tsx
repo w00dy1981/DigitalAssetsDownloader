@@ -64,7 +64,7 @@ const ColumnSelectionTab: React.FC<ColumnSelectionTabProps> = ({
     <div className="tab-panel">
       <h2>Column Selection & Configuration</h2>
       <p>
-        Map your Excel columns to the appropriate data types and configure
+        Map your input columns to the appropriate data types and configure
         download settings.
       </p>
       <p className="data-info">

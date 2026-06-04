@@ -62,6 +62,16 @@ export const DOWNLOAD_CONSTANTS = {
   MAX_RETRY_ATTEMPTS: 10,
 } as const;
 
+// SQL Server input configuration
+export const SQL_CONSTANTS = {
+  DEFAULT_DATABASE: 'Baker',
+  DEFAULT_USERNAME: 'DigitalAssetsDownloader',
+  PREVIEW_ROW_LIMIT: 50,
+  FULL_LOAD_ROW_LIMIT: 10000,
+  QUERY_TIMEOUT_MS: 30000,
+  CONNECTION_TIMEOUT_MS: 15000,
+} as const;
+
 // File & Path Configuration
 export const PATH_CONSTANTS = {
   // Auto-updater log file size limit (5MB)
@@ -80,6 +90,7 @@ export const CONSTANTS = {
   IMAGE: IMAGE_PROCESSING_CONSTANTS,
   UI: UI_CONSTANTS,
   DOWNLOAD: DOWNLOAD_CONSTANTS,
+  SQL: SQL_CONSTANTS,
   PATH: PATH_CONSTANTS,
   ENV: ENV_CONSTANTS,
 } as const;

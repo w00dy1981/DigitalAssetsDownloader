@@ -242,6 +242,8 @@ export const useColumnSelectionState = ({
     () => ({
       excelFile: data.filePath,
       sheetName: data.sheetName,
+      sourceType: data.sourceType || 'file',
+      sourceLabel: data.sourceLabel || data.filePath,
       partNoColumn,
       imageColumns,
       pdfColumn,
@@ -264,6 +266,8 @@ export const useColumnSelectionState = ({
       backgroundProcessingEnabled,
       data.filePath,
       data.sheetName,
+      data.sourceLabel,
+      data.sourceType,
       edgeThreshold,
       filenameColumn,
       imageColumns,

@@ -70,13 +70,15 @@ const ProcessControls: React.FC<ProcessControlsProps> = ({
         <h3>Configuration Summary</h3>
         <div className="summary-grid">
           <div className="summary-row">
-            <span className="summary-label">Excel File:</span>
+            <span className="summary-label">Input Source:</span>
             <span className="summary-value">
-              {config.excelFile.split('/').pop() || 'Unknown'}
+              {config.sourceLabel ||
+                config.excelFile.split('/').pop() ||
+                'Unknown'}
             </span>
           </div>
           <div className="summary-row">
-            <span className="summary-label">Sheet:</span>
+            <span className="summary-label">Dataset:</span>
             <span className="summary-value">{config.sheetName}</span>
           </div>
           <div className="summary-row">

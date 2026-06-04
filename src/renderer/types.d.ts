@@ -1,6 +1,11 @@
 // Global type definitions for the renderer process
 
-import { IpcChannelType } from '@/shared/types';
+import {
+  IpcChannelType,
+  SqlConnectionTestRequest,
+  SqlLoadRequest,
+  SqlPreviewRequest,
+} from '@/shared/types';
 
 declare global {
   interface Window {
@@ -14,6 +19,9 @@ declare global {
       loadExcelFile: (filePath: string) => Promise<any>;
       getSheetNames: (filePath: string) => Promise<string[]>;
       loadSheetData: (filePath: string, sheetName: string) => Promise<any>;
+      testSqlConnection: (request: SqlConnectionTestRequest) => Promise<any>;
+      previewSqlQuery: (request: SqlPreviewRequest) => Promise<any>;
+      loadSqlQueryData: (request: SqlLoadRequest) => Promise<any>;
 
       // Configuration
       saveConfig: (config: any) => Promise<any>;

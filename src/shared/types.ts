@@ -6,11 +6,15 @@ export interface SpreadsheetData {
   rows: Record<string, any>[];
   sheetName: string;
   filePath: string;
+  sourceType?: 'file' | 'sql';
+  sourceLabel?: string;
 }
 
 export interface DownloadConfig {
   excelFile: string;
   sheetName: string;
+  sourceType?: 'file' | 'sql';
+  sourceLabel?: string;
   partNoColumn: string;
   imageColumns: string[];
   pdfColumn: string;
@@ -134,11 +138,44 @@ export interface UserSettings {
   };
 }
 
+export interface SqlConnectionDetails {
+  server: string;
+  database: string;
+  username: string;
+}
+
+export interface SqlConnectionTestRequest extends SqlConnectionDetails {
+  password: string;
+  queryTimeoutMs?: number;
+  connectionTimeoutMs?: number;
+}
+
+export interface SqlQueryRequest extends SqlConnectionTestRequest {
+  query: string;
+  rowLimit?: number;
+}
+
+export interface SqlPreviewRequest extends SqlQueryRequest {
+  rowLimit: number;
+}
+
+export interface SqlLoadRequest extends SqlQueryRequest {
+  rowLimit: number;
+}
+
+export interface SqlQueryResult {
+  columns: string[];
+  rows: Record<string, any>[];
+  rowCount: number;
+  sourceLabel: string;
+}
+
 export interface AppConfig {
   windowState: WindowState;
   lastConfiguration?: DownloadConfig;
   recentFiles: string[];
   userSettings?: UserSettings;
+  sqlConnectionDetails?: SqlConnectionDetails;
 }
 
 // IPC Channel names for communication between main and renderer
@@ -152,6 +189,11 @@ export const IPC_CHANNELS = {
   LOAD_EXCEL_FILE: 'load-excel-file',
   GET_SHEET_NAMES: 'get-sheet-names',
   LOAD_SHEET_DATA: 'load-sheet-data',
+
+  // SQL Server operations
+  TEST_SQL_CONNECTION: 'test-sql-connection',
+  PREVIEW_SQL_QUERY: 'preview-sql-query',
+  LOAD_SQL_QUERY_DATA: 'load-sql-query-data',
 
   // Configuration
   SAVE_CONFIG: 'save-config',

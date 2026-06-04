@@ -103,6 +103,7 @@ update-cache/
 # Personal test files
 test-files/
 sample-data/
+test-*.txt
 *.xlsx
 *.xls
 *.csv

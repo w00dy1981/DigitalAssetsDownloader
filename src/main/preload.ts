@@ -1,5 +1,11 @@
 import { contextBridge, ipcRenderer } from 'electron';
-import { IPC_CHANNELS, IpcChannelType } from '@/shared/types';
+import {
+  IPC_CHANNELS,
+  IpcChannelType,
+  SqlConnectionTestRequest,
+  SqlLoadRequest,
+  SqlPreviewRequest,
+} from '@/shared/types';
 
 // Expose protected methods that allow the renderer process to use
 // the ipcRenderer without exposing the entire object
@@ -19,6 +25,14 @@ contextBridge.exposeInMainWorld('electronAPI', {
     ipcRenderer.invoke(IPC_CHANNELS.GET_SHEET_NAMES, filePath),
   loadSheetData: (filePath: string, sheetName: string) =>
     ipcRenderer.invoke(IPC_CHANNELS.LOAD_SHEET_DATA, filePath, sheetName),
+
+  // SQL Server operations
+  testSqlConnection: (request: SqlConnectionTestRequest) =>
+    ipcRenderer.invoke(IPC_CHANNELS.TEST_SQL_CONNECTION, request),
+  previewSqlQuery: (request: SqlPreviewRequest) =>
+    ipcRenderer.invoke(IPC_CHANNELS.PREVIEW_SQL_QUERY, request),
+  loadSqlQueryData: (request: SqlLoadRequest) =>
+    ipcRenderer.invoke(IPC_CHANNELS.LOAD_SQL_QUERY_DATA, request),
 
   // Configuration
   saveConfig: (config: any) =>
@@ -106,6 +120,9 @@ declare global {
       loadExcelFile: (filePath: string) => Promise<any>;
       getSheetNames: (filePath: string) => Promise<any>;
       loadSheetData: (filePath: string, sheetName: string) => Promise<any>;
+      testSqlConnection: (request: SqlConnectionTestRequest) => Promise<any>;
+      previewSqlQuery: (request: SqlPreviewRequest) => Promise<any>;
+      loadSqlQueryData: (request: SqlLoadRequest) => Promise<any>;
       saveConfig: (config: any) => Promise<any>;
       loadConfig: () => Promise<any>;
       saveSettings: (settings: any) => Promise<any>;

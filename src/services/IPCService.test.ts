@@ -35,6 +35,9 @@ const mockElectronAPI = {
   loadExcelFile: jest.fn(),
   getSheetNames: jest.fn(),
   loadSheetData: jest.fn(),
+  testSqlConnection: jest.fn(),
+  previewSqlQuery: jest.fn(),
+  loadSqlQueryData: jest.fn(),
 
   // Configuration
   saveConfig: jest.fn(),
@@ -212,6 +215,72 @@ describe('IPCService', () => {
         'Sheet1'
       );
       expect(result).toEqual(mockData);
+    });
+  });
+
+  describe('SQL Server Operations', () => {
+    const sqlConnectionRequest = {
+      server: 'sql-server',
+      database: 'Baker',
+      username: 'DigitalAssetsDownloader',
+      password: 'secret',
+      queryTimeoutMs: 30000,
+      connectionTimeoutMs: 15000,
+    };
+
+    const sqlQueryRequest = {
+      ...sqlConnectionRequest,
+      query: 'SELECT PartNo, ImageUrl FROM Products',
+      rowLimit: 50,
+    };
+
+    it('should handle testSqlConnection successfully', async () => {
+      mockElectronAPI.testSqlConnection.mockResolvedValue({ success: true });
+
+      const result = await service.testSqlConnection(sqlConnectionRequest);
+
+      expect(mockElectronAPI.testSqlConnection).toHaveBeenCalledWith(
+        sqlConnectionRequest
+      );
+      expect(result).toEqual({ success: true });
+    });
+
+    it('should handle previewSqlQuery successfully', async () => {
+      const mockResult = {
+        columns: ['PartNo', 'ImageUrl'],
+        rows: [{ PartNo: 'ABC', ImageUrl: 'https://example.com/image.jpg' }],
+        rowCount: 1,
+        sourceLabel: 'sql-server / Baker',
+      };
+      mockElectronAPI.previewSqlQuery.mockResolvedValue(mockResult);
+
+      const result = await service.previewSqlQuery(sqlQueryRequest);
+
+      expect(mockElectronAPI.previewSqlQuery).toHaveBeenCalledWith(
+        sqlQueryRequest
+      );
+      expect(result).toEqual(mockResult);
+    });
+
+    it('should handle loadSqlQueryData successfully', async () => {
+      const mockResult = {
+        columns: ['PartNo', 'ImageUrl'],
+        rows: [{ PartNo: 'ABC', ImageUrl: 'https://example.com/image.jpg' }],
+        rowCount: 1,
+        sourceLabel: 'sql-server / Baker',
+      };
+      mockElectronAPI.loadSqlQueryData.mockResolvedValue(mockResult);
+
+      const result = await service.loadSqlQueryData({
+        ...sqlQueryRequest,
+        rowLimit: 10000,
+      });
+
+      expect(mockElectronAPI.loadSqlQueryData).toHaveBeenCalledWith({
+        ...sqlQueryRequest,
+        rowLimit: 10000,
+      });
+      expect(result).toEqual(mockResult);
     });
   });
 
