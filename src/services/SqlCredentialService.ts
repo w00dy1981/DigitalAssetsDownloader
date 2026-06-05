@@ -1,12 +1,18 @@
 import { createHash } from 'crypto';
-import { Entry } from '@napi-rs/keyring';
+import * as fs from 'fs';
+import * as path from 'path';
+import { safeStorage } from 'electron';
 import {
   SqlCredentialIdentity,
   SqlPasswordDeleteRequest,
   SqlPasswordSaveRequest,
 } from '@/shared/types';
 
-const SQL_PASSWORD_SERVICE = 'com.digitalassetdownloader.app.sql-password';
+interface SecureStringStorage {
+  isEncryptionAvailable(): boolean;
+  encryptString(value: string): Buffer;
+  decryptString(encryptedValue: Buffer): string;
+}
 
 export function buildSqlCredentialAccount(
   identity: SqlCredentialIdentity
@@ -23,12 +29,20 @@ export function buildSqlCredentialAccount(
 }
 
 export class SqlCredentialService {
+  constructor(
+    private readonly credentialDirectory: string,
+    private readonly secureStorage: SecureStringStorage = safeStorage
+  ) {}
+
   loadSavedPassword(identity: SqlCredentialIdentity): string | null {
-    const entry = this.createEntry(identity);
+    const credentialPath = this.getCredentialPath(identity);
+    if (!fs.existsSync(credentialPath)) return null;
+
+    this.ensureEncryptionAvailable();
+
     try {
-      return entry.getPassword();
-    } catch (error) {
-      if (this.isNoEntryError(error)) return null;
+      return this.secureStorage.decryptString(fs.readFileSync(credentialPath));
+    } catch {
       throw this.toCredentialError();
     }
   }
@@ -42,9 +56,15 @@ export class SqlCredentialService {
       throw new Error('SQL password is required.');
     }
 
-    const entry = this.createEntry(request.identity);
+    const credentialPath = this.getCredentialPath(request.identity);
+    this.ensureEncryptionAvailable();
+
     try {
-      entry.setPassword(request.password);
+      fs.mkdirSync(this.credentialDirectory, { recursive: true });
+      fs.writeFileSync(
+        credentialPath,
+        this.secureStorage.encryptString(request.password)
+      );
       return { success: true };
     } catch {
       throw this.toCredentialError();
@@ -52,19 +72,24 @@ export class SqlCredentialService {
   }
 
   deleteSavedPassword(request: SqlPasswordDeleteRequest): { success: true } {
-    const entry = this.createEntry(request.identity);
+    const credentialPath = this.getCredentialPath(request.identity);
+
     try {
-      entry.deletePassword();
+      if (fs.existsSync(credentialPath)) {
+        fs.unlinkSync(credentialPath);
+      }
       return { success: true };
-    } catch (error) {
-      if (this.isNoEntryError(error)) return { success: true };
+    } catch {
       throw this.toCredentialError();
     }
   }
 
-  private createEntry(identity: SqlCredentialIdentity): Entry {
+  private getCredentialPath(identity: SqlCredentialIdentity): string {
     this.validateIdentity(identity);
-    return new Entry(SQL_PASSWORD_SERVICE, buildSqlCredentialAccount(identity));
+    return path.join(
+      this.credentialDirectory,
+      `${buildSqlCredentialAccount(identity)}.bin`
+    );
   }
 
   private validateIdentity(identity: SqlCredentialIdentity): void {
@@ -79,14 +104,15 @@ export class SqlCredentialService {
     }
   }
 
+  private ensureEncryptionAvailable(): void {
+    if (!this.secureStorage.isEncryptionAvailable()) {
+      throw this.toCredentialError();
+    }
+  }
+
   private toCredentialError(): Error {
     return new Error(
       'Secure credential storage is unavailable or could not be accessed.'
     );
-  }
-
-  private isNoEntryError(error: unknown): boolean {
-    const message = error instanceof Error ? error.message : String(error);
-    return /noentry|no entry|not found/i.test(message);
   }
 }

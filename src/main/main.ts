@@ -40,7 +40,7 @@ class DigitalAssetDownloaderApp {
   private excelService: ExcelService;
   private downloadService: DownloadService;
   private sqlServerService: SqlServerService;
-  private sqlCredentialService: SqlCredentialService;
+  private sqlCredentialService!: SqlCredentialService;
   private currentSpreadsheetData: any[] | null = null;
   private canUseAutoUpdater = false;
 
@@ -72,7 +72,6 @@ class DigitalAssetDownloaderApp {
     this.excelService = new ExcelService();
     this.downloadService = new DownloadService();
     this.sqlServerService = new SqlServerService();
-    this.sqlCredentialService = new SqlCredentialService();
     this.currentSpreadsheetData = null;
 
     log.info('Application constructor completed successfully');
@@ -906,6 +905,9 @@ class DigitalAssetDownloaderApp {
 
   async initialize(): Promise<void> {
     await app.whenReady();
+    this.sqlCredentialService = new SqlCredentialService(
+      path.join(app.getPath('userData'), 'sql-credentials')
+    );
     // Setup IPC handlers BEFORE creating window to avoid race conditions
     this.setupIpcHandlers();
     await this.createWindow();

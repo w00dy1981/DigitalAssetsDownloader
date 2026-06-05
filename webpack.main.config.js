@@ -37,7 +37,6 @@ module.exports = {
   externals: {
     electron: 'commonjs electron',
     mssql: 'commonjs mssql',
-    '@napi-rs/keyring': 'commonjs @napi-rs/keyring',
     'electron-log': 'commonjs electron-log',
     'electron-updater': 'commonjs electron-updater',
   },
