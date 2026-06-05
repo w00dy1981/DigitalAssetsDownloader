@@ -685,106 +685,117 @@ const FileSelectionTab: React.FC<FileSelectionTabProps> = ({
 
       {inputMode === 'sql' && (
         <div className="sql-input-section">
-          <div className="form-group">
-            <label htmlFor="sql-server">SQL Server</label>
-            <input
-              id="sql-server"
-              type="text"
-              value={sqlServer}
-              onChange={e => setSqlServer(e.target.value)}
-              className="form-control"
-              placeholder="server or server\\instance"
-              disabled={isLoading}
-            />
-          </div>
+          <div className="sql-grid">
+            <div className="sql-connection-panel">
+              <div className="form-group">
+                <label htmlFor="sql-server">SQL Server</label>
+                <input
+                  id="sql-server"
+                  type="text"
+                  value={sqlServer}
+                  onChange={e => setSqlServer(e.target.value)}
+                  className="form-control"
+                  placeholder="server or server\\instance"
+                  disabled={isLoading}
+                />
+              </div>
 
-          <div className="form-group">
-            <label htmlFor="sql-database">Database</label>
-            <input
-              id="sql-database"
-              type="text"
-              value={sqlDatabase}
-              onChange={e => setSqlDatabase(e.target.value)}
-              className="form-control"
-              disabled={isLoading}
-            />
-          </div>
+              <div className="form-group">
+                <label htmlFor="sql-database">Database</label>
+                <input
+                  id="sql-database"
+                  type="text"
+                  value={sqlDatabase}
+                  onChange={e => setSqlDatabase(e.target.value)}
+                  className="form-control"
+                  disabled={isLoading}
+                />
+              </div>
 
-          <div className="form-group">
-            <label htmlFor="sql-username">Username</label>
-            <input
-              id="sql-username"
-              type="text"
-              value={sqlUsername}
-              onChange={e => setSqlUsername(e.target.value)}
-              className="form-control"
-              disabled={isLoading}
-            />
-          </div>
+              <div className="form-group">
+                <label htmlFor="sql-username">Username</label>
+                <input
+                  id="sql-username"
+                  type="text"
+                  value={sqlUsername}
+                  onChange={e => setSqlUsername(e.target.value)}
+                  className="form-control"
+                  disabled={isLoading}
+                />
+              </div>
 
-          <div className="form-group">
-            <label htmlFor="sql-password">Password</label>
-            <input
-              id="sql-password"
-              type="password"
-              value={sqlPassword}
-              onChange={e => setSqlPassword(e.target.value)}
-              className="form-control"
-              disabled={isLoading}
-              autoComplete="off"
-            />
-          </div>
+              <div className="form-group">
+                <label htmlFor="sql-password">Password</label>
+                <input
+                  id="sql-password"
+                  type="password"
+                  value={sqlPassword}
+                  onChange={e => setSqlPassword(e.target.value)}
+                  className="form-control"
+                  disabled={isLoading}
+                  autoComplete="off"
+                />
+              </div>
 
-          <div className="form-group">
-            <label htmlFor="sql-query">SQL Query</label>
-            <textarea
-              id="sql-query"
-              value={sqlQuery}
-              onChange={e => setSqlQuery(e.target.value)}
-              className="form-control"
-              rows={8}
-              placeholder="SELECT PartNumber, ImageUrl, PdfUrl FROM ..."
-              disabled={isLoading}
-            />
-            <small className="text-muted">
-              Query text is session-only and is not saved. Preview loads up to{' '}
-              {CONSTANTS.SQL.PREVIEW_ROW_LIMIT} rows. Full load loads up to{' '}
-              {CONSTANTS.SQL.FULL_LOAD_ROW_LIMIT.toLocaleString()} rows.
-            </small>
-          </div>
+              <div className="sql-buttons-group">
+                <button
+                  type="button"
+                  className="btn btn-secondary btn-test"
+                  onClick={handleTestSqlConnection}
+                  disabled={isLoading}
+                >
+                  Test Connection
+                </button>
+                <button
+                  type="button"
+                  className="btn btn-primary"
+                  onClick={handlePreviewSqlQuery}
+                  disabled={isLoading}
+                >
+                  Preview Query
+                </button>
+                <button
+                  type="button"
+                  className="btn btn-success"
+                  onClick={handleLoadSqlQuery}
+                  disabled={isLoading}
+                >
+                  Load SQL Data
+                </button>
+              </div>
 
-          <div className="btn-group">
-            <button
-              type="button"
-              className="btn btn-secondary"
-              onClick={handleTestSqlConnection}
-              disabled={isLoading}
-            >
-              Test Connection
-            </button>
-            <button
-              type="button"
-              className="btn btn-primary"
-              onClick={handlePreviewSqlQuery}
-              disabled={isLoading}
-            >
-              Preview Query
-            </button>
-            <button
-              type="button"
-              className="btn btn-success"
-              onClick={handleLoadSqlQuery}
-              disabled={isLoading}
-            >
-              Load SQL Data
-            </button>
-          </div>
+              {connectionSuccessMsg && (
+                <div className="alert alert-success mt-3 mb-0">
+                  {connectionSuccessMsg}
+                </div>
+              )}
 
-          {connectionSuccessMsg && (
-            <div className="alert alert-success mt-3">
-              {connectionSuccessMsg}
+              {loadedSqlRowCount !== null && (
+                <div className="alert alert-success mt-3 mb-0">
+                  Loaded {loadedSqlRowCount.toLocaleString()} SQL rows.
+                </div>
+              )}
             </div>
-          )}
+
+            <div className="sql-query-panel">
+              <div className="form-group sql-query-form-group">
+                <label htmlFor="sql-query">SQL Query</label>
+                <textarea
+                  id="sql-query"
+                  value={sqlQuery}
+                  onChange={e => setSqlQuery(e.target.value)}
+                  className="form-control sql-query-textarea"
+                  placeholder="SELECT PartNumber, ImageUrl, PdfUrl FROM ..."
+                  disabled={isLoading}
+                />
+                <small className="text-muted">
+                  Query text is session-only and is not saved. Preview loads up
+                  to {CONSTANTS.SQL.PREVIEW_ROW_LIMIT} rows. Full load loads up
+                  to {CONSTANTS.SQL.FULL_LOAD_ROW_LIMIT.toLocaleString()} rows.
+                </small>
+              </div>
+            </div>
+          </div>
 
           {previewData && (
             <div className="data-summary mt-4">
@@ -792,15 +803,7 @@ const FileSelectionTab: React.FC<FileSelectionTabProps> = ({
                 Preview — {previewData.rowCount} rows,{' '}
                 {previewData.columns.length} columns
               </h3>
-              <div
-                style={{
-                  overflowX: 'auto',
-                  overflowY: 'auto',
-                  maxHeight: '300px',
-                  border: '1px solid #4a5568',
-                  borderRadius: '4px',
-                }}
-              >
+              <div className="sql-preview-table-container">
                 <table
                   style={{
                     width: '100%',
@@ -859,12 +862,6 @@ const FileSelectionTab: React.FC<FileSelectionTabProps> = ({
                   </tbody>
                 </table>
               </div>
-            </div>
-          )}
-
-          {loadedSqlRowCount !== null && (
-            <div className="alert alert-success mt-3">
-              Loaded {loadedSqlRowCount.toLocaleString()} SQL rows.
             </div>
           )}
         </div>
