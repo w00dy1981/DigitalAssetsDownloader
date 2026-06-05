@@ -97,6 +97,9 @@
       "dist/**/*",
       "node_modules/**/*"
     ],
+    "asarUnpack": [
+      "**/*.node"
+    ],
     "publish": [
       {
         "provider": "github",
@@ -129,7 +132,7 @@
       "allowToChangeInstallationDirectory": false,
       "createDesktopShortcut": true,
       "createStartMenuShortcut": true,
-      "runAfterFinish": false
+      "runAfterFinish": true
     },
     "linux": {
       "target": [
