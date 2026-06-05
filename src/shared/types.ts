@@ -144,6 +144,17 @@ export interface SqlConnectionDetails {
   username: string;
 }
 
+export type SqlCredentialIdentity = SqlConnectionDetails;
+
+export interface SqlPasswordSaveRequest {
+  identity: SqlCredentialIdentity;
+  password: string;
+}
+
+export interface SqlPasswordDeleteRequest {
+  identity: SqlCredentialIdentity;
+}
+
 export interface SqlConnectionTestRequest extends SqlConnectionDetails {
   password: string;
   queryTimeoutMs?: number;
@@ -194,6 +205,10 @@ export const IPC_CHANNELS = {
   TEST_SQL_CONNECTION: 'test-sql-connection',
   PREVIEW_SQL_QUERY: 'preview-sql-query',
   LOAD_SQL_QUERY_DATA: 'load-sql-query-data',
+  LOAD_SAVED_SQL_PASSWORD: 'load-saved-sql-password',
+  SAVE_SQL_PASSWORD: 'save-sql-password',
+  DELETE_SAVED_SQL_PASSWORD: 'delete-saved-sql-password',
+  HAS_SAVED_SQL_PASSWORD: 'has-saved-sql-password',
 
   // Configuration
   SAVE_CONFIG: 'save-config',

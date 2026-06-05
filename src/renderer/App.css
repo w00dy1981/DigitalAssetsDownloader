@@ -1646,6 +1646,23 @@ input[type='range']::-moz-range-thumb {
   width: 100%;
 }
 
+.sql-password-save-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem;
+  margin-top: 0.5rem;
+  flex-wrap: wrap;
+}
+
+.sql-password-save-row .btn-link {
+  background: transparent;
+  border: 0;
+  color: #90cdf4;
+  padding: 0;
+  width: auto;
+}
+
 .sql-preview-table-container {
   overflow-x: auto;
   overflow-y: auto;
@@ -1662,7 +1679,7 @@ input[type='range']::-moz-range-thumb {
     grid-template-columns: 1fr;
     gap: 1.25rem;
   }
-  
+
   .sql-query-textarea {
     min-height: 200px;
   }
@@ -1672,9 +1689,8 @@ input[type='range']::-moz-range-thumb {
   .sql-buttons-group {
     grid-template-columns: 1fr;
   }
-  
+
   .sql-buttons-group .btn-test {
     grid-column: span 1;
   }
 }
-

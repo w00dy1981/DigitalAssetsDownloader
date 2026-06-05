@@ -4,6 +4,7 @@
  */
 
 import { IPCService, ipcService, useIPCService } from './IPCService';
+import { logger } from './LoggingService';
 import { DownloadConfig, UserSettings, IPC_CHANNELS } from '@/shared/types';
 
 // Mock the LoggingService
@@ -38,6 +39,10 @@ const mockElectronAPI = {
   testSqlConnection: jest.fn(),
   previewSqlQuery: jest.fn(),
   loadSqlQueryData: jest.fn(),
+  loadSavedSqlPassword: jest.fn(),
+  hasSavedSqlPassword: jest.fn(),
+  saveSqlPassword: jest.fn(),
+  deleteSavedSqlPassword: jest.fn(),
 
   // Configuration
   saveConfig: jest.fn(),
@@ -281,6 +286,49 @@ describe('IPCService', () => {
         rowLimit: 10000,
       });
       expect(result).toEqual(mockResult);
+    });
+
+    it('should handle saved SQL password operations successfully', async () => {
+      const identity = {
+        server: 'sql-server',
+        database: 'Baker',
+        username: 'DigitalAssetsDownloader',
+      };
+
+      mockElectronAPI.loadSavedSqlPassword.mockResolvedValue('secret');
+      mockElectronAPI.hasSavedSqlPassword.mockResolvedValue(true);
+      mockElectronAPI.saveSqlPassword.mockResolvedValue({ success: true });
+      mockElectronAPI.deleteSavedSqlPassword.mockResolvedValue({
+        success: true,
+      });
+
+      await expect(service.loadSavedSqlPassword(identity)).resolves.toBe(
+        'secret'
+      );
+      await expect(service.hasSavedSqlPassword(identity)).resolves.toBe(true);
+      await expect(
+        service.saveSqlPassword({ identity, password: 'secret' })
+      ).resolves.toEqual({ success: true });
+      await expect(
+        service.deleteSavedSqlPassword({ identity })
+      ).resolves.toEqual({ success: true });
+
+      expect(mockElectronAPI.loadSavedSqlPassword).toHaveBeenCalledWith(
+        identity
+      );
+      expect((logger.debug as jest.Mock).mock.calls.flat()).not.toContain(
+        'secret'
+      );
+      expect(mockElectronAPI.hasSavedSqlPassword).toHaveBeenCalledWith(
+        identity
+      );
+      expect(mockElectronAPI.saveSqlPassword).toHaveBeenCalledWith({
+        identity,
+        password: 'secret',
+      });
+      expect(mockElectronAPI.deleteSavedSqlPassword).toHaveBeenCalledWith({
+        identity,
+      });
     });
   });
 
@@ -671,6 +719,8 @@ describe('IPCService', () => {
       expect(typeof hookMethods.loadSettings).toBe('function');
       expect(typeof hookMethods.saveConfig).toBe('function');
       expect(typeof hookMethods.startDownloads).toBe('function');
+      expect(typeof hookMethods.loadSavedSqlPassword).toBe('function');
+      expect(typeof hookMethods.saveSqlPassword).toBe('function');
       expect(typeof hookMethods.onDownloadProgress).toBe('function');
       expect(typeof hookMethods.cleanup).toBe('function');
     });

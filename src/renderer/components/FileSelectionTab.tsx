@@ -1,6 +1,10 @@
 import React, { useState, useCallback, useEffect } from 'react';
 import type { UpdateInfo } from 'electron-updater';
-import { SpreadsheetData, SqlQueryResult } from '@/shared/types';
+import {
+  SpreadsheetData,
+  SqlCredentialIdentity,
+  SqlQueryResult,
+} from '@/shared/types';
 import { logger } from '@/services/LoggingService';
 import { ipcService } from '@/services/IPCService';
 import { CONSTANTS } from '@/shared/constants';
@@ -172,6 +176,24 @@ interface FileSelectionTabProps {
   onUpdateHandled?: () => void;
 }
 
+const buildSqlCredentialIdentityKey = (
+  identity: SqlCredentialIdentity
+): string =>
+  [
+    identity.server.trim().toLowerCase(),
+    identity.database.trim().toLowerCase(),
+    identity.username.trim().toLowerCase(),
+  ].join('|');
+
+const hasCompleteSqlCredentialIdentity = (
+  identity: SqlCredentialIdentity
+): boolean =>
+  Boolean(
+    identity.server.trim() &&
+      identity.database.trim() &&
+      identity.username.trim()
+  );
+
 const FileSelectionTab: React.FC<FileSelectionTabProps> = ({
   onDataLoaded,
   currentData,
@@ -198,6 +220,13 @@ const FileSelectionTab: React.FC<FileSelectionTabProps> = ({
     CONSTANTS.SQL.DEFAULT_USERNAME
   );
   const [sqlPassword, setSqlPassword] = useState<string>('');
+  const [rememberSqlPassword, setRememberSqlPassword] =
+    useState<boolean>(false);
+  const [savedSqlPasswordIdentityKey, setSavedSqlPasswordIdentityKey] =
+    useState<string | null>(null);
+  const [isSqlPasswordAutoFilled, setIsSqlPasswordAutoFilled] =
+    useState<boolean>(false);
+  const [credentialStatusMsg, setCredentialStatusMsg] = useState<string>('');
   const [sqlQuery, setSqlQuery] = useState<string>('');
   const [previewData, setPreviewData] = useState<SqlQueryResult | null>(null);
   const [loadedSqlRowCount, setLoadedSqlRowCount] = useState<number | null>(
@@ -210,6 +239,15 @@ const FileSelectionTab: React.FC<FileSelectionTabProps> = ({
 
   const appVersion = process.env.APP_VERSION || 'development';
   const showUpdateBanner = Boolean(hasUpdateAvailable && updateInfo);
+
+  const getCurrentSqlCredentialIdentity =
+    useCallback((): SqlCredentialIdentity => {
+      return {
+        server: sqlServer.trim(),
+        database: sqlDatabase.trim(),
+        username: sqlUsername.trim(),
+      };
+    }, [sqlDatabase, sqlServer, sqlUsername]);
 
   useEffect(() => {
     const loadSavedSqlConnectionDetails = async () => {
@@ -233,15 +271,141 @@ const FileSelectionTab: React.FC<FileSelectionTabProps> = ({
     loadSavedSqlConnectionDetails();
   }, []);
 
+  useEffect(() => {
+    if (inputMode !== 'sql') return;
+
+    const identity = getCurrentSqlCredentialIdentity();
+    if (!hasCompleteSqlCredentialIdentity(identity)) return;
+
+    if (sqlPassword && !isSqlPasswordAutoFilled) return;
+
+    let isCancelled = false;
+    const identityKey = buildSqlCredentialIdentityKey(identity);
+
+    const loadSavedPassword = async () => {
+      try {
+        const savedPassword = await ipcService.loadSavedSqlPassword(identity);
+        if (isCancelled) return;
+
+        if (savedPassword) {
+          setSqlPassword(savedPassword);
+          setRememberSqlPassword(true);
+          setSavedSqlPasswordIdentityKey(identityKey);
+          setIsSqlPasswordAutoFilled(true);
+          setCredentialStatusMsg(
+            'Saved SQL password loaded for this connection.'
+          );
+        } else if (!sqlPassword) {
+          setRememberSqlPassword(false);
+          setSavedSqlPasswordIdentityKey(null);
+          setIsSqlPasswordAutoFilled(false);
+        }
+      } catch (err) {
+        if (isCancelled) return;
+        setCredentialStatusMsg(
+          err instanceof Error
+            ? err.message
+            : 'Saved SQL password could not be loaded.'
+        );
+      }
+    };
+
+    loadSavedPassword();
+
+    return () => {
+      isCancelled = true;
+    };
+  }, [
+    getCurrentSqlCredentialIdentity,
+    inputMode,
+    isSqlPasswordAutoFilled,
+    sqlPassword,
+  ]);
+
   const handleInputModeChange = useCallback((mode: 'file' | 'sql') => {
     if (mode !== 'sql') {
-      setSqlPassword('');
       setPreviewData(null);
     }
     setError('');
     setConnectionSuccessMsg('');
     setInputMode(mode);
   }, []);
+
+  const handleSqlIdentityFieldChange = useCallback(
+    (setter: React.Dispatch<React.SetStateAction<string>>, value: string) => {
+      setter(value);
+      setCredentialStatusMsg('');
+
+      if (isSqlPasswordAutoFilled) {
+        setSqlPassword('');
+        setRememberSqlPassword(false);
+        setSavedSqlPasswordIdentityKey(null);
+        setIsSqlPasswordAutoFilled(false);
+      }
+    },
+    [isSqlPasswordAutoFilled]
+  );
+
+  const handleSqlPasswordChange = useCallback(
+    (e: React.ChangeEvent<HTMLInputElement>) => {
+      setSqlPassword(e.target.value);
+      setIsSqlPasswordAutoFilled(false);
+      setCredentialStatusMsg('');
+    },
+    []
+  );
+
+  const deleteSavedSqlPasswordForCurrentIdentity = useCallback(async () => {
+    const identity = getCurrentSqlCredentialIdentity();
+    if (!hasCompleteSqlCredentialIdentity(identity)) return;
+
+    await ipcService.deleteSavedSqlPassword({ identity });
+    setSavedSqlPasswordIdentityKey(null);
+    setIsSqlPasswordAutoFilled(false);
+  }, [getCurrentSqlCredentialIdentity]);
+
+  const handleRememberSqlPasswordChange = useCallback(
+    async (e: React.ChangeEvent<HTMLInputElement>) => {
+      const shouldRemember = e.target.checked;
+      setRememberSqlPassword(shouldRemember);
+      setCredentialStatusMsg('');
+
+      if (shouldRemember) {
+        setCredentialStatusMsg(
+          'Password will be saved securely after a successful SQL connection.'
+        );
+        return;
+      }
+
+      try {
+        await deleteSavedSqlPasswordForCurrentIdentity();
+        setCredentialStatusMsg(
+          'Saved SQL password removed for this connection.'
+        );
+      } catch (err) {
+        setCredentialStatusMsg(
+          err instanceof Error
+            ? err.message
+            : 'Saved SQL password could not be removed.'
+        );
+      }
+    },
+    [deleteSavedSqlPasswordForCurrentIdentity]
+  );
+
+  const handleForgetSavedSqlPassword = useCallback(async () => {
+    setRememberSqlPassword(false);
+    try {
+      await deleteSavedSqlPasswordForCurrentIdentity();
+      setCredentialStatusMsg('Saved SQL password removed for this connection.');
+    } catch (err) {
+      setCredentialStatusMsg(
+        err instanceof Error
+          ? err.message
+          : 'Saved SQL password could not be removed.'
+      );
+    }
+  }, [deleteSavedSqlPasswordForCurrentIdentity]);
 
   const handleDownloadUpdate = useCallback(async () => {
     if (!onDownloadUpdate) return;
@@ -423,6 +587,27 @@ const FileSelectionTab: React.FC<FileSelectionTabProps> = ({
     [sqlDatabase, sqlPassword, sqlQuery, sqlServer, sqlUsername]
   );
 
+  const saveSqlPasswordIfRequested = useCallback(async () => {
+    if (!rememberSqlPassword) return;
+
+    const identity = getCurrentSqlCredentialIdentity();
+    if (!hasCompleteSqlCredentialIdentity(identity) || !sqlPassword) return;
+
+    try {
+      await ipcService.saveSqlPassword({ identity, password: sqlPassword });
+      setSavedSqlPasswordIdentityKey(buildSqlCredentialIdentityKey(identity));
+      setCredentialStatusMsg(
+        'SQL password saved securely for this connection.'
+      );
+    } catch (err) {
+      setCredentialStatusMsg(
+        err instanceof Error
+          ? err.message
+          : 'SQL password could not be saved securely.'
+      );
+    }
+  }, [getCurrentSqlCredentialIdentity, rememberSqlPassword, sqlPassword]);
+
   const handleTestSqlConnection = useCallback(async () => {
     if (!validateSqlInputs(false)) return;
 
@@ -438,6 +623,7 @@ const FileSelectionTab: React.FC<FileSelectionTabProps> = ({
         queryTimeoutMs: CONSTANTS.SQL.QUERY_TIMEOUT_MS,
         connectionTimeoutMs: CONSTANTS.SQL.CONNECTION_TIMEOUT_MS,
       });
+      await saveSqlPasswordIfRequested();
       setConnectionSuccessMsg(
         `Connected to ${sqlServer.trim()} / ${sqlDatabase.trim()}`
       );
@@ -454,7 +640,14 @@ const FileSelectionTab: React.FC<FileSelectionTabProps> = ({
     } finally {
       setIsLoading(false);
     }
-  }, [sqlDatabase, sqlPassword, sqlServer, sqlUsername, validateSqlInputs]);
+  }, [
+    saveSqlPasswordIfRequested,
+    sqlDatabase,
+    sqlPassword,
+    sqlServer,
+    sqlUsername,
+    validateSqlInputs,
+  ]);
 
   const handlePreviewSqlQuery = useCallback(async () => {
     if (!validateSqlInputs(true)) return;
@@ -465,6 +658,7 @@ const FileSelectionTab: React.FC<FileSelectionTabProps> = ({
       const result = await ipcService.previewSqlQuery(
         buildSqlRequest(CONSTANTS.SQL.PREVIEW_ROW_LIMIT)
       );
+      await saveSqlPasswordIfRequested();
       setPreviewData(result);
       setLoadedSqlRowCount(null);
     } catch (err) {
@@ -479,7 +673,7 @@ const FileSelectionTab: React.FC<FileSelectionTabProps> = ({
     } finally {
       setIsLoading(false);
     }
-  }, [buildSqlRequest, validateSqlInputs]);
+  }, [buildSqlRequest, saveSqlPasswordIfRequested, validateSqlInputs]);
 
   const handleLoadSqlQuery = useCallback(async () => {
     if (!validateSqlInputs(true)) return;
@@ -511,7 +705,7 @@ const FileSelectionTab: React.FC<FileSelectionTabProps> = ({
       };
 
       setLoadedSqlRowCount(result.rowCount);
-      setSqlPassword('');
+      await saveSqlPasswordIfRequested();
       onDataLoaded(spreadsheetData);
     } catch (err) {
       setError(
@@ -525,7 +719,12 @@ const FileSelectionTab: React.FC<FileSelectionTabProps> = ({
     } finally {
       setIsLoading(false);
     }
-  }, [buildSqlRequest, onDataLoaded, validateSqlInputs]);
+  }, [
+    buildSqlRequest,
+    onDataLoaded,
+    saveSqlPasswordIfRequested,
+    validateSqlInputs,
+  ]);
 
   const handleDragOver = useCallback((e: React.DragEvent) => {
     e.preventDefault();
@@ -693,7 +892,9 @@ const FileSelectionTab: React.FC<FileSelectionTabProps> = ({
                   id="sql-server"
                   type="text"
                   value={sqlServer}
-                  onChange={e => setSqlServer(e.target.value)}
+                  onChange={e =>
+                    handleSqlIdentityFieldChange(setSqlServer, e.target.value)
+                  }
                   className="form-control"
                   placeholder="server or server\\instance"
                   disabled={isLoading}
@@ -706,7 +907,9 @@ const FileSelectionTab: React.FC<FileSelectionTabProps> = ({
                   id="sql-database"
                   type="text"
                   value={sqlDatabase}
-                  onChange={e => setSqlDatabase(e.target.value)}
+                  onChange={e =>
+                    handleSqlIdentityFieldChange(setSqlDatabase, e.target.value)
+                  }
                   className="form-control"
                   disabled={isLoading}
                 />
@@ -718,7 +921,9 @@ const FileSelectionTab: React.FC<FileSelectionTabProps> = ({
                   id="sql-username"
                   type="text"
                   value={sqlUsername}
-                  onChange={e => setSqlUsername(e.target.value)}
+                  onChange={e =>
+                    handleSqlIdentityFieldChange(setSqlUsername, e.target.value)
+                  }
                   className="form-control"
                   disabled={isLoading}
                 />
@@ -730,11 +935,45 @@ const FileSelectionTab: React.FC<FileSelectionTabProps> = ({
                   id="sql-password"
                   type="password"
                   value={sqlPassword}
-                  onChange={e => setSqlPassword(e.target.value)}
+                  onChange={handleSqlPasswordChange}
                   className="form-control"
                   disabled={isLoading}
                   autoComplete="off"
                 />
+                <div className="sql-password-save-row">
+                  <label
+                    className="checkbox-label"
+                    htmlFor="remember-sql-password"
+                  >
+                    <input
+                      id="remember-sql-password"
+                      type="checkbox"
+                      checked={rememberSqlPassword}
+                      onChange={handleRememberSqlPasswordChange}
+                      disabled={isLoading}
+                    />
+                    Remember SQL password on this device
+                  </label>
+                  {savedSqlPasswordIdentityKey && (
+                    <button
+                      type="button"
+                      className="btn btn-link btn-sm"
+                      onClick={handleForgetSavedSqlPassword}
+                      disabled={isLoading}
+                    >
+                      Forget saved password
+                    </button>
+                  )}
+                </div>
+                <small className="text-muted">
+                  Saved SQL passwords are stored using the operating system
+                  credential store, not app settings.
+                </small>
+                {credentialStatusMsg && (
+                  <small className="text-muted d-block mt-1">
+                    {credentialStatusMsg}
+                  </small>
+                )}
               </div>
 
               <div className="sql-buttons-group">

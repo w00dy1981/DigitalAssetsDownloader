@@ -3,7 +3,10 @@ import {
   IPC_CHANNELS,
   IpcChannelType,
   SqlConnectionTestRequest,
+  SqlCredentialIdentity,
   SqlLoadRequest,
+  SqlPasswordDeleteRequest,
+  SqlPasswordSaveRequest,
   SqlPreviewRequest,
 } from '@/shared/types';
 
@@ -33,6 +36,14 @@ contextBridge.exposeInMainWorld('electronAPI', {
     ipcRenderer.invoke(IPC_CHANNELS.PREVIEW_SQL_QUERY, request),
   loadSqlQueryData: (request: SqlLoadRequest) =>
     ipcRenderer.invoke(IPC_CHANNELS.LOAD_SQL_QUERY_DATA, request),
+  loadSavedSqlPassword: (identity: SqlCredentialIdentity) =>
+    ipcRenderer.invoke(IPC_CHANNELS.LOAD_SAVED_SQL_PASSWORD, identity),
+  hasSavedSqlPassword: (identity: SqlCredentialIdentity) =>
+    ipcRenderer.invoke(IPC_CHANNELS.HAS_SAVED_SQL_PASSWORD, identity),
+  saveSqlPassword: (request: SqlPasswordSaveRequest) =>
+    ipcRenderer.invoke(IPC_CHANNELS.SAVE_SQL_PASSWORD, request),
+  deleteSavedSqlPassword: (request: SqlPasswordDeleteRequest) =>
+    ipcRenderer.invoke(IPC_CHANNELS.DELETE_SAVED_SQL_PASSWORD, request),
 
   // Configuration
   saveConfig: (config: any) =>
@@ -123,6 +134,18 @@ declare global {
       testSqlConnection: (request: SqlConnectionTestRequest) => Promise<any>;
       previewSqlQuery: (request: SqlPreviewRequest) => Promise<any>;
       loadSqlQueryData: (request: SqlLoadRequest) => Promise<any>;
+      loadSavedSqlPassword: (
+        identity: SqlCredentialIdentity
+      ) => Promise<string | null>;
+      hasSavedSqlPassword: (
+        identity: SqlCredentialIdentity
+      ) => Promise<boolean>;
+      saveSqlPassword: (
+        request: SqlPasswordSaveRequest
+      ) => Promise<{ success: true }>;
+      deleteSavedSqlPassword: (
+        request: SqlPasswordDeleteRequest
+      ) => Promise<{ success: true }>;
       saveConfig: (config: any) => Promise<any>;
       loadConfig: () => Promise<any>;
       saveSettings: (settings: any) => Promise<any>;

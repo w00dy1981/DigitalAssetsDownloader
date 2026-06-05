@@ -17,7 +17,10 @@ import {
   DownloadCompletionEvent,
   IPC_CHANNELS,
   SqlConnectionTestRequest,
+  SqlCredentialIdentity,
   SqlLoadRequest,
+  SqlPasswordDeleteRequest,
+  SqlPasswordSaveRequest,
   SqlPreviewRequest,
   SqlQueryResult,
 } from '@/shared/types';
@@ -87,7 +90,8 @@ export class IPCService {
   private async safeIPC<T>(
     operation: string,
     ipcCall: () => Promise<T>,
-    context?: string
+    context?: string,
+    logResult = true
   ): Promise<T> {
     const logContext = context || 'IPC';
 
@@ -100,7 +104,11 @@ export class IPCService {
 
       logger.debug(`Starting IPC call: ${operation}`, logContext);
       const result = await ipcCall();
-      logger.debug(`IPC call completed: ${operation}`, logContext, result);
+      if (logResult) {
+        logger.debug(`IPC call completed: ${operation}`, logContext, result);
+      } else {
+        logger.debug(`IPC call completed: ${operation}`, logContext);
+      }
 
       return result;
     } catch (error) {
@@ -198,6 +206,45 @@ export class IPCService {
     return this.safeIPC(
       'loadSqlQueryData',
       () => window.electronAPI.loadSqlQueryData(request),
+      'SQL'
+    );
+  }
+
+  async loadSavedSqlPassword(
+    identity: SqlCredentialIdentity
+  ): Promise<string | null> {
+    return this.safeIPC(
+      'loadSavedSqlPassword',
+      () => window.electronAPI.loadSavedSqlPassword(identity),
+      'SQL',
+      false
+    );
+  }
+
+  async hasSavedSqlPassword(identity: SqlCredentialIdentity): Promise<boolean> {
+    return this.safeIPC(
+      'hasSavedSqlPassword',
+      () => window.electronAPI.hasSavedSqlPassword(identity),
+      'SQL'
+    );
+  }
+
+  async saveSqlPassword(
+    request: SqlPasswordSaveRequest
+  ): Promise<{ success: true }> {
+    return this.safeIPC(
+      'saveSqlPassword',
+      () => window.electronAPI.saveSqlPassword(request),
+      'SQL'
+    );
+  }
+
+  async deleteSavedSqlPassword(
+    request: SqlPasswordDeleteRequest
+  ): Promise<{ success: true }> {
+    return this.safeIPC(
+      'deleteSavedSqlPassword',
+      () => window.electronAPI.deleteSavedSqlPassword(request),
       'SQL'
     );
   }
@@ -515,6 +562,16 @@ export interface IPCHookMethods {
   ) => Promise<{ success: true }>;
   previewSqlQuery: (request: SqlPreviewRequest) => Promise<SqlQueryResult>;
   loadSqlQueryData: (request: SqlLoadRequest) => Promise<SqlQueryResult>;
+  loadSavedSqlPassword: (
+    identity: SqlCredentialIdentity
+  ) => Promise<string | null>;
+  hasSavedSqlPassword: (identity: SqlCredentialIdentity) => Promise<boolean>;
+  saveSqlPassword: (
+    request: SqlPasswordSaveRequest
+  ) => Promise<{ success: true }>;
+  deleteSavedSqlPassword: (
+    request: SqlPasswordDeleteRequest
+  ) => Promise<{ success: true }>;
 
   // Configuration
   saveConfig: (config: DownloadConfig) => Promise<IPCResponse>;
@@ -565,6 +622,10 @@ export const useIPCService = (): IPCHookMethods => {
     testSqlConnection: service.testSqlConnection.bind(service),
     previewSqlQuery: service.previewSqlQuery.bind(service),
     loadSqlQueryData: service.loadSqlQueryData.bind(service),
+    loadSavedSqlPassword: service.loadSavedSqlPassword.bind(service),
+    hasSavedSqlPassword: service.hasSavedSqlPassword.bind(service),
+    saveSqlPassword: service.saveSqlPassword.bind(service),
+    deleteSavedSqlPassword: service.deleteSavedSqlPassword.bind(service),
 
     // Configuration
     saveConfig: service.saveConfig.bind(service),

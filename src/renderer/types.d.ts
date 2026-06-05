@@ -3,7 +3,10 @@
 import {
   IpcChannelType,
   SqlConnectionTestRequest,
+  SqlCredentialIdentity,
   SqlLoadRequest,
+  SqlPasswordDeleteRequest,
+  SqlPasswordSaveRequest,
   SqlPreviewRequest,
 } from '@/shared/types';
 
@@ -22,6 +25,18 @@ declare global {
       testSqlConnection: (request: SqlConnectionTestRequest) => Promise<any>;
       previewSqlQuery: (request: SqlPreviewRequest) => Promise<any>;
       loadSqlQueryData: (request: SqlLoadRequest) => Promise<any>;
+      loadSavedSqlPassword: (
+        identity: SqlCredentialIdentity
+      ) => Promise<string | null>;
+      hasSavedSqlPassword: (
+        identity: SqlCredentialIdentity
+      ) => Promise<boolean>;
+      saveSqlPassword: (
+        request: SqlPasswordSaveRequest
+      ) => Promise<{ success: true }>;
+      deleteSavedSqlPassword: (
+        request: SqlPasswordDeleteRequest
+      ) => Promise<{ success: true }>;
 
       // Configuration
       saveConfig: (config: any) => Promise<any>;

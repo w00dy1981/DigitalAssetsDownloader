@@ -9,6 +9,9 @@ import {
   AppConfig,
   DownloadConfig,
   SqlConnectionTestRequest,
+  SqlCredentialIdentity,
+  SqlPasswordDeleteRequest,
+  SqlPasswordSaveRequest,
   SqlLoadRequest,
   SqlPreviewRequest,
 } from '@/shared/types';
@@ -16,6 +19,7 @@ import { ExcelService } from '@/services/excelService';
 import { DownloadService } from '@/services/downloadService';
 import { appConstants } from '@/services/AppConstantsService';
 import { SqlServerService } from '@/services/SqlServerService';
+import { SqlCredentialService } from '@/services/SqlCredentialService';
 
 // Global error handlers to catch crashes
 process.on('uncaughtException', error => {
@@ -36,6 +40,7 @@ class DigitalAssetDownloaderApp {
   private excelService: ExcelService;
   private downloadService: DownloadService;
   private sqlServerService: SqlServerService;
+  private sqlCredentialService: SqlCredentialService;
   private currentSpreadsheetData: any[] | null = null;
   private canUseAutoUpdater = false;
 
@@ -67,6 +72,7 @@ class DigitalAssetDownloaderApp {
     this.excelService = new ExcelService();
     this.downloadService = new DownloadService();
     this.sqlServerService = new SqlServerService();
+    this.sqlCredentialService = new SqlCredentialService();
     this.currentSpreadsheetData = null;
 
     log.info('Application constructor completed successfully');
@@ -307,7 +313,9 @@ class DigitalAssetDownloaderApp {
     });
 
     ipcMain.handle(IPC_CHANNELS.LOAD_CONFIG, async () => {
-      const lastConfiguration = this.store.get('lastConfiguration') as DownloadConfig | undefined;
+      const lastConfiguration = this.store.get('lastConfiguration') as
+        | DownloadConfig
+        | undefined;
       const sqlConnectionDetails = this.store.get('sqlConnectionDetails');
       if (!lastConfiguration && !sqlConnectionDetails) return null;
       return { lastConfiguration, sqlConnectionDetails } as Partial<AppConfig>;
@@ -412,6 +420,58 @@ class DigitalAssetDownloaderApp {
           console.error('Error loading SQL query data');
           const errorMessage =
             error instanceof Error ? error.message : 'Unknown SQL error';
+          throw new Error(errorMessage);
+        }
+      }
+    );
+
+    ipcMain.handle(
+      IPC_CHANNELS.LOAD_SAVED_SQL_PASSWORD,
+      async (_, identity: SqlCredentialIdentity) => {
+        try {
+          return this.sqlCredentialService.loadSavedPassword(identity);
+        } catch (error) {
+          const errorMessage =
+            error instanceof Error ? error.message : 'Unknown credential error';
+          throw new Error(errorMessage);
+        }
+      }
+    );
+
+    ipcMain.handle(
+      IPC_CHANNELS.HAS_SAVED_SQL_PASSWORD,
+      async (_, identity: SqlCredentialIdentity) => {
+        try {
+          return this.sqlCredentialService.hasSavedPassword(identity);
+        } catch (error) {
+          const errorMessage =
+            error instanceof Error ? error.message : 'Unknown credential error';
+          throw new Error(errorMessage);
+        }
+      }
+    );
+
+    ipcMain.handle(
+      IPC_CHANNELS.SAVE_SQL_PASSWORD,
+      async (_, request: SqlPasswordSaveRequest) => {
+        try {
+          return this.sqlCredentialService.savePassword(request);
+        } catch (error) {
+          const errorMessage =
+            error instanceof Error ? error.message : 'Unknown credential error';
+          throw new Error(errorMessage);
+        }
+      }
+    );
+
+    ipcMain.handle(
+      IPC_CHANNELS.DELETE_SAVED_SQL_PASSWORD,
+      async (_, request: SqlPasswordDeleteRequest) => {
+        try {
+          return this.sqlCredentialService.deleteSavedPassword(request);
+        } catch (error) {
+          const errorMessage =
+            error instanceof Error ? error.message : 'Unknown credential error';
           throw new Error(errorMessage);
         }
       }
