@@ -9,8 +9,8 @@ import {
 } from '@/shared/types';
 import { logger } from './LoggingService';
 import { CONSTANTS } from '@/shared/constants';
-export { stripSqlComments } from '@/shared/sqlUtils';
 import { stripSqlComments } from '@/shared/sqlUtils';
+export { stripSqlComments };
 
 const DANGEROUS_PATTERNS: Array<{ pattern: RegExp; label: string }> = [
   { pattern: /\binsert\b/i, label: 'INSERT' },
@@ -40,7 +40,6 @@ export interface SqlValidationResult {
   isValid: boolean;
   errors: string[];
 }
-
 
 export function redactSqlRequest<T extends Partial<SqlQueryRequest>>(
   request: T
