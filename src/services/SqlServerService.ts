@@ -9,6 +9,8 @@ import {
 } from '@/shared/types';
 import { logger } from './LoggingService';
 import { CONSTANTS } from '@/shared/constants';
+export { stripSqlComments } from '@/shared/sqlUtils';
+import { stripSqlComments } from '@/shared/sqlUtils';
 
 const DANGEROUS_PATTERNS: Array<{ pattern: RegExp; label: string }> = [
   { pattern: /\binsert\b/i, label: 'INSERT' },
@@ -39,49 +41,6 @@ export interface SqlValidationResult {
   errors: string[];
 }
 
-export function stripSqlComments(query: string): string {
-  let result = '';
-  let i = 0;
-  const len = query.length;
-
-  while (i < len) {
-    const char = query[i];
-
-    if (char === "'") {
-      // Single-quoted string literal — preserve contents, handle '' escaped quotes
-      result += char;
-      i++;
-      while (i < len) {
-        if (query[i] === "'" && query[i + 1] === "'") {
-          result += query[i];
-          result += query[i + 1];
-          i += 2;
-        } else if (query[i] === "'") {
-          result += query[i];
-          i++;
-          break;
-        } else {
-          result += query[i];
-          i++;
-        }
-      }
-    } else if (char === '-' && query[i + 1] === '-') {
-      // Line comment — consume up to (not including) newline so whitespace is preserved
-      while (i < len && query[i] !== '\n') i++;
-    } else if (char === '/' && query[i + 1] === '*') {
-      // Block comment — replace with a space so adjacent tokens don't merge
-      i += 2;
-      while (i < len && !(query[i] === '*' && query[i + 1] === '/')) i++;
-      if (i < len) i += 2;
-      result += ' ';
-    } else {
-      result += char;
-      i++;
-    }
-  }
-
-  return result.trim();
-}
 
 export function redactSqlRequest<T extends Partial<SqlQueryRequest>>(
   request: T

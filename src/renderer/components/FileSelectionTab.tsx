@@ -10,6 +10,7 @@ import { logger } from '@/services/LoggingService';
 import { ipcService } from '@/services/IPCService';
 import { configurationService } from '@/services/ConfigurationService';
 import { CONSTANTS } from '@/shared/constants';
+import { stripSqlComments } from '@/shared/sqlUtils';
 
 /**
  * Update notification banner with inline update controls
@@ -623,7 +624,7 @@ const FileSelectionTab: React.FC<FileSelectionTabProps> = ({
         setError('Please enter a SQL SELECT query.');
         return false;
       }
-      if (requireQuery && !/^(select|with)\b/i.test(sqlQuery.trim())) {
+      if (requireQuery && !/^(select|with)\b/i.test(stripSqlComments(sqlQuery))) {
         setError('Only SELECT-style SQL queries are allowed.');
         return false;
       }
