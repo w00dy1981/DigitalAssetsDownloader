@@ -115,6 +115,12 @@ export interface UserSettings {
     checkForUpdatesOnStartup: boolean; // Check for updates when app starts
     downloadUpdatesAutomatically: boolean; // Auto-download vs prompt user
   };
+  sqlSettings?: {
+    defaultServer: string;
+    defaultDatabase: string;
+    defaultUsername: string;
+    allowedCrossDatabases: string[];
+  };
   // Enhanced configuration options (Issue #23)
   advanced?: {
     // Network timeout configurations
@@ -164,6 +170,7 @@ export interface SqlConnectionTestRequest extends SqlConnectionDetails {
 export interface SqlQueryRequest extends SqlConnectionTestRequest {
   query: string;
   rowLimit?: number;
+  allowedCrossDatabases?: string[];
 }
 
 export interface SqlPreviewRequest extends SqlQueryRequest {

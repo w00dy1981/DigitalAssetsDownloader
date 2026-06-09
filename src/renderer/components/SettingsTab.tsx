@@ -5,6 +5,7 @@ import {
   DefaultPathsSection,
   DownloadBehaviorSection,
   ImageProcessingSection,
+  SqlSettingsSection,
   UIPreferencesSection,
   UpdateSettingsSection,
 } from './settings';
@@ -141,7 +142,7 @@ const SettingsTab: React.FC<SettingsTabProps> = ({ onSettingsChange }) => {
           />
         </div>
 
-        {/* Second column - Download Behavior and Image Processing */}
+        {/* Second column - Download Behavior, Image Processing, and SQL Server Defaults */}
         <div className="other-settings">
           <DownloadBehaviorSection
             settings={settings}
@@ -149,6 +150,11 @@ const SettingsTab: React.FC<SettingsTabProps> = ({ onSettingsChange }) => {
           />
 
           <ImageProcessingSection
+            settings={settings}
+            onSettingUpdate={updateSetting}
+          />
+
+          <SqlSettingsSection
             settings={settings}
             onSettingUpdate={updateSetting}
           />

@@ -63,6 +63,12 @@ export class ConfigurationService {
       checkForUpdatesOnStartup: true,
       downloadUpdatesAutomatically: false,
     },
+    sqlSettings: {
+      defaultServer: '',
+      defaultDatabase: CONSTANTS.SQL.DEFAULT_DATABASE,
+      defaultUsername: CONSTANTS.SQL.DEFAULT_USERNAME,
+      allowedCrossDatabases: ['WebScrapes'],
+    },
   };
 
   private constructor() {
@@ -294,6 +300,20 @@ export class ConfigurationService {
       updateSettings: {
         ...this.defaultUserSettings.updateSettings,
         ...savedSettings.updateSettings,
+      },
+      sqlSettings: {
+        defaultServer:
+          savedSettings.sqlSettings?.defaultServer ??
+          this.defaultUserSettings.sqlSettings!.defaultServer,
+        defaultDatabase:
+          savedSettings.sqlSettings?.defaultDatabase ??
+          this.defaultUserSettings.sqlSettings!.defaultDatabase,
+        defaultUsername:
+          savedSettings.sqlSettings?.defaultUsername ??
+          this.defaultUserSettings.sqlSettings!.defaultUsername,
+        allowedCrossDatabases:
+          savedSettings.sqlSettings?.allowedCrossDatabases ??
+          this.defaultUserSettings.sqlSettings!.allowedCrossDatabases,
       },
     };
   }

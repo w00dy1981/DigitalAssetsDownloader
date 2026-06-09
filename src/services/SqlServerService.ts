@@ -39,6 +39,50 @@ export interface SqlValidationResult {
   errors: string[];
 }
 
+export function stripSqlComments(query: string): string {
+  let result = '';
+  let i = 0;
+  const len = query.length;
+
+  while (i < len) {
+    const char = query[i];
+
+    if (char === "'") {
+      // Single-quoted string literal — preserve contents, handle '' escaped quotes
+      result += char;
+      i++;
+      while (i < len) {
+        if (query[i] === "'" && query[i + 1] === "'") {
+          result += query[i];
+          result += query[i + 1];
+          i += 2;
+        } else if (query[i] === "'") {
+          result += query[i];
+          i++;
+          break;
+        } else {
+          result += query[i];
+          i++;
+        }
+      }
+    } else if (char === '-' && query[i + 1] === '-') {
+      // Line comment — consume up to (not including) newline so whitespace is preserved
+      while (i < len && query[i] !== '\n') i++;
+    } else if (char === '/' && query[i + 1] === '*') {
+      // Block comment — replace with a space so adjacent tokens don't merge
+      i += 2;
+      while (i < len && !(query[i] === '*' && query[i + 1] === '/')) i++;
+      if (i < len) i += 2;
+      result += ' ';
+    } else {
+      result += char;
+      i++;
+    }
+  }
+
+  return result.trim();
+}
+
 export function redactSqlRequest<T extends Partial<SqlQueryRequest>>(
   request: T
 ): Omit<T, 'password'> & { password?: string } {
@@ -47,29 +91,55 @@ export function redactSqlRequest<T extends Partial<SqlQueryRequest>>(
   return { ...rest, password: '[REDACTED]' };
 }
 
-export function validateSqlQuery(query: string): SqlValidationResult {
+export function validateSqlQuery(
+  query: string,
+  allowedCrossDatabases: string[] = []
+): SqlValidationResult {
   const errors: string[] = [];
-  const trimmedQuery = typeof query === 'string' ? query.trim() : '';
+  const raw = typeof query === 'string' ? query : '';
 
-  if (!trimmedQuery) {
+  if (!raw.trim()) {
     return { isValid: false, errors: ['SQL query is required'] };
   }
 
-  if (trimmedQuery.includes(';')) {
+  // Strip comments before all validation so SSMS-pasted queries work safely.
+  // Dangerous SQL hidden inside comments is removed and never executed.
+  const strippedQuery = stripSqlComments(raw);
+
+  if (!strippedQuery) {
+    return { isValid: false, errors: ['SQL query is required'] };
+  }
+
+  if (strippedQuery.includes(';')) {
     errors.push('Semicolon-separated SQL batches are not allowed');
   }
 
-  if (/--/.test(trimmedQuery) || /\/\*|\*\//.test(trimmedQuery)) {
-    errors.push('SQL comments are not allowed');
-  }
-
-  if (!/^(select|with)\b/i.test(trimmedQuery)) {
+  if (!/^(select|with)\b/i.test(strippedQuery)) {
     errors.push('Only SELECT queries are allowed');
   }
 
   for (const { pattern, label } of DANGEROUS_PATTERNS) {
-    if (pattern.test(trimmedQuery)) {
+    if (pattern.test(strippedQuery)) {
       errors.push(`${label} is not allowed`);
+    }
+  }
+
+  // Cross-database allow-list: if non-empty, only listed databases may appear
+  // in three-part names such as WebScrapes.dbo.table or [WebScrapes].dbo.table
+  if (allowedCrossDatabases.length > 0) {
+    const crossDbPattern = /\[?(\w+)\]?\.\w+\.\w+/gi;
+    let match: RegExpExecArray | null;
+    while ((match = crossDbPattern.exec(strippedQuery)) !== null) {
+      const dbName = match[1];
+      if (
+        !allowedCrossDatabases.some(
+          a => a.toLowerCase() === dbName.toLowerCase()
+        )
+      ) {
+        errors.push(
+          `Cross-database reference to '${dbName}' is not allowed. Allowed databases: ${allowedCrossDatabases.join(', ')}`
+        );
+      }
     }
   }
 
@@ -147,8 +217,9 @@ export class SqlServerService {
     request: SqlQueryRequest
   ): Promise<SqlQueryResult> {
     this.validateRequest(request);
+    const safeQuery = stripSqlComments(request.query);
     const limitedQuery = applySqlRowLimit(
-      request.query,
+      safeQuery,
       request.rowLimit || CONSTANTS.SQL.PREVIEW_ROW_LIMIT
     );
 
@@ -180,7 +251,10 @@ export class SqlServerService {
   private validateRequest(request: SqlQueryRequest): void {
     this.validateConnectionRequest(request);
 
-    const validation = validateSqlQuery(request.query);
+    const validation = validateSqlQuery(
+      request.query,
+      request.allowedCrossDatabases
+    );
     if (!validation.isValid) {
       throw new Error(`SQL query rejected: ${validation.errors.join(', ')}`);
     }

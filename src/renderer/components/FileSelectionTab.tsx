@@ -2,11 +2,13 @@ import React, { useState, useCallback, useEffect } from 'react';
 import type { UpdateInfo } from 'electron-updater';
 import {
   SpreadsheetData,
+  SqlConnectionDetails,
   SqlCredentialIdentity,
   SqlQueryResult,
 } from '@/shared/types';
 import { logger } from '@/services/LoggingService';
 import { ipcService } from '@/services/IPCService';
+import { configurationService } from '@/services/ConfigurationService';
 import { CONSTANTS } from '@/shared/constants';
 
 /**
@@ -176,6 +178,29 @@ interface FileSelectionTabProps {
   onUpdateHandled?: () => void;
 }
 
+function resolveSqlDefaults(
+  saved: SqlConnectionDetails | undefined,
+  sqlSettings:
+    | {
+        defaultServer: string;
+        defaultDatabase: string;
+        defaultUsername: string;
+      }
+    | undefined
+): { server: string; database: string; username: string } {
+  return {
+    server: saved?.server || sqlSettings?.defaultServer || '',
+    database:
+      saved?.database ||
+      sqlSettings?.defaultDatabase ||
+      CONSTANTS.SQL.DEFAULT_DATABASE,
+    username:
+      saved?.username ||
+      sqlSettings?.defaultUsername ||
+      CONSTANTS.SQL.DEFAULT_USERNAME,
+  };
+}
+
 const buildSqlCredentialIdentityKey = (
   identity: SqlCredentialIdentity
 ): string =>
@@ -227,6 +252,9 @@ const FileSelectionTab: React.FC<FileSelectionTabProps> = ({
   const [isSqlPasswordAutoFilled, setIsSqlPasswordAutoFilled] =
     useState<boolean>(false);
   const [credentialStatusMsg, setCredentialStatusMsg] = useState<string>('');
+  const [sqlAllowedCrossDatabases, setSqlAllowedCrossDatabases] = useState<
+    string[]
+  >(['WebScrapes']);
   const [sqlQuery, setSqlQuery] = useState<string>('');
   const [previewData, setPreviewData] = useState<SqlQueryResult | null>(null);
   const [loadedSqlRowCount, setLoadedSqlRowCount] = useState<number | null>(
@@ -252,12 +280,21 @@ const FileSelectionTab: React.FC<FileSelectionTabProps> = ({
   useEffect(() => {
     const loadSavedSqlConnectionDetails = async () => {
       try {
-        const appConfig = await ipcService.loadConfig();
-        const sqlDetails = appConfig?.sqlConnectionDetails;
-        if (sqlDetails) {
-          setSqlServer(sqlDetails.server || '');
-          setSqlDatabase(sqlDetails.database || CONSTANTS.SQL.DEFAULT_DATABASE);
-          setSqlUsername(sqlDetails.username || CONSTANTS.SQL.DEFAULT_USERNAME);
+        const [appConfig, userSettings] = await Promise.all([
+          ipcService.loadConfig(),
+          configurationService.loadUserSettings(),
+        ]);
+        const defaults = resolveSqlDefaults(
+          appConfig?.sqlConnectionDetails,
+          userSettings.sqlSettings
+        );
+        setSqlServer(defaults.server);
+        setSqlDatabase(defaults.database);
+        setSqlUsername(defaults.username);
+        if (userSettings.sqlSettings?.allowedCrossDatabases) {
+          setSqlAllowedCrossDatabases(
+            userSettings.sqlSettings.allowedCrossDatabases
+          );
         }
       } catch (err) {
         logger.warn(
@@ -552,8 +589,16 @@ const FileSelectionTab: React.FC<FileSelectionTabProps> = ({
       rowLimit,
       queryTimeoutMs: CONSTANTS.SQL.QUERY_TIMEOUT_MS,
       connectionTimeoutMs: CONSTANTS.SQL.CONNECTION_TIMEOUT_MS,
+      allowedCrossDatabases: sqlAllowedCrossDatabases,
     }),
-    [sqlDatabase, sqlPassword, sqlQuery, sqlServer, sqlUsername]
+    [
+      sqlAllowedCrossDatabases,
+      sqlDatabase,
+      sqlPassword,
+      sqlQuery,
+      sqlServer,
+      sqlUsername,
+    ]
   );
 
   const validateSqlInputs = useCallback(
