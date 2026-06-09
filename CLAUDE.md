@@ -1,250 +1,175 @@
 # CLAUDE.md
 
-This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
+This file provides guidance to Claude Code when working with code in this repository.
 
-# Digital Assets Downloader - Claude Development Guide
+## Project
 
-## 🚨 CRITICAL INSTRUCTION
+Electron + React + TypeScript desktop app for bulk downloading digital assets, including images and PDFs, from Excel/CSV spreadsheet data or SQL Server queries.
 
-**NEVER TELL THE USER THE APP IS "PRODUCTION READY"!**
-This application is in the middle of an ongoing refactor. Always acknowledge this is development/refactoring work, not a finished production application.
+This is an actively maintained prototype/refactor project. Do not describe it as production ready unless the user explicitly asks for release-status wording and the current repository state has been verified.
 
-Use the Serena MCP to search efficiently through the codebase
+## Commands
 
-## 📋 Current Session Handoff
-
-For active development sessions, reference **`PHASE_6_HANDOFF.md`** for current task status, GitHub issues, and session handoff templates.
-
-## Core Development Commands
-
-### Development & Build
-
-- `npm run dev` - Start development with hot reload (main command for development)
-- `npm run build` - Production build (both main and renderer)
-- `npm run build:main` - Build Electron main process only
-- `npm run build:renderer` - Build React renderer only
-- `npm start:electron` - Start Electron app (requires build first)
-
-### Testing & Quality
-
-- `npm test` - Run all tests (214 passing tests as of current version)
-- `npm run test:watch` - Run tests in watch mode
-- `npm run test:coverage` - Run tests with coverage report (50% threshold enforced)
-- `npm run lint` - ESLint checking (REQUIRED after changes)
-- `npm run lint:fix` - Auto-fix ESLint issues
-- `npm run format` - Prettier formatting
-
-### Distribution
-
-- `npm run dist` - Package for current platform
-- `npm run dist:mac` - Package for macOS (.dmg)
-- `npm run dist:win` - Package for Windows (.exe)
-- `npm run publish` - Build and publish to GitHub releases
-
-## High-Level Architecture
-
-This is an **Electron application** built with **React + TypeScript** that handles bulk downloading of digital assets from Excel/CSV data.
-
-### Directory Structure
-
+```bash
+npm run dev            # Start with hot reload
+npm run build          # Build main + renderer
+npm run lint           # ESLint check
+npm run lint:fix       # Auto-fix ESLint issues
+npm test               # Run all tests
+npm run test:watch     # Tests in watch mode
+npm run test:coverage  # Tests with coverage report
+npm run dist           # Package for current platform
+npm run dist:win       # Package for Windows
+npm run dist:mac       # Package for macOS
+npm run publish        # Build and publish to GitHub Releases
 ```
+
+Run only the checks relevant to the change unless the user asks for full validation.
+
+Always state which checks were run and which checks were not run.
+
+## Architecture
+
+```text
 src/
-├── main/           # Electron main process (Node.js context)
-│   ├── main.ts     # Entry point, window management, IPC handlers
-│   └── preload.ts  # Bridge between main and renderer
-├── renderer/       # React frontend (browser context)
-│   ├── App.tsx     # Main component with 4-tab workflow
-│   ├── components/ # UI components (FileSelection, ColumnSelection, Process, Settings)
-│   ├── hooks/      # Custom React hooks (useElectronIPC, useStatusMessage, etc.)
-│   └── types.d.ts  # Type definitions
-├── services/       # Business logic layer (shared between processes)
-│   ├── LoggingService.ts      # ✅ Centralized logging (100% coverage)
-│   ├── ValidationService.ts   # ✅ Input validation (95.65% coverage)
-│   ├── ConfigurationService.ts # ✅ Settings management (91.86% coverage)
-│   ├── IPCService.ts         # ✅ IPC communication (89.92% coverage)
-│   ├── ErrorHandlingService.ts # ✅ Error handling (92.25% coverage)
-│   ├── excelService.ts       # Excel/CSV processing with ExcelJS
-│   ├── downloadService.ts    # Multi-threaded downloads with retry logic
-│   └── pathSecurity.ts       # Security utilities (96.1% coverage)
-├── shared/         # Types and interfaces used across processes
+├── main/           # Electron main process, Node.js context
+│   ├── main.ts     # App entry, window management, IPC handlers
+│   └── preload.ts  # Secure bridge, exposes window.electronAPI to renderer
+├── renderer/       # React frontend, browser context
+│   ├── App.tsx     # Root layout and main workflow
+│   ├── components/ # Tab components and UI primitives
+│   └── hooks/      # Custom React hooks
+├── services/       # Business logic, used from main and renderer where appropriate
+├── shared/         # Types, constants, and utilities used across processes
+│   ├── types.ts
+│   └── constants.ts
 └── workers/        # Background workers for heavy operations
 ```
 
-### Key Application Flow
+Inspect current files before assuming architecture. Do not rely on this file as the only source of truth.
 
-1. **File Selection Tab**: Load Excel/CSV files, select sheets, preview data
-2. **Column Selection Tab**: Map columns (part numbers, URLs), configure paths
-3. **Process Tab**: Execute downloads with progress tracking
-4. **Settings Tab**: Configure defaults, download behavior, image processing
+## IPC Communication
 
-### Inter-Process Communication (IPC)
+All IPC channels are defined in `IPC_CHANNELS` in `src/shared/types.ts`.
 
-- Uses `electron` IPC with `preload.ts` as secure bridge
-- All IPC channels defined in `IPC_CHANNELS` constant
-- Type-safe communication via `IPCService.ts` (Phase 3 service)
-- Request-response patterns for file operations and downloads
+The renderer calls `window.electronAPI.*` methods typed in `preload.ts`.
 
-### State Management
+The main process registers handlers via `ipcMain.handle(IPC_CHANNELS.*)`.
 
-- React `useState` and `useCallback` patterns
-- `electron-store` for persistent configuration
-- Custom hooks for common patterns (`useElectronIPC`, `useStatusMessage`)
+Do not change IPC channel names unless the user explicitly asks for an IPC contract change. If changing one, update all related main, preload, renderer, and type definitions together.
 
-## Core Refactoring Principles (KISS/DRY)
+## Path Aliases
 
-### 🎯 KISS (Keep It Simple, Stupid)
+TypeScript `@/` maps to `src/`.
 
-- Prefer simple, readable solutions over complex ones
-- Avoid over-engineering
-- If a solution requires extensive explanation, it's probably too complex
-
-### ♻️ DRY (Don't Repeat Yourself)
-
-- Extract shared logic into reusable components/functions
-- Centralize configuration and constants
-- **Apply the Rule of 3**: Only extract to a shared component when you have 3+ instances of duplication
-
-### 🏗️ SOLID Principles
-
-- **S**ingle Responsibility: Each module/class should have one reason to change
-- **O**pen/Closed: Open for extension, closed for modification
-- **L**iskov Substitution: Derived classes must be substitutable for base classes
-- **I**nterface Segregation: Many specific interfaces are better than one general interface
-- **D**ependency Inversion: Depend on abstractions, not concretions
-
-### ⏳ YAGNI (You Aren't Gonna Need It)
-
-- Don't add functionality until it's actually needed
-- Avoid speculative generalization
-- Build for current requirements, not hypothetical future needs
-
-### 📏 Rule of 3
-
-- **First instance**: Write the code inline
-- **Second instance**: Note the duplication but don't refactor yet
-- **Third instance**: Now refactor into a shared component/function
-
-## CRITICAL: Production Application Safety
-
-**This application is PRODUCTION READY and FULLY FUNCTIONAL.** Any changes must follow strict safeguards:
-
-### Change Implementation Pattern
-
-1. **Plan First**: Always explain what you plan to change and why
-2. **Single Feature Focus**: Implement one feature at a time with minimal scope
-3. **Test Instructions**: After implementation, provide specific testing steps
-4. **Wait for Confirmation**: Never proceed until current changes are confirmed working
-
-### Breaking Change Prevention
-
-- **ONE CHANGE AT A TIME**: Never modify multiple files simultaneously
-- **MINIMAL VIABLE CHANGES**: Use the smallest possible change to achieve the goal
-- **ADDITIVE-ONLY DEVELOPMENT**: Extend interfaces rather than modify existing ones
-- **IMMEDIATE TESTING**: Run `npm run dev` and `npm run lint` after every file change
-
-### Required Testing After Changes
-
-1. Run `npm run build` - Verify TypeScript compilation
-2. Run `npm run lint` - Check code quality
-3. Run `npm test` - Ensure all 214 tests still pass
-4. Run `npm run dev` - Test application manually
-5. Test the critical path: File Selection → Column Selection → Process tabs
-
-## Service Layer Architecture (Phase 3 - COMPLETE)
-
-**6 Production-Ready Services** with comprehensive testing:
+Prefer `@/` imports for internal modules.
 
 ```typescript
-// Import pattern for all services
+import { IPC_CHANNELS } from '@/shared/types';
 import { logger } from '@/services/LoggingService';
-import { validationService } from '@/services/ValidationService';
-import { configService } from '@/services/ConfigurationService';
+```
+
+## Service Singletons
+
+Core services export named singletons. Use existing exported instances instead of creating new service instances.
+
+Examples:
+
+```typescript
+import { logger } from '@/services/LoggingService';
 import { ipcService } from '@/services/IPCService';
+import { configurationService } from '@/services/ConfigurationService';
 import { errorHandler } from '@/services/ErrorHandlingService';
-import { imageProcessingService } from '@/services/ImageProcessingService';
+import { imageProcessor } from '@/services/ImageProcessingService';
+import { appConstants } from '@/services/AppConstantsService';
 ```
 
-### Service Integration Patterns
+Before adding a new service, check whether an existing service already handles the responsibility.
 
-- **ErrorHandlingService** → uses **LoggingService** for error logging
-- **ConfigurationService** → uses **ValidationService** for settings validation
-- **IPCService** → integrates with React hooks for type-safe IPC
-- All services follow singleton pattern with `getInstance()`
+## SQL Server
 
-## UI Component Library (Phase 2 - COMPLETE)
+`SqlServerService` is intended for read-only queries.
 
-**Established components in `src/renderer/components/ui/`:**
+It blocks write or destructive SQL operations such as `INSERT`, `UPDATE`, `DELETE`, `DROP`, and `EXEC` before executing queries.
 
-- `NumberInput.tsx` - Used 6x across components
-- `Select.tsx` - Used 5x in ColumnSelectionTab
-- `FolderSelector.tsx` - Used 5x in ColumnSelectionTab
-- `StatusMessage.tsx` - Integrated with useStatusMessage hook
-- `FormSection.tsx` - Layout consistency
+Queries are stripped of comments first using `stripSqlComments` from `src/shared/sqlUtils.ts`.
 
-## Custom Hooks (Phase 1 - COMPLETE)
+SQL credentials are persisted via `SqlCredentialService` using the OS keychain.
 
-**React hooks in `src/renderer/hooks/`:**
+Do not weaken SQL safety rules unless the user explicitly asks for that change and understands the risk.
 
-- `useElectronIPC.ts` - Type-safe IPC communication
-- `useStatusMessage.ts` - UI state management with timeout
-- `useFolderDialog.ts` - File system interaction
-- `useEventListeners.ts` - Event cleanup management
+## Configuration Persistence
 
-## Path Aliases & Imports
+Configuration uses `electron-store` with `AppConfig` from `src/shared/types.ts`.
 
-TypeScript path mapping configured in `tsconfig.json`:
+When adding settings:
 
-```typescript
-import { SpreadsheetData } from '@/shared/types';
-import { logger } from '@/services/LoggingService';
-import { NumberInput } from '@/renderer/components/ui';
-```
+- extend existing `AppConfig` / `UserSettings` shapes instead of replacing them
+- provide safe defaults
+- preserve backward compatibility with existing stored config
+- avoid migrations unless they are actually required
 
-## Technology Stack Specifics
+## Coding Rules
 
-### Core Dependencies
+- Make surgical changes.
+- Prefer simple, readable code.
+- Preserve existing behaviour unless the task explicitly changes it.
+- Do not refactor unrelated code.
+- Do not add abstractions before there are 3 real uses.
+- Do not add compatibility layers, wrappers, fallbacks, validators, docs, migrations, or cleanup changes unless asked.
+- Avoid speculative generalisation.
+- Avoid `any`. Prefer `unknown` with narrowing. If `any` is unavoidable at a third-party boundary, keep it local and explain why.
+- Do not change public contracts, file formats, config shapes, or IPC contracts unless the user asks.
 
-- **React 18** with functional components and hooks
-- **TypeScript** with strict mode enabled (`"strict": true`)
-- **Electron 28** for desktop application framework
-- **ExcelJS** for Excel/CSV file processing
-- **Jimp** for image processing (replaced Sharp in recent versions)
-- **Axios** with retry logic for HTTP downloads
+## External Tool Context
 
-### Development Tools
+When the user explains how an external tool, app, API, plugin, database, service, or workflow already works, treat that explanation as context only.
 
-- **Jest** for testing with TypeScript support (`ts-jest`)
-- **ESLint** with TypeScript, React, and Prettier integration
-- **Webpack** for bundling (separate configs for main/renderer)
+Do not implement behaviour that the user says is already handled externally.
 
-## Current Refactoring Status
+If the requested change touches an external system boundary, first identify:
 
-- **Phase 1**: ✅ Custom Hooks (Complete - 23 lines saved)
-- **Phase 2**: ✅ UI Components (Complete - 119 lines saved)
-- **Phase 3**: ✅ Business Logic Services (Complete - 300+ patterns consolidated)
-- **Phase 4**: ✅ Component Decomposition (Complete - Large components → focused components)
-- **Phase 5**: ✅ Method Simplification (Complete - Break down complex methods)
-- **Phase 6A**: ✅ DRY Violations Cleanup (Complete - 200+ lines saved)
-- **Phase 6B**: ✅ Configuration Enhancement (Complete - Centralized constants & user overrides)
-- **Phase 6C**: ✅ Method Simplification (Complete - ProcessTab & ColumnSelectionTab refactored)
-- **Phase 6D**: ✅ Auto-updater Logging Enhancement (Complete - Console debugging & user feedback)
+1. what the external system already handles
+2. what this app is responsible for
+3. what is explicitly out of scope
 
-**🎉 ALL PHASES COMPLETE** - Application is production-ready with exemplary architecture
+## Scope Discipline
 
-## Current Quality Metrics (Achieved)
+Default to the smallest useful change.
 
-- **Testing**: ✅ 241 passing tests (increased from 214), >90% coverage for services
-- **Build Performance**: ✅ Clean builds under 30 seconds
-- **Type Safety**: ✅ Zero TypeScript errors
-- **Component Size**: ✅ All components <200 lines (focused components achieved)
-- **Method Size**: ✅ All methods <50 lines (method simplification complete)
-- **Code Duplication**: ✅ 1.05% (excellent improvement from 3.68%)
-- **Configuration**: ✅ Centralized constants with user override capabilities
+Before editing, state:
 
-## GitHub Integration
+1. the exact requested change
+2. files you intend to change
+3. why each file needs changing
+4. what is out of scope
+5. behaviour that must remain unchanged
 
-- **Auto-updates**: ✅ Enhanced with comprehensive console logging and user feedback
-- **Issues**: ✅ All Phase 6 cleanup issues completed (#22, #23, #24, #26, #27)
-- **Branch**: `main` branch is production-ready with all refactoring phases complete
-- **Publishing**: `npm run publish` creates GitHub releases automatically
-- **Current Status**: No open issues - project is in maintenance mode
+Then make the smallest change that satisfies the request.
+
+Do not continue into adjacent improvements after the requested change is complete.
+
+## Before Editing
+
+Before modifying files:
+
+1. inspect the relevant current files
+2. check existing patterns before introducing new ones
+3. identify the minimal change path
+4. call out any ambiguity that affects implementation
+
+If the task is clear, proceed with the smallest safe implementation. Do not ask unnecessary confirmation questions.
+
+## After Editing
+
+After making changes, summarise:
+
+1. what changed
+2. files changed
+3. checks run
+4. checks not run
+5. any remaining risks or follow-up work
+
+Do not claim that checks passed unless they were actually run.
+
+Do not describe the app as production ready unless explicitly asked and verified.
