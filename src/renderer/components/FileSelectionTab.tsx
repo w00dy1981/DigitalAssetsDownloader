@@ -373,6 +373,8 @@ const FileSelectionTab: React.FC<FileSelectionTabProps> = ({
     (setter: React.Dispatch<React.SetStateAction<string>>, value: string) => {
       setter(value);
       setCredentialStatusMsg('');
+      setPreviewData(null);
+      setLoadedSqlRowCount(null);
 
       if (isSqlPasswordAutoFilled) {
         setSqlPassword('');
@@ -389,6 +391,17 @@ const FileSelectionTab: React.FC<FileSelectionTabProps> = ({
       setSqlPassword(e.target.value);
       setIsSqlPasswordAutoFilled(false);
       setCredentialStatusMsg('');
+      setPreviewData(null);
+      setLoadedSqlRowCount(null);
+    },
+    []
+  );
+
+  const handleSqlQueryChange = useCallback(
+    (e: React.ChangeEvent<HTMLTextAreaElement>) => {
+      setSqlQuery(e.target.value);
+      setPreviewData(null);
+      setLoadedSqlRowCount(null);
     },
     []
   );
@@ -724,9 +737,18 @@ const FileSelectionTab: React.FC<FileSelectionTabProps> = ({
   const handleLoadSqlQuery = useCallback(async () => {
     if (!validateSqlInputs(true)) return;
 
-    const shouldContinue = window.confirm(
-      `This will load up to ${CONSTANTS.SQL.FULL_LOAD_ROW_LIMIT.toLocaleString()} rows from SQL Server. Continue?`
-    );
+    if (!previewData) {
+      setError('Preview the SQL query successfully before loading SQL data.');
+      return;
+    }
+
+    const previewRowCount = previewData.rowCount;
+    const previewLimit = CONSTANTS.SQL.PREVIEW_ROW_LIMIT;
+    const confirmationMessage =
+      previewRowCount < previewLimit
+        ? `This will load ${previewRowCount.toLocaleString()} rows from SQL Server. Continue?`
+        : `Preview verified the first ${previewRowCount.toLocaleString()} rows. Continue loading SQL data from this query?`;
+    const shouldContinue = window.confirm(confirmationMessage);
     if (!shouldContinue) return;
 
     setIsLoading(true);
@@ -768,6 +790,7 @@ const FileSelectionTab: React.FC<FileSelectionTabProps> = ({
   }, [
     buildSqlRequest,
     onDataLoaded,
+    previewData,
     saveSqlPasswordIfRequested,
     validateSqlInputs,
   ]);
@@ -1043,7 +1066,12 @@ const FileSelectionTab: React.FC<FileSelectionTabProps> = ({
                   type="button"
                   className="btn btn-success"
                   onClick={handleLoadSqlQuery}
-                  disabled={isLoading}
+                  disabled={isLoading || !previewData}
+                  title={
+                    previewData
+                      ? 'Load SQL data from the previewed query'
+                      : 'Preview the SQL query before loading data'
+                  }
                 >
                   Load SQL Data
                 </button>
@@ -1068,7 +1096,7 @@ const FileSelectionTab: React.FC<FileSelectionTabProps> = ({
                 <textarea
                   id="sql-query"
                   value={sqlQuery}
-                  onChange={e => setSqlQuery(e.target.value)}
+                  onChange={handleSqlQueryChange}
                   className="form-control sql-query-textarea"
                   placeholder="SELECT PartNumber, ImageUrl, PdfUrl FROM ..."
                   disabled={isLoading}

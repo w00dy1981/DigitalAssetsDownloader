@@ -1,6 +1,7 @@
 import * as fs from 'fs/promises';
 import * as path from 'path';
 import axios, { AxiosResponse } from 'axios';
+import ExcelJS from 'exceljs';
 import {
   DownloadConfig,
   DownloadItem,
@@ -28,6 +29,55 @@ interface DownloadJobItem extends DownloadItem {
   networkImagePaths: string[];
   networkPdfPath?: string;
 }
+
+export interface DownloadLogWorkbookRow {
+  row: number;
+  productCode: string;
+  url: string;
+  status: 'Success' | 'Failure';
+  httpStatus: number;
+  contentType: string;
+  fileSize: number;
+  message: string;
+  localFilePath: string;
+  photoFilePath: string;
+  productDataSheet: string;
+  backgroundProcessed: 'Yes' | 'No';
+}
+
+export interface ErpImportWorkbookRow {
+  productCode: string;
+  photoFilePath?: string;
+  productDataSheet?: string;
+}
+
+export const DOWNLOAD_LOG_HEADERS = [
+  'Row',
+  'Product Code',
+  'URL',
+  'Status',
+  'HTTP Status',
+  'Content-Type',
+  'File Size (Bytes)',
+  'Message',
+  'Local File Path',
+  'Photo File Path',
+  'Product Data Sheet',
+  'Background Processed',
+];
+
+export const buildErpImportRows = (
+  logRows: DownloadLogWorkbookRow[]
+): ErpImportWorkbookRow[] =>
+  logRows
+    .filter(row => row.photoFilePath || row.productDataSheet)
+    .map(row => ({
+      productCode: row.productCode,
+      ...(row.photoFilePath ? { photoFilePath: row.photoFilePath } : {}),
+      ...(row.productDataSheet
+        ? { productDataSheet: row.productDataSheet }
+        : {}),
+    }));
 
 export class DownloadService extends EventEmitter {
   private isDownloading = false;
@@ -939,15 +989,14 @@ export class DownloadService extends EventEmitter {
         ); // Debug log
         this.updateProgress({ total: this.progress.total });
 
-        // Create CSV log file
+        // Create Excel workbook log file
         const logFolder = config.imageFolder || config.pdfFolder;
         const timestamp = new Date()
           .toISOString()
           .replace(/[:.]/g, '-')
           .slice(0, 19);
-        const logFile = safeJoin(logFolder, `DownloadLog_${timestamp}.csv`);
-
-        await this.initializeLogFile(logFile);
+        const logFile = safeJoin(logFolder, `DownloadLog_${timestamp}.xlsx`);
+        const logRows: DownloadLogWorkbookRow[] = [];
 
         // Process downloads in batches
         const batchSize = Math.min(10, config.maxWorkers * 2);
@@ -958,7 +1007,8 @@ export class DownloadService extends EventEmitter {
         ) {
           const batch = downloadItems.slice(i, i + batchSize);
 
-          await this.processBatch(batch, config, logFile);
+          const batchRows = await this.processBatch(batch, config);
+          logRows.push(...batchRows);
           this.updateProgress({
             percentage:
               ((this.progress.successful + this.progress.failed) /
@@ -966,6 +1016,8 @@ export class DownloadService extends EventEmitter {
               100,
           });
         }
+
+        await this.writeLogWorkbook(logFile, logRows);
 
         this.emit('complete', {
           successful: this.progress.successful,
@@ -994,9 +1046,8 @@ export class DownloadService extends EventEmitter {
    */
   private async processBatch(
     batch: DownloadJobItem[],
-    config: DownloadConfig,
-    logFile: string
-  ): Promise<void> {
+    config: DownloadConfig
+  ): Promise<DownloadLogWorkbookRow[]> {
     // Collect all download tasks from the batch
     const downloadTasks: Array<{
       item: DownloadJobItem;
@@ -1094,23 +1145,28 @@ export class DownloadService extends EventEmitter {
     }
 
     // Write one row per product in original spreadsheet order
-    const sortedProducts = Array.from(productMap.entries()).sort(([a], [b]) => a - b);
+    const sortedProducts = Array.from(productMap.entries()).sort(
+      ([a], [b]) => a - b
+    );
+    const logRows: DownloadLogWorkbookRow[] = [];
 
     for (const [, { item, imageResult, pdfResult }] of sortedProducts) {
-      const productDataSheet = item.pdfFilePath ? `${item.partNumber}.PDF` : '';
+      const productDataSheet = pdfResult?.success ? `${item.partNumber}.PDF` : '';
 
       if (imageResult) {
         // Normal case: use image result; Photo File Path comes from image network path
-        await this.writeToLog(logFile, item, imageResult, productDataSheet);
+        logRows.push(this.createLogRow(item, imageResult, productDataSheet));
       } else if (pdfResult) {
         // PDF-only product: preserve local file path but clear Photo File Path (image-only column)
         const logResult: DownloadResult = {
           ...pdfResult,
           networkPath: '',
         };
-        await this.writeToLog(logFile, item, logResult, productDataSheet);
+        logRows.push(this.createLogRow(item, logResult, productDataSheet));
       }
     }
+
+    return logRows;
   }
 
   /**
@@ -1186,70 +1242,110 @@ export class DownloadService extends EventEmitter {
     }
   }
 
-  /**
-   * Initialize CSV log file with headers
-   * Matches Python implementation (Lines 1990-1995)
-   */
-  private async initializeLogFile(logFile: string): Promise<void> {
-    const headers = [
-      'Row',
-      'Product Code',
-      'URL',
-      'Status',
-      'HTTP Status',
-      'Content-Type',
-      'File Size (Bytes)',
-      'Message',
-      'Local File Path',
-      'Photo File Path',
-      'Product Data Sheet',
-      'Background Processed',
-    ];
-
-    const csvContent = headers.join(',') + '\n';
-    await fs.writeFile(logFile, csvContent, 'utf8');
-  }
-
-  /**
-   * Write download result to CSV log
-   * Matches Python implementation (Lines 2237-2280)
-   */
-  private async writeToLog(
-    logFile: string,
+  private createLogRow(
     item: DownloadJobItem,
     result: DownloadResult,
     productDataSheet: string
+  ): DownloadLogWorkbookRow {
+    const status = result.success ? 'Success' : 'Failure';
+
+    return {
+      row: item.rowNumber,
+      productCode: item.partNumber,
+      url: result.url,
+      status,
+      httpStatus: result.httpStatus || 0,
+      contentType: result.contentType || '',
+      fileSize: result.fileSize || 0,
+      message: result.success ? 'Success' : result.error || 'Unknown error',
+      localFilePath: result.success ? result.filePath : '',
+      photoFilePath: result.success ? result.networkPath : '',
+      productDataSheet,
+      backgroundProcessed: result.backgroundProcessed ? 'Yes' : 'No',
+    };
+  }
+
+  private async writeLogWorkbook(
+    logFile: string,
+    logRows: DownloadLogWorkbookRow[]
   ): Promise<void> {
     try {
-      const status = result.success ? 'Success' : 'Failure';
-      const backgroundProcessed = result.backgroundProcessed ? 'Yes' : 'No';
-      const localPath = result.success ? result.filePath : '';
-      const networkPath = result.success ? result.networkPath : '';
+      const workbook = new ExcelJS.Workbook();
+      workbook.creator = 'Digital Asset Downloader';
+      workbook.created = new Date();
 
-      const row = [
-        item.rowNumber,
-        `"${item.partNumber}"`, // Quote to handle commas in part numbers
-        `"${result.url}"`,
-        status,
-        result.httpStatus || 0,
-        `"${result.contentType || ''}"`,
-        result.fileSize || 0,
-        `"${result.success ? 'Success' : result.error || 'Unknown error'}"`,
-        `"${localPath}"`,
-        `"${networkPath}"`,
-        `"${productDataSheet}"`,
-        backgroundProcessed,
-      ];
+      const logSheet = workbook.addWorksheet('Download Log');
+      logSheet.addRow(DOWNLOAD_LOG_HEADERS);
+      for (const row of logRows) {
+        logSheet.addRow([
+          row.row,
+          row.productCode,
+          row.url,
+          row.status,
+          row.httpStatus,
+          row.contentType,
+          row.fileSize,
+          row.message,
+          row.localFilePath,
+          row.photoFilePath,
+          row.productDataSheet,
+          row.backgroundProcessed,
+        ]);
+      }
 
-      const csvLine = row.join(',') + '\n';
-      await fs.appendFile(logFile, csvLine, 'utf8');
+      this.formatWorksheet(logSheet);
+      this.addErpImportSheet(workbook, buildErpImportRows(logRows));
+
+      await fs.mkdir(path.dirname(logFile), { recursive: true });
+      await workbook.xlsx.writeFile(logFile);
     } catch (error) {
       logger.error(
-        'Error writing to log file',
+        'Error writing workbook log file',
         error instanceof Error ? error : new Error(String(error)),
         'DownloadService'
       );
+      throw error;
     }
+  }
+
+  private addErpImportSheet(
+    workbook: ExcelJS.Workbook,
+    importRows: ErpImportWorkbookRow[]
+  ): void {
+    const includePhotoFilePath = importRows.some(row => row.photoFilePath);
+    const includeProductDataSheet = importRows.some(row => row.productDataSheet);
+    const headers = [
+      'Product Code',
+      ...(includePhotoFilePath ? ['Photo File Path'] : []),
+      ...(includeProductDataSheet ? ['Product Data Sheet'] : []),
+    ];
+
+    const importSheet = workbook.addWorksheet('ERP Import');
+    importSheet.addRow(headers);
+
+    for (const row of importRows) {
+      importSheet.addRow([
+        row.productCode,
+        ...(includePhotoFilePath ? [row.photoFilePath || ''] : []),
+        ...(includeProductDataSheet ? [row.productDataSheet || ''] : []),
+      ]);
+    }
+
+    this.formatWorksheet(importSheet);
+  }
+
+  private formatWorksheet(worksheet: ExcelJS.Worksheet): void {
+    worksheet.getRow(1).font = { bold: true };
+    worksheet.views = [{ state: 'frozen', ySplit: 1 }];
+
+    worksheet.columns.forEach(column => {
+      let maxLength = 12;
+      column.eachCell?.({ includeEmpty: true }, cell => {
+        const cellValue = cell.value == null ? '' : String(cell.value);
+        maxLength = Math.max(maxLength, cellValue.length);
+      });
+      column.width = Math.min(maxLength + 2, 80);
+    });
   }
 
   /**
