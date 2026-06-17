@@ -1,9 +1,11 @@
 import * as mssql from 'mssql';
 import {
   applySqlRowLimit,
+  buildSqlCountQuery,
   redactSqlRequest,
   SqlServerService,
   stripSqlComments,
+  stripFinalOrderBy,
   validateSqlQuery,
 } from './SqlServerService';
 
@@ -125,6 +127,53 @@ describe('SqlServerService query limiting', () => {
         50
       )
     ).toBe('SELECT TOP (50) PartNo \nFROM Products');
+  });
+});
+
+describe('SqlServerService query counting', () => {
+  it('builds a count query for a simple SELECT', () => {
+    expect(buildSqlCountQuery('SELECT PartNo FROM Products')).toBe(
+      'SELECT COUNT_BIG(1) AS totalRowCount FROM (SELECT PartNo FROM Products) AS sql_count_result'
+    );
+  });
+
+  it('strips the final ORDER BY before building a count query', () => {
+    const query = [
+      'SELECT PartNo, ProductTitle',
+      'FROM Products',
+      'ORDER BY ProductTitle',
+    ].join('\n');
+
+    expect(stripFinalOrderBy(query)).toBe(
+      ['SELECT PartNo, ProductTitle', 'FROM Products'].join('\n')
+    );
+    expect(buildSqlCountQuery(query)).toBe(
+      `SELECT COUNT_BIG(1) AS totalRowCount FROM (${['SELECT PartNo, ProductTitle', 'FROM Products'].join('\n')}) AS sql_count_result`
+    );
+  });
+
+  it('preserves ORDER BY inside a window function while stripping the final ORDER BY', () => {
+    const query = [
+      'SELECT ROW_NUMBER() OVER (ORDER BY ProductTitle) AS RowNo, ProductTitle',
+      'FROM Products',
+      'ORDER BY ProductTitle',
+    ].join('\n');
+
+    expect(stripFinalOrderBy(query)).toBe(
+      [
+        'SELECT ROW_NUMBER() OVER (ORDER BY ProductTitle) AS RowNo, ProductTitle',
+        'FROM Products',
+      ].join('\n')
+    );
+  });
+
+  it('builds a count query for a CTE SELECT', () => {
+    const query =
+      'WITH ProductRows AS (SELECT PartNo FROM Products) SELECT PartNo FROM ProductRows ORDER BY PartNo';
+
+    expect(buildSqlCountQuery(query)).toBe(
+      'WITH ProductRows AS (SELECT PartNo FROM Products) SELECT COUNT_BIG(1) AS totalRowCount FROM (SELECT PartNo FROM ProductRows) AS sql_count_result'
+    );
   });
 });
 
@@ -302,6 +351,15 @@ describe('SqlServerService execution', () => {
   it('normalizes preview rows without mutating external loaded data', async () => {
     const service = new SqlServerService();
     const existingLoadedRows = [{ PartNo: 'Existing' }];
+    mockQuery
+      .mockResolvedValueOnce({
+        recordset: [
+          { PartNo: ' ABC ', ImageUrl: 'https://example.com/image.jpg' },
+        ],
+      })
+      .mockResolvedValueOnce({
+        recordset: [{ totalRowCount: 1384 }],
+      });
 
     const result = await service.previewQuery(request);
 
@@ -309,8 +367,13 @@ describe('SqlServerService execution', () => {
       { PartNo: 'ABC', ImageUrl: 'https://example.com/image.jpg' },
     ]);
     expect(existingLoadedRows).toEqual([{ PartNo: 'Existing' }]);
+    expect(result.rowCount).toBe(1);
+    expect(result.totalRowCount).toBe(1384);
     expect(mockQuery).toHaveBeenCalledWith(
       'SELECT TOP (50) PartNo, ImageUrl FROM Products'
+    );
+    expect(mockQuery).toHaveBeenCalledWith(
+      'SELECT COUNT_BIG(1) AS totalRowCount FROM (SELECT PartNo, ImageUrl FROM Products) AS sql_count_result'
     );
   });
 

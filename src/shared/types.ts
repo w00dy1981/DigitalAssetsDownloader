@@ -185,6 +185,7 @@ export interface SqlQueryResult {
   columns: string[];
   rows: Record<string, any>[];
   rowCount: number;
+  totalRowCount?: number;
   sourceLabel: string;
 }
 

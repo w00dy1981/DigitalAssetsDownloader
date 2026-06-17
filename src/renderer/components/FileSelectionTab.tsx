@@ -742,12 +742,12 @@ const FileSelectionTab: React.FC<FileSelectionTabProps> = ({
       return;
     }
 
-    const previewRowCount = previewData.rowCount;
-    const previewLimit = CONSTANTS.SQL.PREVIEW_ROW_LIMIT;
+    const totalRowCount = previewData.totalRowCount ?? previewData.rowCount;
+    const fullLoadLimit = CONSTANTS.SQL.FULL_LOAD_ROW_LIMIT;
     const confirmationMessage =
-      previewRowCount < previewLimit
-        ? `This will load ${previewRowCount.toLocaleString()} rows from SQL Server. Continue?`
-        : `Preview verified the first ${previewRowCount.toLocaleString()} rows. Continue loading SQL data from this query?`;
+      totalRowCount > fullLoadLimit
+        ? `This query has ${totalRowCount.toLocaleString()} rows. This will load the first ${fullLoadLimit.toLocaleString()} rows from SQL Server. Continue?`
+        : `This will load ${totalRowCount.toLocaleString()} rows from SQL Server. Continue?`;
     const shouldContinue = window.confirm(confirmationMessage);
     if (!shouldContinue) return;
 
@@ -1115,6 +1115,8 @@ const FileSelectionTab: React.FC<FileSelectionTabProps> = ({
               <h3>
                 Preview — {previewData.rowCount} rows,{' '}
                 {previewData.columns.length} columns
+                {previewData.totalRowCount !== undefined &&
+                  ` (${previewData.totalRowCount.toLocaleString()} total rows)`}
               </h3>
               <div className="sql-preview-table-container">
                 <table

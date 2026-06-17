@@ -140,6 +140,92 @@ export function applySqlRowLimit(query: string, rowLimit: number): string {
   return `SELECT TOP (${normalizedLimit}) * FROM (${trimmedQuery}) AS sql_limited_result`;
 }
 
+function isSqlIdentifierCharacter(char: string | undefined): boolean {
+  return !!char && /[a-zA-Z0-9_]/.test(char);
+}
+
+export function stripFinalOrderBy(query: string): string {
+  const trimmedQuery = query.trim().replace(/;+\s*$/, '');
+  let depth = 0;
+  let inSingleQuote = false;
+  let inBracketIdentifier = false;
+  let finalOrderByIndex = -1;
+
+  for (let i = 0; i < trimmedQuery.length; i++) {
+    const char = trimmedQuery[i];
+    const nextChar = trimmedQuery[i + 1];
+
+    if (inSingleQuote) {
+      if (char === "'" && nextChar === "'") {
+        i++;
+      } else if (char === "'") {
+        inSingleQuote = false;
+      }
+      continue;
+    }
+
+    if (inBracketIdentifier) {
+      if (char === ']') {
+        inBracketIdentifier = false;
+      }
+      continue;
+    }
+
+    if (char === "'") {
+      inSingleQuote = true;
+      continue;
+    }
+
+    if (char === '[') {
+      inBracketIdentifier = true;
+      continue;
+    }
+
+    if (char === '(') {
+      depth++;
+      continue;
+    }
+
+    if (char === ')') {
+      depth = Math.max(0, depth - 1);
+      continue;
+    }
+
+    if (
+      depth === 0 &&
+      trimmedQuery.slice(i, i + 5).toLowerCase() === 'order' &&
+      !isSqlIdentifierCharacter(trimmedQuery[i - 1]) &&
+      !isSqlIdentifierCharacter(trimmedQuery[i + 5])
+    ) {
+      const afterOrder = trimmedQuery.slice(i + 5);
+      const byMatch = afterOrder.match(/^\s+by\b/i);
+      if (byMatch) {
+        finalOrderByIndex = i;
+      }
+    }
+  }
+
+  return finalOrderByIndex >= 0
+    ? trimmedQuery.slice(0, finalOrderByIndex).trim()
+    : trimmedQuery;
+}
+
+export function buildSqlCountQuery(query: string): string {
+  const countableQuery = stripFinalOrderBy(query);
+
+  if (/^with\b/i.test(countableQuery)) {
+    const selectMatches = [...countableQuery.matchAll(/\bselect\b/gi)];
+    const finalSelect = selectMatches[selectMatches.length - 1];
+    if (finalSelect?.index !== undefined) {
+      const ctePrefix = countableQuery.slice(0, finalSelect.index);
+      const finalSelectQuery = countableQuery.slice(finalSelect.index);
+      return `${ctePrefix}SELECT COUNT_BIG(1) AS totalRowCount FROM (${finalSelectQuery}) AS sql_count_result`;
+    }
+  }
+
+  return `SELECT COUNT_BIG(1) AS totalRowCount FROM (${countableQuery}) AS sql_count_result`;
+}
+
 export class SqlServerService {
   async testConnection(
     request: SqlConnectionTestRequest
@@ -180,17 +266,23 @@ export class SqlServerService {
       safeQuery,
       request.rowLimit || CONSTANTS.SQL.PREVIEW_ROW_LIMIT
     );
+    const countQuery = buildSqlCountQuery(safeQuery);
 
     const pool = await this.createConnectionPool(request);
     try {
       const result = await pool.request().query(limitedQuery);
+      const countResult = await pool.request().query(countQuery);
       const rows = (result.recordset || []).map(row => this.normalizeRow(row));
       const columns = this.extractColumns(result.recordset?.columns, rows);
+      const totalRowCount = this.extractTotalRowCount(
+        countResult.recordset?.[0]?.totalRowCount
+      );
 
       return {
         columns,
         rows,
         rowCount: rows.length,
+        totalRowCount: totalRowCount ?? rows.length,
         sourceLabel: `${request.server.trim()} / ${request.database.trim()}`,
       };
     } catch (error) {
@@ -236,6 +328,23 @@ export class SqlServerService {
     if (!request.password) {
       throw new Error('SQL password is required');
     }
+  }
+
+  private extractTotalRowCount(value: unknown): number | undefined {
+    if (typeof value === 'number' && Number.isFinite(value)) {
+      return value;
+    }
+
+    if (typeof value === 'bigint') {
+      return Number(value);
+    }
+
+    if (typeof value === 'string') {
+      const parsed = Number(value);
+      return Number.isFinite(parsed) ? parsed : undefined;
+    }
+
+    return undefined;
   }
 
   private async createConnectionPool(
