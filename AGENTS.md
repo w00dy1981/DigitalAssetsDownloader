@@ -247,4 +247,5 @@ import { NumberInput } from '@/renderer/components/ui';
 - **Issues**: ✅ All Phase 6 cleanup issues completed (#22, #23, #24, #26, #27)
 - **Branch**: `main` branch is production-ready with all refactoring phases complete
 - **Publishing**: `npm run publish` creates GitHub releases automatically
+- **Accepting pull requests**: An orchestrator or architect deciding whether a finished pull request is accepted uses the shared `architect-review-and-acceptance` skill. It isn't for builders or independent reviewers.
 - **Current Status**: No open issues - project is in maintenance mode
