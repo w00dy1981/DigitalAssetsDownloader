@@ -1,398 +1,128 @@
-import * as ExcelJS from 'exceljs';
-import * as fs from 'fs';
-import * as csv from 'fast-csv';
-import {
-  sanitizePath,
-  PathSecurityError,
-  validateFileAccess,
-} from './pathSecurity';
-import { isCsvFile, isExcelFile, getExtension } from './fileUtils';
-import { logger } from './LoggingService';
-import { appConstants } from './AppConstantsService';
+import { Workbook, CellValue, Worksheet, Cell, ValueType } from 'exceljs';
+import { parse } from 'fast-csv';
+import { createReadStream } from 'node:fs';
+import { pipeline } from 'node:stream/promises';
+import { NETWORK_CONSTANTS } from '@/shared/constants';
+import { sanitizePath, validateFileAccess } from './pathSecurity';
+import { isCsvFile } from './fileUtils';
 
 export interface SheetData {
   columns: string[];
-  rows: Record<string, any>[];
+  rows: Record<string, string>[];
 }
 
-export class ExcelService {
-  /**
-   * Private helper method to read Excel files with timeout protection
-   */
-  private async readExcelFileWithTimeout(
-    workbook: ExcelJS.Workbook,
-    safeFilePath: string,
-    timeout: number = appConstants.getNetworkTimeouts().excelTimeout
-  ): Promise<void> {
-    const readWithTimeout = Promise.race([
-      workbook.xlsx.readFile(safeFilePath),
-      new Promise<never>((_, reject) =>
-        setTimeout(
-          () => reject(new Error(`File read timeout after ${timeout}ms`)),
-          timeout
-        )
-      ),
+async function within<T>(operation: Promise<T>, ms: number): Promise<T> {
+  let timer: ReturnType<typeof setTimeout> | undefined;
+  try {
+    return await Promise.race([
+      operation,
+      new Promise<never>((_, reject) => {
+        timer = setTimeout(
+          () =>
+            reject(
+              new Error(
+                'File reading timed out. Check the file location and try again.'
+              )
+            ),
+          ms
+        );
+      }),
     ]);
-
-    await readWithTimeout;
+  } finally {
+    clearTimeout(timer);
   }
+}
 
-  /**
-   * Private helper method to handle common Excel service errors
-   */
-  private handleExcelError(error: unknown, operation: string): never {
-    logger.error(
-      `Error ${operation}`,
-      error instanceof Error ? error : new Error(String(error)),
-      'ExcelService'
-    );
-    const errorMessage =
-      error instanceof Error ? error.message : 'Unknown error';
-
-    // More specific error messages
-    if (errorMessage.includes('timeout')) {
-      throw new Error(
-        'File reading timed out - the Excel file may be too large or corrupted'
-      );
-    }
-    if (errorMessage.includes('ETIMEDOUT')) {
-      throw new Error(
-        'Network or file system timeout - please check the file location and try again'
-      );
-    }
-
-    throw new Error(`Failed to ${operation}: ${errorMessage}`);
+async function inputPath(filePath: string) {
+  const safePath = sanitizePath(filePath);
+  if (
+    !(await within(
+      validateFileAccess(safePath),
+      NETWORK_CONSTANTS.CONNECTION_TIMEOUT
+    ))
+  ) {
+    throw new Error('File does not exist or is not accessible');
   }
+  return safePath;
+}
 
-  /**
-   * Get sheet names from an Excel file
-   * Supports .xlsx, .xls, .xlsm formats
-   */
-  async getSheetNames(filePath: string): Promise<string[]> {
-    try {
-      logger.info(`[ExcelService] Getting sheet names for: ${filePath}`);
+async function readWorkbook(filePath: string) {
+  return within(
+    new Workbook().xlsx.readFile(filePath),
+    NETWORK_CONSTANTS.EXCEL_TIMEOUT
+  );
+}
 
-      // Sanitize the file path to prevent path traversal
-      const safeFilePath = sanitizePath(filePath);
-      logger.info(`[ExcelService] Sanitized path: ${safeFilePath}`);
+export async function getSheetNames(filePath: string): Promise<string[]> {
+  const safePath = await inputPath(filePath);
+  if (isCsvFile(safePath)) return ['Sheet1'];
+  const workbook = await readWorkbook(safePath);
+  const names = workbook.worksheets.map(sheet => sheet.name);
+  if (!names.length) throw new Error('No worksheets found in the Excel file');
+  return names;
+}
 
-      // Validate file access with timeout
-      const validateWithTimeout = async (timeout: number = 5000) => {
-        return Promise.race([
-          validateFileAccess(safeFilePath),
-          new Promise<boolean>((_, reject) =>
-            setTimeout(
-              () =>
-                reject(
-                  new Error(
-                    'Network or file system timeout - please check the file location and try again'
-                  )
-                ),
-              timeout
-            )
-          ),
-        ]);
-      };
-
-      const isAccessible = await validateWithTimeout();
-      if (!isAccessible) {
-        throw new Error('File does not exist or is not accessible');
-      }
-
-      // Handle different file formats
-      if (isCsvFile(safeFilePath)) {
-        return ['Sheet1']; // CSV files have only one "sheet"
-      }
-
-      const workbook = new ExcelJS.Workbook();
-      await this.readExcelFileWithTimeout(workbook, safeFilePath);
-
-      const sheetNames: string[] = [];
-      workbook.eachSheet(worksheet => {
-        if (worksheet.name) {
-          sheetNames.push(worksheet.name);
-        }
-      });
-
-      if (sheetNames.length === 0) {
-        throw new Error('No worksheets found in the Excel file');
-      }
-
-      return sheetNames;
-    } catch (error) {
-      if (error instanceof PathSecurityError) {
-        logger.error(
-          'Security violation in getSheetNames',
-          error,
-          'ExcelService'
-        );
-        throw new Error(`Security error: ${error.message}`);
-      }
-      this.handleExcelError(error, 'read Excel file');
-    }
+function cellText(value: CellValue): string {
+  if (value instanceof Date) return value.toISOString();
+  if (value && typeof value === 'object') {
+    if ('result' in value) return cellText(value.result);
+    if ('richText' in value)
+      return value.richText
+        .map(run => run.text)
+        .join('')
+        .trim();
+    if ('text' in value) return value.text.trim();
   }
+  return String(value ?? '').trim();
+}
 
-  /**
-   * Load data from a specific sheet in an Excel file
-   * Reference: Original app Lines 800-850
-   */
-  async loadSheetData(filePath: string, sheetName: string): Promise<SheetData> {
-    try {
-      // Sanitize the file path to prevent path traversal
-      const safeFilePath = sanitizePath(filePath);
+function readCell(cell: Cell) {
+  return cellText(cell.type === ValueType.Formula ? cell.result : cell.value);
+}
 
-      // Validate file access
-      if (!(await validateFileAccess(safeFilePath))) {
-        throw new Error('File does not exist or is not accessible');
-      }
+function readSheet(sheet: Worksheet): SheetData {
+  const headers = new Map<number, string>();
+  sheet.getRow(1).eachCell((cell, index) => {
+    const name = readCell(cell);
+    if (name) headers.set(index, name);
+  });
+  if (!headers.size)
+    throw new Error('The first row of the sheet must contain column names.');
 
-      if (isCsvFile(safeFilePath)) {
-        return this.loadCSVData(safeFilePath);
-      }
+  const rows: SheetData['rows'] = [];
+  sheet.eachRow((row, number) => {
+    if (number === 1) return;
+    const values = Array.from(headers, ([index, name]) => [
+      name,
+      readCell(row.getCell(index)),
+    ]);
+    if (values.some(([, value]) => value))
+      rows.push(Object.fromEntries(values));
+  });
+  return { columns: [...headers.values()], rows };
+}
 
-      const workbook = new ExcelJS.Workbook();
-      await this.readExcelFileWithTimeout(workbook, safeFilePath);
-
-      const worksheet = workbook.getWorksheet(sheetName);
-      if (!worksheet) {
-        throw new Error(`Sheet "${sheetName}" not found in the workbook`);
-      }
-
-      // Check if worksheet has any data
-      if (worksheet.rowCount === 0) {
-        throw new Error('The selected sheet is empty');
-      }
-
-      return this.parseWorksheet(worksheet);
-    } catch (error) {
-      if (error instanceof PathSecurityError) {
-        logger.error(
-          'Security violation in loadSheetData',
-          error,
-          'ExcelService'
-        );
-        throw new Error(`Security error: ${error.message}`);
-      }
-      const errorMessage =
-        error instanceof Error ? error.message : 'Unknown error';
-
-      // Handle special case for loadSheetData
-      if (errorMessage.includes('No valid column headers')) {
-        logger.error(
-          'Error loading sheet data',
-          error instanceof Error ? error : new Error(String(error)),
-          'ExcelService'
-        );
-        throw new Error(
-          'The first row of the sheet does not contain valid column headers. Please ensure the first row has column names.'
-        );
-      }
-
-      this.handleExcelError(error, 'load sheet data');
-    }
-  }
-
-  /**
-   * Load CSV data
-   * CSV files are treated as having one sheet called "Sheet1"
-   */
-  private async loadCSVData(filePath: string): Promise<SheetData> {
-    return new Promise((resolve, reject) => {
-      const rows: Record<string, any>[] = [];
-      let columns: string[] = [];
-      let isFirstRow = true;
-
-      fs.createReadStream(filePath)
-        .pipe(csv.parse({ headers: true, ignoreEmpty: true }))
-        .on('headers', (headers: string[]) => {
-          columns = headers.map(header => header.trim()).filter(Boolean);
-        })
-        .on('data', (row: Record<string, any>) => {
-          if (isFirstRow) {
-            isFirstRow = false;
-            // If headers weren't detected properly, use the first row as headers
-            if (columns.length === 0) {
-              columns = Object.keys(row);
-            }
-          }
-
-          // Clean up the row data
-          const cleanRow: Record<string, any> = {};
-          columns.forEach(col => {
-            const value = row[col];
-            cleanRow[col] =
-              value !== undefined && value !== null ? String(value).trim() : '';
-          });
-
-          rows.push(cleanRow);
-        })
-        .on('end', () => {
-          resolve({ columns, rows });
-        })
-        .on('error', error => {
-          const errorMessage =
-            error instanceof Error ? error.message : 'Unknown error';
-          reject(new Error(`Failed to parse CSV file: ${errorMessage}`));
-        });
+export async function loadSheetData(
+  filePath: string,
+  sheetName: string
+): Promise<SheetData> {
+  const safePath = await inputPath(filePath);
+  if (isCsvFile(safePath)) {
+    const data: SheetData = { columns: [], rows: [] };
+    const parser = parse({
+      headers: headers => headers.map(header => header?.trim() || undefined),
+      trim: true,
+      ignoreEmpty: true,
     });
-  }
-
-  /**
-   * Parse an ExcelJS worksheet into our data format
-   * Reference: Original app data structure handling
-   */
-  private parseWorksheet(worksheet: ExcelJS.Worksheet): SheetData {
-    const rows: Record<string, any>[] = [];
-    const columns: string[] = [];
-
-    // Check if worksheet has enough rows
-    if (worksheet.rowCount < 1) {
-      throw new Error('The worksheet is empty or has no data');
-    }
-
-    // Get column headers from the first row with improved parsing
-    const headerRow = worksheet.getRow(1);
-    const columnMap: Map<number, string> = new Map();
-
-    headerRow.eachCell({ includeEmpty: false }, (cell, colNumber) => {
-      const value = cell.value;
-      let columnName = '';
-
-      if (value !== null && value !== undefined) {
-        // Handle different cell value types more robustly
-        if (typeof value === 'string') {
-          columnName = value;
-        } else if (typeof value === 'number') {
-          columnName = value.toString();
-        } else if (value instanceof Date) {
-          columnName = value.toISOString();
-        } else if (value && typeof value === 'object') {
-          // Handle rich text and formula results
-          if ('text' in value) {
-            columnName = (value as any).text;
-          } else if ('result' in value) {
-            columnName = String((value as any).result || '');
-          } else if (
-            'richText' in value &&
-            Array.isArray((value as any).richText)
-          ) {
-            columnName = (value as any).richText
-              .map((rt: any) => rt.text || '')
-              .join('');
-          } else {
-            columnName = String(value);
-          }
-        } else {
-          columnName = String(value);
-        }
-      }
-
-      columnName = columnName.trim();
-      if (columnName && columnName !== '') {
-        columnMap.set(colNumber, columnName);
-      }
+    parser.on('headers', (headers: string[]) => {
+      data.columns = headers.filter(Boolean);
     });
-
-    // Convert map to array, maintaining column order
-    const maxCol = Math.max(...columnMap.keys());
-    for (let i = 1; i <= maxCol; i++) {
-      if (columnMap.has(i)) {
-        columns.push(columnMap.get(i)!);
-      }
-    }
-
-    if (columns.length === 0) {
-      throw new Error(
-        'No valid column headers found in the first row. Please ensure the first row contains column names.'
-      );
-    }
-
-    // Process data rows (starting from row 2)
-    for (let rowNumber = 2; rowNumber <= worksheet.rowCount; rowNumber++) {
-      const row = worksheet.getRow(rowNumber);
-      const rowData: Record<string, any> = {};
-      let hasData = false;
-
-      columns.forEach((columnName, index) => {
-        const cell = row.getCell(index + 1);
-        let value = '';
-
-        if (cell.value !== null && cell.value !== undefined) {
-          // Handle different cell value types
-          if (typeof cell.value === 'string') {
-            value = cell.value;
-          } else if (typeof cell.value === 'number') {
-            value = cell.value.toString();
-          } else if (cell.value instanceof Date) {
-            value = cell.value.toISOString();
-          } else if (cell.value && typeof cell.value === 'object') {
-            // Handle formula results and rich text
-            if ('result' in cell.value) {
-              value = String((cell.value as any).result || '');
-            } else if ('text' in cell.value) {
-              value = String((cell.value as any).text || '');
-            } else {
-              value = String(cell.value);
-            }
-          } else {
-            value = String(cell.value);
-          }
-
-          value = value.trim();
-          if (value) {
-            hasData = true;
-          }
-        }
-
-        rowData[columnName] = value;
-      });
-
-      // Only add rows that have at least some data
-      if (hasData) {
-        rows.push(rowData);
-      }
-    }
-
-    return { columns, rows };
+    parser.on('data', row => data.rows.push(row));
+    await pipeline(createReadStream(safePath), parser);
+    return data;
   }
-
-  /**
-   * Validate if a file can be processed by this service
-   */
-  static isValidFile(filePath: string): boolean {
-    return isExcelFile(filePath) || isCsvFile(filePath);
-  }
-
-  /**
-   * Get file format information
-   */
-  static getFileInfo(filePath: string): {
-    type: string;
-    extension: string;
-    isValid: boolean;
-  } {
-    const extension = getExtension(filePath);
-    let type = 'Unknown';
-
-    switch (extension) {
-      case '.xlsx':
-        type = 'Excel 2007+ (.xlsx)';
-        break;
-      case '.xls':
-        type = 'Excel 97-2003 (.xls)';
-        break;
-      case '.xlsm':
-        type = 'Excel Macro-Enabled (.xlsm)';
-        break;
-      case '.csv':
-        type = 'Comma Separated Values (.csv)';
-        break;
-    }
-
-    return {
-      type,
-      extension,
-      isValid: this.isValidFile(filePath),
-    };
-  }
+  const workbook = await readWorkbook(safePath);
+  const sheet = workbook.getWorksheet(sheetName);
+  if (!sheet) throw new Error(`Sheet "${sheetName}" not found in the workbook`);
+  return readSheet(sheet);
 }

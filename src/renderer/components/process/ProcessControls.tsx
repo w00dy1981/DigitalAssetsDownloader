@@ -1,3 +1,4 @@
+import { ValidationService } from '@/services/ValidationService';
 import React, { useCallback } from 'react';
 import { DownloadConfig } from '@/shared/types';
 import { NumberInput } from '@/renderer/components/ui';
@@ -7,7 +8,6 @@ interface ProcessControlsProps {
   config: DownloadConfig;
   onConfigurationChange: (config: DownloadConfig) => void;
   isDownloading: boolean;
-  isStartPending: boolean;
   isCancelPending: boolean;
   onStartDownloads: () => void;
   onCancelDownloads: () => void;
@@ -17,7 +17,6 @@ const ProcessControls: React.FC<ProcessControlsProps> = ({
   config,
   onConfigurationChange,
   isDownloading,
-  isStartPending,
   isCancelPending,
   onStartDownloads,
   onCancelDownloads,
@@ -34,33 +33,8 @@ const ProcessControls: React.FC<ProcessControlsProps> = ({
     [config, onConfigurationChange]
   );
 
-  const getValidationErrors = (): string[] => {
-    const errors: string[] = [];
-
-    if (!config.partNoColumn) {
-      errors.push('Part Number column is required');
-    }
-
-    if (!config.imageColumns.length && !config.pdfColumn) {
-      errors.push('At least one Image URL column or PDF column is required');
-    }
-
-    if (config.imageColumns.length > 0 && !config.imageFolder) {
-      errors.push(
-        'Image download folder is required when image columns are selected'
-      );
-    }
-
-    if (config.pdfColumn && !config.pdfFolder) {
-      errors.push(
-        'PDF download folder is required when PDF column is selected'
-      );
-    }
-
-    return errors;
-  };
-
-  const validationErrors = getValidationErrors();
+  const validationErrors =
+    ValidationService.validateDownloadConfig(config).errors;
   const isConfigValid = validationErrors.length === 0;
 
   return (
@@ -234,18 +208,14 @@ const ProcessControls: React.FC<ProcessControlsProps> = ({
             type="button"
             className="btn btn-success"
             onClick={onStartDownloads}
-            disabled={isDownloading || isStartPending || !isConfigValid}
+            disabled={isDownloading || !isConfigValid}
             title={
               !isConfigValid
                 ? 'Please fix configuration issues before starting downloads'
                 : ''
             }
           >
-            {isStartPending
-              ? 'Starting...'
-              : isDownloading
-                ? 'Downloading...'
-                : 'Start Downloads'}
+            {isDownloading ? 'Downloading...' : 'Start Downloads'}
           </button>
 
           {(isDownloading || isCancelPending) && (

@@ -1,11 +1,7 @@
 import React from 'react';
 import { SpreadsheetData, DownloadConfig } from '@/shared/types';
-import { configurationService } from '@/services/ConfigurationService';
 import { logger } from '@/services/LoggingService';
-import {
-  useColumnSelectionState,
-  useNetworkPathDefaults,
-} from '@/renderer/hooks';
+import { useColumnSelectionState } from '@/renderer/hooks';
 import {
   ColumnMappingPanel,
   FolderConfigurationPanel,
@@ -23,42 +19,11 @@ const ColumnSelectionTab: React.FC<ColumnSelectionTabProps> = ({
   onConfigurationComplete,
   initialConfig,
 }) => {
-  const {
-    state,
-    columnOptions,
-    setPartNoColumn,
-    setImageColumns,
-    setPdfColumn,
-    setFilenameColumn,
-    setImageFolder,
-    setPdfFolder,
-    setSourceImageFolder,
-    setImageFilePath,
-    setPdfFilePath,
-    setError,
-    error,
-    currentConfig,
-    handleNext,
-  } = useColumnSelectionState({ data, initialConfig, onConfigurationComplete });
-
-  const {
-    partNoColumn,
-    imageColumns,
-    pdfColumn,
-    filenameColumn,
-    imageFolder,
-    pdfFolder,
-    sourceImageFolder,
-    imageFilePath,
-    pdfFilePath,
-  } = state;
-
-  useNetworkPathDefaults({
-    imageFilePath,
-    pdfFilePath,
-    setImageFilePath,
-    setPdfFilePath,
-  });
+  const { config, error, setError, update, handleNext, changeNetworkPath } =
+    useColumnSelectionState({ data, initialConfig, onConfigurationComplete });
+  if (!config) return <p>Loading column settings...</p>;
+  const { imageFilePath, pdfFilePath } = config;
+  const columnOptions = data.columns.map(value => ({ value, label: value }));
 
   return (
     <div className="tab-panel">
@@ -76,34 +41,36 @@ const ColumnSelectionTab: React.FC<ColumnSelectionTabProps> = ({
 
       <div className="configuration-sections">
         <ColumnMappingPanel
-          data={data}
-          partNoColumn={partNoColumn}
-          onPartNoColumnChange={setPartNoColumn}
-          imageColumns={imageColumns}
-          onImageColumnsChange={setImageColumns}
-          pdfColumn={pdfColumn}
-          onPdfColumnChange={setPdfColumn}
-          filenameColumn={filenameColumn}
-          onFilenameColumnChange={setFilenameColumn}
+          partNoColumn={config.partNoColumn}
+          onPartNoColumnChange={value => update('partNoColumn', value)}
+          imageColumns={config.imageColumns}
+          onImageColumnsChange={value => update('imageColumns', value)}
+          pdfColumn={config.pdfColumn}
+          onPdfColumnChange={value => update('pdfColumn', value)}
+          filenameColumn={config.filenameColumn}
+          onFilenameColumnChange={value => update('filenameColumn', value)}
           columnOptions={columnOptions}
-          onValidationError={setError}
         />
 
         <FolderConfigurationPanel
-          imageFolder={imageFolder}
-          onImageFolderChange={setImageFolder}
-          pdfFolder={pdfFolder}
-          onPdfFolderChange={setPdfFolder}
-          sourceImageFolder={sourceImageFolder}
-          onSourceImageFolderChange={setSourceImageFolder}
+          imageFolder={config.imageFolder}
+          onImageFolderChange={value => update('imageFolder', value)}
+          pdfFolder={config.pdfFolder}
+          onPdfFolderChange={value => update('pdfFolder', value)}
+          sourceImageFolder={config.sourceImageFolder}
+          onSourceImageFolderChange={value =>
+            update('sourceImageFolder', value)
+          }
           onError={setError}
         />
 
         <NetworkPathsPanel
           imageFilePath={imageFilePath}
-          onImageFilePathChange={setImageFilePath}
+          onImageFilePathChange={value =>
+            changeNetworkPath('imageFilePath', value)
+          }
           pdfFilePath={pdfFilePath}
-          onPdfFilePathChange={setPdfFilePath}
+          onPdfFilePathChange={value => changeNetworkPath('pdfFilePath', value)}
           onError={setError}
         />
       </div>
@@ -116,13 +83,12 @@ const ColumnSelectionTab: React.FC<ColumnSelectionTabProps> = ({
           type="button"
           className="btn btn-secondary"
           onClick={async () => {
-            const result =
-              await configurationService.saveDownloadConfig(currentConfig);
-
-            if (!result.success) {
+            try {
+              await window.electronAPI.saveConfig(config);
+            } catch (error) {
               logger.error(
                 'ColumnSelectionTab: Error saving configuration',
-                new Error(result.message),
+                error instanceof Error ? error : new Error(String(error)),
                 'ColumnSelectionTab'
               );
             }

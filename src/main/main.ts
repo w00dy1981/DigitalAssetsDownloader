@@ -1,13 +1,14 @@
 import { app, BrowserWindow, ipcMain, dialog, Menu, MenuItem } from 'electron';
-import { autoUpdater } from 'electron-updater';
+import { registerUpdates } from './updates';
 import log from 'electron-log';
-import * as fs from 'fs';
 import * as path from 'path';
 import Store from 'electron-store';
 import {
   IPC_CHANNELS,
   AppConfig,
   DownloadConfig,
+  NetworkPathDefaults,
+  UserSettings,
   SqlConnectionTestRequest,
   SqlCredentialIdentity,
   SqlPasswordDeleteRequest,
@@ -15,11 +16,13 @@ import {
   SqlLoadRequest,
   SqlPreviewRequest,
 } from '@/shared/types';
-import { ExcelService } from '@/services/excelService';
+import { getSheetNames, loadSheetData } from '@/services/excelService';
 import { DownloadService } from '@/services/downloadService';
-import { appConstants } from '@/services/AppConstantsService';
+import { CONSTANTS } from '@/shared/constants';
 import { SqlServerService } from '@/services/SqlServerService';
 import { SqlCredentialService } from '@/services/SqlCredentialService';
+import { ValidationService } from '@/services/ValidationService';
+import { mergeUserSettings } from '@/shared/userSettings';
 
 // Global error handlers to catch crashes
 process.on('uncaughtException', error => {
@@ -37,12 +40,10 @@ process.on('unhandledRejection', (reason, promise) => {
 class DigitalAssetDownloaderApp {
   private mainWindow: BrowserWindow | null = null;
   private store: Store<AppConfig>;
-  private excelService: ExcelService;
   private downloadService: DownloadService;
   private sqlServerService: SqlServerService;
   private sqlCredentialService!: SqlCredentialService;
   private currentSpreadsheetData: any[] | null = null;
-  private canUseAutoUpdater = false;
 
   constructor() {
     // Initialize electron-log as early as possible with fallback
@@ -62,14 +63,13 @@ class DigitalAssetDownloaderApp {
     this.store = new Store<AppConfig>({
       defaults: {
         windowState: {
-          width: appConstants.getUIConfiguration().defaultWindowWidth,
-          height: appConstants.getUIConfiguration().defaultWindowHeight,
+          width: CONSTANTS.UI.DEFAULT_WINDOW_WIDTH,
+          height: CONSTANTS.UI.DEFAULT_WINDOW_HEIGHT,
           isMaximized: false,
         },
         recentFiles: [],
       },
     });
-    this.excelService = new ExcelService();
     this.downloadService = new DownloadService();
     this.sqlServerService = new SqlServerService();
     this.currentSpreadsheetData = null;
@@ -294,613 +294,197 @@ class DigitalAssetDownloaderApp {
       return result;
     });
 
-    ipcMain.handle(IPC_CHANNELS.SAVE_FILE_DIALOG, async (_, options) => {
-      const result = await dialog.showSaveDialog(this.mainWindow!, {
-        filters: [
-          { name: 'CSV Files', extensions: ['csv'] },
-          { name: 'All Files', extensions: ['*'] },
-        ],
-        ...options,
-      });
-      return result;
-    });
-
-    // Configuration handlers
-    ipcMain.handle(IPC_CHANNELS.SAVE_CONFIG, async (_, config) => {
+    ipcMain.handle(IPC_CHANNELS.SAVE_CONFIG, (_, config: DownloadConfig) => {
+      const { errors } = ValidationService.validateDownloadConfig(config);
+      if (errors.length)
+        throw new Error(`Invalid configuration: ${errors.join(', ')}`);
       this.store.set('lastConfiguration', config);
       return { success: true };
     });
 
-    ipcMain.handle(IPC_CHANNELS.LOAD_CONFIG, async () => {
-      const lastConfiguration = this.store.get('lastConfiguration') as
-        | DownloadConfig
-        | undefined;
+    ipcMain.handle(IPC_CHANNELS.LOAD_CONFIG, () => {
+      const lastConfiguration = this.store.get('lastConfiguration');
       const sqlConnectionDetails = this.store.get('sqlConnectionDetails');
       if (!lastConfiguration && !sqlConnectionDetails) return null;
-      return { lastConfiguration, sqlConnectionDetails } as Partial<AppConfig>;
+      return { lastConfiguration, sqlConnectionDetails };
     });
 
     // Excel/CSV handlers - Implemented with ExcelService
     ipcMain.handle(
       IPC_CHANNELS.GET_SHEET_NAMES,
       async (_, filePath: string) => {
-        try {
-          const sheets = await this.excelService.getSheetNames(filePath);
-          return sheets;
-        } catch (error) {
-          console.error('Error getting sheet names:', error);
-          const errorMessage =
-            error instanceof Error ? error.message : 'Unknown error';
-          throw new Error(errorMessage);
-        }
+        const sheets = await getSheetNames(filePath);
+        return sheets;
       }
     );
 
     ipcMain.handle(
       IPC_CHANNELS.LOAD_SHEET_DATA,
       async (_, filePath: string, sheetName: string) => {
-        try {
-          const data = await this.excelService.loadSheetData(
-            filePath,
-            sheetName
-          );
+        const data = await loadSheetData(filePath, sheetName);
 
-          // Store the data for downloads
-          this.currentSpreadsheetData = data.rows;
+        // Store the data for downloads
+        this.currentSpreadsheetData = data.rows;
 
-          // Add file to recent files list
-          const recentFiles = this.store.get('recentFiles', []);
-          const updatedRecentFiles = [
-            filePath,
-            ...recentFiles.filter(f => f !== filePath),
-          ].slice(0, 10);
-          this.store.set('recentFiles', updatedRecentFiles);
+        // Add file to recent files list
+        const recentFiles = this.store.get('recentFiles', []);
+        const updatedRecentFiles = [
+          filePath,
+          ...recentFiles.filter(f => f !== filePath),
+        ].slice(0, 10);
+        this.store.set('recentFiles', updatedRecentFiles);
 
-          return data;
-        } catch (error) {
-          console.error('Error loading sheet data:', error);
-          const errorMessage =
-            error instanceof Error ? error.message : 'Unknown error';
-          throw new Error(errorMessage);
-        }
+        return data;
       }
     );
 
     ipcMain.handle(
       IPC_CHANNELS.TEST_SQL_CONNECTION,
       async (_, request: SqlConnectionTestRequest) => {
-        try {
-          const result = await this.sqlServerService.testConnection(request);
-          this.store.set(
-            'sqlConnectionDetails',
-            this.sqlServerService.getSafeConnectionDetails(request)
-          );
-          return result;
-        } catch (error) {
-          console.error('Error testing SQL connection');
-          const errorMessage =
-            error instanceof Error ? error.message : 'Unknown SQL error';
-          throw new Error(errorMessage);
-        }
+        const result = await this.sqlServerService.testConnection(request);
+        this.store.set(
+          'sqlConnectionDetails',
+          this.sqlServerService.getSafeConnectionDetails(request)
+        );
+        return result;
       }
     );
 
+    // Enforce the current saved database list when each query runs.
+    const querySettings = () =>
+      mergeUserSettings(this.store.get('userSettings') ?? undefined)
+        .sqlSettings;
     ipcMain.handle(
       IPC_CHANNELS.PREVIEW_SQL_QUERY,
       async (_, request: SqlPreviewRequest) => {
-        try {
-          const result = await this.sqlServerService.previewQuery(request);
-          this.store.set(
-            'sqlConnectionDetails',
-            this.sqlServerService.getSafeConnectionDetails(request)
-          );
-          return result;
-        } catch (error) {
-          console.error('Error previewing SQL query');
-          const errorMessage =
-            error instanceof Error ? error.message : 'Unknown SQL error';
-          throw new Error(errorMessage);
-        }
+        const result = await this.sqlServerService.previewQuery({
+          ...request,
+          allowedCrossDatabases: querySettings()?.allowedCrossDatabases,
+        });
+        this.store.set(
+          'sqlConnectionDetails',
+          this.sqlServerService.getSafeConnectionDetails(request)
+        );
+        return result;
       }
     );
 
     ipcMain.handle(
       IPC_CHANNELS.LOAD_SQL_QUERY_DATA,
       async (_, request: SqlLoadRequest) => {
-        try {
-          const result = await this.sqlServerService.loadQueryData(request);
-          this.currentSpreadsheetData = result.rows;
-          this.store.set(
-            'sqlConnectionDetails',
-            this.sqlServerService.getSafeConnectionDetails(request)
-          );
-          return result;
-        } catch (error) {
-          console.error('Error loading SQL query data');
-          const errorMessage =
-            error instanceof Error ? error.message : 'Unknown SQL error';
-          throw new Error(errorMessage);
-        }
+        const result = await this.sqlServerService.loadQueryData({
+          ...request,
+          allowedCrossDatabases: querySettings()?.allowedCrossDatabases,
+        });
+        this.currentSpreadsheetData = result.rows;
+        this.store.set(
+          'sqlConnectionDetails',
+          this.sqlServerService.getSafeConnectionDetails(request)
+        );
+        return result;
       }
     );
 
     ipcMain.handle(
       IPC_CHANNELS.LOAD_SAVED_SQL_PASSWORD,
       async (_, identity: SqlCredentialIdentity) => {
-        try {
-          return this.sqlCredentialService.loadSavedPassword(identity);
-        } catch (error) {
-          const errorMessage =
-            error instanceof Error ? error.message : 'Unknown credential error';
-          throw new Error(errorMessage);
-        }
-      }
-    );
-
-    ipcMain.handle(
-      IPC_CHANNELS.HAS_SAVED_SQL_PASSWORD,
-      async (_, identity: SqlCredentialIdentity) => {
-        try {
-          return this.sqlCredentialService.hasSavedPassword(identity);
-        } catch (error) {
-          const errorMessage =
-            error instanceof Error ? error.message : 'Unknown credential error';
-          throw new Error(errorMessage);
-        }
+        return this.sqlCredentialService.loadSavedPassword(identity);
       }
     );
 
     ipcMain.handle(
       IPC_CHANNELS.SAVE_SQL_PASSWORD,
       async (_, request: SqlPasswordSaveRequest) => {
-        try {
-          return this.sqlCredentialService.savePassword(request);
-        } catch (error) {
-          const errorMessage =
-            error instanceof Error ? error.message : 'Unknown credential error';
-          throw new Error(errorMessage);
-        }
+        return this.sqlCredentialService.savePassword(request);
       }
     );
 
     ipcMain.handle(
       IPC_CHANNELS.DELETE_SAVED_SQL_PASSWORD,
       async (_, request: SqlPasswordDeleteRequest) => {
-        try {
-          return this.sqlCredentialService.deleteSavedPassword(request);
-        } catch (error) {
-          const errorMessage =
-            error instanceof Error ? error.message : 'Unknown credential error';
-          throw new Error(errorMessage);
-        }
+        return this.sqlCredentialService.deleteSavedPassword(request);
       }
+    );
+
+    this.downloadService.on('progress', progress =>
+      this.mainWindow?.webContents.send(
+        IPC_CHANNELS.DOWNLOAD_PROGRESS,
+        progress
+      )
+    );
+    this.downloadService.on('complete', result =>
+      this.mainWindow?.webContents.send(IPC_CHANNELS.DOWNLOAD_COMPLETE, result)
     );
 
     // Download handlers - Advanced download engine implementation
     ipcMain.handle(
       IPC_CHANNELS.START_DOWNLOADS,
       async (_, config: DownloadConfig) => {
-        try {
-          if (!this.currentSpreadsheetData) {
-            throw new Error(
-              'No spreadsheet data loaded. Please load a file first.'
-            );
-          }
-
-          // Validate configuration
-          if (!config.partNoColumn) {
-            throw new Error('Please select a Part Number column');
-          }
-
-          if (!config.imageColumns.length && !config.pdfColumn) {
-            throw new Error(
-              'Please select at least one Image URL column or PDF column'
-            );
-          }
-
-          if (!config.imageFolder && !config.pdfFolder) {
-            throw new Error('Please select download folders');
-          }
-
-          // Set up download event listeners
-          this.downloadService.removeAllListeners();
-
-          this.downloadService.on('progress', progress => {
-            this.mainWindow?.webContents.send(
-              IPC_CHANNELS.DOWNLOAD_PROGRESS,
-              progress
-            );
-          });
-
-          this.downloadService.on('complete', result => {
-            this.mainWindow?.webContents.send(
-              IPC_CHANNELS.DOWNLOAD_COMPLETE,
-              result
-            );
-          });
-
-          this.downloadService.on('error', error => {
-            this.mainWindow?.webContents.send(IPC_CHANNELS.DOWNLOAD_COMPLETE, {
-              error: error instanceof Error ? error.message : 'Unknown error',
-            });
-          });
-
-          this.downloadService.on('cancelled', () => {
-            this.mainWindow?.webContents.send(IPC_CHANNELS.DOWNLOAD_COMPLETE, {
-              cancelled: true,
-              successful: this.downloadService.getProgress().successful,
-              failed: this.downloadService.getProgress().failed,
-            });
-          });
-
-          // Start downloads
-          await this.downloadService.startDownloads(
-            config,
-            this.currentSpreadsheetData
+        if (!this.currentSpreadsheetData) {
+          throw new Error(
+            'No spreadsheet data loaded. Please load a file first.'
           );
-
-          return { success: true, message: 'Downloads started successfully' };
-        } catch (error) {
-          console.error('Error starting downloads:', error);
-          const errorMessage =
-            error instanceof Error ? error.message : 'Unknown error';
-          throw new Error(errorMessage);
         }
+
+        const { errors } = ValidationService.validateDownloadConfig(config);
+        if (errors.length) throw new Error(errors.join(', '));
+
+        // Start downloads
+        await this.downloadService.startDownloads(
+          config,
+          this.currentSpreadsheetData,
+          mergeUserSettings(this.store.get('userSettings') ?? undefined)
+            .downloadBehavior
+        );
       }
     );
 
-    ipcMain.handle(IPC_CHANNELS.CANCEL_DOWNLOADS, async () => {
-      try {
-        this.downloadService.cancelDownloads();
-        return { success: true, message: 'Downloads cancelled' };
-      } catch (error) {
-        console.error('Error cancelling downloads:', error);
-        const errorMessage =
-          error instanceof Error ? error.message : 'Unknown error';
-        throw new Error(errorMessage);
-      }
-    });
+    ipcMain.handle(IPC_CHANNELS.CANCEL_DOWNLOADS, () =>
+      this.downloadService.cancelDownloads()
+    );
 
-    // Window control handlers
-    ipcMain.handle(IPC_CHANNELS.MINIMIZE_WINDOW, () => {
-      this.mainWindow?.minimize();
-    });
-
-    ipcMain.handle(IPC_CHANNELS.MAXIMIZE_WINDOW, () => {
-      if (this.mainWindow?.isMaximized()) {
-        this.mainWindow.unmaximize();
-      } else {
-        this.mainWindow?.maximize();
-      }
-    });
-
-    ipcMain.handle(IPC_CHANNELS.CLOSE_WINDOW, () => {
-      this.mainWindow?.close();
-    });
-
-    // Settings handlers
-    ipcMain.handle(IPC_CHANNELS.SAVE_SETTINGS, async (_, settings) => {
-      this.store.set('userSettings', settings);
+    ipcMain.handle(IPC_CHANNELS.SAVE_SETTINGS, (_, settings: UserSettings) => {
+      const { errors } = ValidationService.validateUserSettings(settings);
+      if (errors.length)
+        throw new Error(`Invalid settings: ${errors.join(', ')}`);
+      this.store.set('userSettings', mergeUserSettings(settings));
       return { success: true };
     });
 
-    ipcMain.handle(IPC_CHANNELS.LOAD_SETTINGS, async () => {
-      return (
-        this.store.get('userSettings') || {
-          defaultPaths: {
-            lastFileDialogPath: '',
-            imageNetworkPath: '',
-            pdfNetworkPath: '',
-          },
+    ipcMain.handle(IPC_CHANNELS.LOAD_SETTINGS, () =>
+      mergeUserSettings(this.store.get('userSettings') ?? undefined)
+    );
+
+    ipcMain.handle(
+      IPC_CHANNELS.SAVE_NETWORK_PATHS,
+      (_, paths: NetworkPathDefaults) => {
+        const { imageNetworkPath, pdfNetworkPath } = paths;
+        if (
+          typeof imageNetworkPath !== 'string' ||
+          typeof pdfNetworkPath !== 'string'
+        ) {
+          throw new Error('Network paths must be text.');
         }
-      );
-    });
+        const settings = mergeUserSettings(
+          this.store.get('userSettings') ?? undefined
+        );
+        settings.defaultPaths.imageNetworkPath = imageNetworkPath;
+        settings.defaultPaths.pdfNetworkPath = pdfNetworkPath;
+        this.store.set('userSettings', settings);
+      }
+    );
   }
 
   private openFileDialog(): void {
-    this.mainWindow?.webContents.send('menu-open-file');
+    this.mainWindow?.webContents.send(IPC_CHANNELS.MENU_OPEN_FILE);
   }
 
   private saveConfiguration(): void {
-    this.mainWindow?.webContents.send('menu-save-config');
+    this.mainWindow?.webContents.send(IPC_CHANNELS.MENU_SAVE_CONFIG);
   }
 
   private openSettings(): void {
-    this.mainWindow?.webContents.send('menu-open-settings');
-  }
-
-  private hasUpdateConfiguration(): boolean {
-    const configPath = path.join(process.resourcesPath, 'app-update.yml');
-    try {
-      return fs.existsSync(configPath);
-    } catch (error) {
-      log.warn('Unable to verify auto-update configuration', error);
-      return false;
-    }
-  }
-
-  private setupAutoUpdater(): void {
-    // Configure auto-updater logging
-    log.transports.file.maxSize =
-      appConstants.getPathConfiguration().logFileMaxSize;
-    autoUpdater.logger = log;
-    console.log('🔧 Auto-updater initialized', {
-      version: app.getVersion(),
-      autoDownload: false,
-      autoInstallOnAppQuit: false,
-    });
-    log.info('Auto-updater initialized');
-
-    this.canUseAutoUpdater = this.hasUpdateConfiguration();
-    if (!this.canUseAutoUpdater) {
-      console.log(
-        '⚠️ Auto-updater configuration not found. Skipping live update checks until a packaged build provides app-update.yml.'
-      );
-      log.warn(
-        'Auto-updater disabled: configuration file app-update.yml missing'
-      );
-    }
-
-    // Force production mode for auto-updater
-    if (process.env.NODE_ENV !== 'production' && this.canUseAutoUpdater) {
-      console.log(
-        '⚠️ Development mode detected - overriding for auto-updater compatibility'
-      );
-      log.info('Overriding development mode detection for auto-updater');
-      Object.defineProperty(app, 'isPackaged', {
-        get() {
-          return true;
-        },
-      });
-    }
-
-    // Configure auto-updater behavior
-    autoUpdater.autoDownload = false; // Let user control download
-    autoUpdater.autoInstallOnAppQuit = false; // Let user control install
-    console.log('⚙️ Auto-updater configuration:', {
-      autoDownload: false,
-      autoInstallOnAppQuit: false,
-      version: app.getVersion(),
-      feedURL: autoUpdater.getFeedURL(),
-    });
-    log.info('Auto-updater configuration:', {
-      autoDownload: false,
-      autoInstallOnAppQuit: false,
-      version: app.getVersion(),
-    });
-
-    // Auto-updater event handlers with enhanced console output
-    autoUpdater.on('checking-for-update', () => {
-      console.log('🔍 Auto-updater: Checking for updates...');
-      log.info('Checking for updates');
-      this.mainWindow?.webContents.send(IPC_CHANNELS.UPDATE_CHECKING);
-    });
-
-    autoUpdater.on('update-available', info => {
-      console.log('🎉 Auto-updater: Update available!', {
-        newVersion: info.version,
-        currentVersion: app.getVersion(),
-      });
-      log.info('Update available', { version: info.version });
-      this.mainWindow?.webContents.send(IPC_CHANNELS.UPDATE_AVAILABLE, info);
-    });
-
-    autoUpdater.on('update-not-available', info => {
-      console.log('✅ Auto-updater: No updates available', {
-        currentVersion: info.version,
-      });
-      log.info('Update not available', { currentVersion: info.version });
-      this.mainWindow?.webContents.send(
-        IPC_CHANNELS.UPDATE_NOT_AVAILABLE,
-        info
-      );
-    });
-
-    autoUpdater.on('error', err => {
-      console.error('❌ Auto-updater error:', err);
-      log.error('Auto-updater error', err);
-      this.mainWindow?.webContents.send(IPC_CHANNELS.UPDATE_ERROR, err.message);
-    });
-
-    autoUpdater.on('download-progress', progressObj => {
-      console.log(
-        `📥 Auto-updater: Download progress: ${Math.round(progressObj.percent)}%`
-      );
-      log.info('Download progress', { percent: progressObj.percent });
-      this.mainWindow?.webContents.send(
-        IPC_CHANNELS.UPDATE_DOWNLOAD_PROGRESS,
-        progressObj
-      );
-    });
-
-    autoUpdater.on('update-downloaded', info => {
-      console.log('✅ Auto-updater: Update downloaded successfully!', {
-        version: info.version,
-      });
-      log.info('Update downloaded', { version: info.version });
-      this.mainWindow?.webContents.send(IPC_CHANNELS.UPDATE_DOWNLOADED, info);
-    });
-
-    // Enhanced IPC handler with comprehensive error handling and timeout
-    ipcMain.handle(IPC_CHANNELS.CHECK_FOR_UPDATES, async () => {
-      if (!this.canUseAutoUpdater) {
-        console.log(
-          '🔍 Update check skipped: auto-updater disabled for this build (missing configuration).'
-        );
-        log.warn('Manual update check skipped - auto-updater disabled');
-        this.mainWindow?.webContents.send(IPC_CHANNELS.UPDATE_NOT_AVAILABLE, {
-          version: app.getVersion(),
-          reason: 'auto-update-disabled',
-        });
-        return { type: 'auto-update-disabled' };
-      }
-
-      console.log('🔍 Manual update check requested by user');
-      log.info('Manual update check requested');
-
-      // Create a promise that resolves with all possible outcomes
-      return new Promise((resolve, reject) => {
-        let resolved = false;
-
-        const handleCleanup = () => {
-          autoUpdater.removeListener('update-available', handleUpdateAvailable);
-          autoUpdater.removeListener(
-            'update-not-available',
-            handleUpdateNotAvailable
-          );
-          autoUpdater.removeListener('error', handleUpdateError);
-        };
-
-        const handleResponse = (type: string, data?: any) => {
-          if (!resolved) {
-            resolved = true;
-            handleCleanup();
-            log.info(`Update check completed with result: ${type}`, data);
-            resolve({ type, data });
-          }
-        };
-
-        const handleUpdateAvailable = (info: any) =>
-          handleResponse('available', info);
-        const handleUpdateNotAvailable = (info: any) =>
-          handleResponse('not-available', info);
-        const handleUpdateError = (err: unknown) =>
-          handleResponse(
-            'error',
-            err instanceof Error ? err.message : String(err)
-          );
-
-        // Set up temporary event listeners for this check
-        autoUpdater.on('update-available', handleUpdateAvailable);
-        autoUpdater.on('update-not-available', handleUpdateNotAvailable);
-        autoUpdater.on('error', handleUpdateError);
-
-        // Add timeout to catch silent failures
-        const timeoutId = setTimeout(() => {
-          if (!resolved) {
-            handleCleanup();
-            const timeout =
-              appConstants.getNetworkTimeouts().updateCheckTimeout;
-            console.error(
-              `❌ Update check timed out after ${timeout / 1000} seconds - this indicates a silent failure`
-            );
-            log.error(
-              `Update check timed out after ${timeout / 1000} seconds - this indicates a silent failure`
-            );
-            reject(
-              new Error(
-                'Update check timed out - possible GitHub API issues or rate limiting'
-              )
-            );
-          }
-        }, appConstants.getNetworkTimeouts().updateCheckTimeout);
-
-        // Clear timeout when resolved
-        const originalResolve = resolve;
-        resolve = (value: any) => {
-          clearTimeout(timeoutId);
-          originalResolve(value);
-        };
-
-        const originalReject = reject;
-        reject = (reason: any) => {
-          clearTimeout(timeoutId);
-          originalReject(reason);
-        };
-
-        // Trigger the actual update check
-        console.log('🚀 Starting update check via electron-updater...');
-        autoUpdater
-          .checkForUpdates()
-          .then(result => {
-            if (!result && !resolved) {
-              console.warn(
-                '⚠️ Update check returned null - possible rate limiting or API issue'
-              );
-              log.warn(
-                'Update check returned null - possible rate limiting or API issue'
-              );
-              handleResponse(
-                'error',
-                'Update check returned null - possible rate limiting or GitHub API issue'
-              );
-            }
-          })
-          .catch(error => {
-            console.error('❌ Update check failed:', error);
-            log.error('Update check failed', error);
-            if (!resolved) {
-              handleResponse('error', error.message);
-            }
-          });
-      });
-    });
-
-    ipcMain.handle(IPC_CHANNELS.INSTALL_UPDATE, () => {
-      if (!this.canUseAutoUpdater) {
-        console.log(
-          '🔄 Install update skipped: auto-updater disabled for this build (missing configuration).'
-        );
-        log.warn('Install update skipped - auto-updater disabled');
-        return;
-      }
-
-      console.log('🔄 Install update requested - quitting and installing...');
-      log.info('Install update requested');
-      autoUpdater.quitAndInstall();
-    });
-
-    ipcMain.handle('download-update', () => {
-      if (!this.canUseAutoUpdater) {
-        console.log(
-          '📥 Download update skipped: auto-updater disabled for this build (missing configuration).'
-        );
-        log.warn('Download update skipped - auto-updater disabled');
-        return { skipped: true };
-      }
-
-      console.log('📥 Download update requested');
-      log.info('Download update requested');
-      return autoUpdater.downloadUpdate();
-    });
-
-    // Check for updates on startup based on user settings
-    this.checkForUpdatesOnStartup();
-  }
-
-  private async checkForUpdatesOnStartup(): Promise<void> {
-    if (!this.canUseAutoUpdater) {
-      console.log(
-        '⏸️ Auto-updater disabled for this build. Startup update check skipped.'
-      );
-      log.info('Startup update check skipped - auto-updater disabled');
-      return;
-    }
-
-    try {
-      const userSettings = this.store.get('userSettings');
-
-      // Only check if user has enabled auto-updates and startup checking
-      if (
-        userSettings?.updateSettings?.enableAutoUpdates &&
-        userSettings?.updateSettings?.checkForUpdatesOnStartup
-      ) {
-        console.log(
-          '🚀 Auto-updates enabled, scheduling startup check in 3 seconds...'
-        );
-        log.info('Auto-updates enabled, scheduling startup check');
-        // Wait a bit for the app to fully load
-        setTimeout(() => {
-          console.log('⏰ Executing scheduled startup update check...');
-          autoUpdater.checkForUpdatesAndNotify();
-        }, 3000);
-      } else {
-        console.log('⏸️ Auto-updates disabled or startup check disabled');
-      }
-    } catch (error) {
-      console.error('❌ Error checking startup settings:', error);
-      log.error('Error checking startup settings', error);
-    }
+    this.mainWindow?.webContents.send(IPC_CHANNELS.MENU_OPEN_SETTINGS);
   }
 
   async initialize(): Promise<void> {
@@ -911,7 +495,10 @@ class DigitalAssetDownloaderApp {
     // Setup IPC handlers BEFORE creating window to avoid race conditions
     this.setupIpcHandlers();
     await this.createWindow();
-    this.setupAutoUpdater();
+    registerUpdates(
+      (channel, payload) => this.mainWindow?.webContents.send(channel, payload),
+      this.store.get('userSettings')?.updateSettings
+    );
 
     app.on('activate', async () => {
       if (BrowserWindow.getAllWindows().length === 0) {

@@ -1,3 +1,5 @@
+import type { UpdateInfo } from 'electron-updater';
+
 // Shared TypeScript interfaces for Digital Asset Downloader
 // Based on original Python app configuration schema (Lines 1200-1225)
 
@@ -33,15 +35,6 @@ export interface DownloadConfig {
   };
 }
 
-export interface DownloadItem {
-  rowNumber: number;
-  partNumber: string;
-  urls: string[];
-  pdfUrl?: string;
-  customFilename?: string;
-  sourceFolder?: string;
-}
-
 export interface DownloadProgress {
   currentFile: string;
   successful: number;
@@ -61,19 +54,6 @@ export interface DownloadCompletionEvent {
   logFile?: string;
   cancelled?: boolean;
   error?: string;
-}
-
-export interface DownloadResult {
-  success: boolean;
-  url: string;
-  filePath: string;
-  networkPath: string;
-  error?: string;
-  httpStatus?: number;
-  contentType?: string;
-  fileSize?: number;
-  backgroundProcessed: boolean;
-  cancelled?: boolean;
 }
 
 export interface WindowState {
@@ -144,6 +124,16 @@ export interface UserSettings {
   };
 }
 
+export type NetworkPathDefaults = Pick<
+  UserSettings['defaultPaths'],
+  'imageNetworkPath' | 'pdfNetworkPath'
+>;
+
+export type UpdateCheckResult =
+  | { type: 'available' | 'not-available'; data: UpdateInfo }
+  | { type: 'error'; data: string }
+  | { type: 'auto-update-disabled' };
+
 export interface SqlConnectionDetails {
   server: string;
   database: string;
@@ -202,10 +192,8 @@ export const IPC_CHANNELS = {
   // File operations
   OPEN_FILE_DIALOG: 'open-file-dialog',
   OPEN_FOLDER_DIALOG: 'open-folder-dialog',
-  SAVE_FILE_DIALOG: 'save-file-dialog',
 
   // Excel operations
-  LOAD_EXCEL_FILE: 'load-excel-file',
   GET_SHEET_NAMES: 'get-sheet-names',
   LOAD_SHEET_DATA: 'load-sheet-data',
 
@@ -216,16 +204,14 @@ export const IPC_CHANNELS = {
   LOAD_SAVED_SQL_PASSWORD: 'load-saved-sql-password',
   SAVE_SQL_PASSWORD: 'save-sql-password',
   DELETE_SAVED_SQL_PASSWORD: 'delete-saved-sql-password',
-  HAS_SAVED_SQL_PASSWORD: 'has-saved-sql-password',
 
   // Configuration
   SAVE_CONFIG: 'save-config',
   LOAD_CONFIG: 'load-config',
 
-  // Window operations
-  MINIMIZE_WINDOW: 'minimize-window',
-  MAXIMIZE_WINDOW: 'maximize-window',
-  CLOSE_WINDOW: 'close-window',
+  MENU_OPEN_FILE: 'menu-open-file',
+  MENU_SAVE_CONFIG: 'menu-save-config',
+  MENU_OPEN_SETTINGS: 'menu-open-settings',
 
   // Download operations
   START_DOWNLOADS: 'start-downloads',
@@ -235,6 +221,7 @@ export const IPC_CHANNELS = {
 
   // Settings operations
   SAVE_SETTINGS: 'save-settings',
+  SAVE_NETWORK_PATHS: 'save-network-paths',
   LOAD_SETTINGS: 'load-settings',
 
   // Auto-updater operations
@@ -246,6 +233,5 @@ export const IPC_CHANNELS = {
   UPDATE_DOWNLOAD_PROGRESS: 'update-download-progress',
   UPDATE_ERROR: 'update-error',
   INSTALL_UPDATE: 'install-update',
+  DOWNLOAD_UPDATE: 'download-update',
 } as const;
-
-export type IpcChannelType = (typeof IPC_CHANNELS)[keyof typeof IPC_CHANNELS];

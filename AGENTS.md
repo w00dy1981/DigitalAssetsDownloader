@@ -18,7 +18,9 @@ Describe the app as under development. Never claim it is ready for production. U
 - [src/renderer/App.tsx](src/renderer/App.tsx) connects the tabs in order: Input Selection, Column Selection, Process & Download, and Settings. Tab components live in `src/renderer/components/`. Shared controls live in `src/renderer/components/ui/`.
 - [src/main/main.ts](src/main/main.ts) creates the app window, handles requests from the interface, and uses `electron-store` for saved configuration.
 - [src/main/preload.ts](src/main/preload.ts) exposes `window.electronAPI` to the interface. [src/shared/types.ts](src/shared/types.ts) defines `IPC_CHANNELS` and shared types. If a request or event changes, check its sender, handler, and types together.
-- `src/services/` contains the Excel and CSV reader, SQL Server query service, downloader, image processing, and download log workbook output.
+- [downloadPlan.ts](src/services/downloadPlan.ts) decides which destinations belong to each product. [downloadService.ts](src/services/downloadService.ts) runs the workers and reports progress and cancellation. [saveAsset.ts](src/services/saveAsset.ts) tries the sources and saves the selected asset.
+- [ImageProcessingService.ts](src/services/ImageProcessingService.ts) converts image bytes. [downloadWorkbook.ts](src/services/downloadWorkbook.ts) turns saved results into the download log and ABM import sheets. These modules run in Node without Electron.
+- [excelService.ts](src/services/excelService.ts) reads Excel and CSV input. [updates.ts](src/main/updates.ts) owns desktop updates.
 - [src/services/SqlServerService.ts](src/services/SqlServerService.ts) validates read-only SQL queries. [src/services/SqlCredentialService.ts](src/services/SqlCredentialService.ts) encrypts saved SQL passwords using Electron's `safeStorage`. Preserve query validation and keep passwords out of logs.
 - `@/` points to `src/`. [package.json](package.json) lists the available commands.
 
