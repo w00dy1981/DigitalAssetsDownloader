@@ -16,7 +16,7 @@ export function useSqlPassword(
 ) {
   const [password, setPassword] = useState(emptyPassword);
   const { server, database, username } = identity;
-  const complete = Boolean(server && database && username);
+  const complete = Boolean(server && username);
 
   useEffect(() => {
     if (!active || !complete || password.checked) return;
@@ -96,7 +96,7 @@ export function useSqlPassword(
   }
 
   async function savePassword() {
-    if (!password.remember) return;
+    if (!password.remember || !password.value) return;
     try {
       await window.electronAPI.saveSqlPassword({
         identity,

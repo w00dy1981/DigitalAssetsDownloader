@@ -2,8 +2,13 @@ import { ipcMain } from 'electron';
 import { DownloadService } from '@/download/downloadRun';
 import { getSheetNames, loadSheetData } from '@/input/spreadsheet';
 import { testSqlConnection } from '@/sql/connection';
-import type { SqlConnectionRequest, SqlQueryRequest } from '@/sql/contracts';
-import { loadSqlRows, previewSqlQuery } from '@/sql/query';
+import type {
+  SqlConnectionRequest,
+  SqlQueryRequest,
+  SqlTable,
+  SqlExecution,
+} from '@/sql/contracts';
+import { executeSqlQuery } from '@/sql/query';
 import {
   downloadConfigErrors,
   initialDownloadOptions,
@@ -31,6 +36,10 @@ export function registerAssetWorkflow(
   let latestLoadId = 0;
   let loadedInput: { loadId: number; rows: Rows } | undefined;
 
+  let sqlExecution:
+    | { id: number; tables: SqlTable[]; sourceLabel: string }
+    | undefined;
+
   function checkInputCanChange() {
     if (downloads.running)
       throw new Error(
@@ -38,24 +47,32 @@ export function registerAssetWorkflow(
       );
   }
 
-  async function loadInput(
-    read: () => Promise<{
-      rows: Rows;
-      summary: Omit<LoadedInput, 'loadId' | 'rowCount' | 'options'>;
-    }>,
-    rememberConnection?: () => void
-  ): Promise<LoadedInput> {
+  function beginLoad() {
     checkInputCanChange();
-    const loadId = ++latestLoadId;
-    const { rows, summary } = await read();
-    if (loadId !== latestLoadId) {
+    return ++latestLoadId;
+  }
+
+  function checkLatestLoad(loadId: number) {
+    if (loadId !== latestLoadId)
       throw new Error('A newer input load replaced this request.');
-    }
-    checkInputCanChange();
-    const options = initialDownloadOptions(configuration.getSettings());
-    rememberConnection?.();
+  }
+
+  function useRows(
+    loadId: number,
+    columns: string[],
+    rows: Rows,
+    sourceLabel: string,
+    sheetName: string
+  ): LoadedInput {
     loadedInput = { loadId, rows };
-    return { ...summary, loadId, rowCount: rows.length, options };
+    return {
+      loadId,
+      columns,
+      rowCount: rows.length,
+      sourceLabel,
+      sheetName,
+      options: initialDownloadOptions(configuration.getSettings()),
+    };
   }
 
   ipcMain.handle(IPC_CHANNELS.GET_SHEET_NAMES, (_, filePath: string) =>
@@ -63,61 +80,72 @@ export function registerAssetWorkflow(
   );
   ipcMain.handle(
     IPC_CHANNELS.LOAD_SHEET_DATA,
-    (_, filePath: string, sheetName: string) =>
-      loadInput(async () => {
-        const { columns, rows } = await loadSheetData(filePath, sheetName);
-        return {
-          rows,
-          summary: {
-            columns,
-            sheetName,
-            sourceLabel: filePath,
-          },
-        };
-      })
+    async (_, filePath: string, sheetName: string) => {
+      const id = beginLoad();
+      const { columns, rows } = await loadSheetData(filePath, sheetName);
+      checkLatestLoad(id);
+      checkInputCanChange();
+      sqlExecution = undefined;
+      return useRows(id, columns, rows, filePath, sheetName);
+    }
   );
-
-  async function withSavedConnection<T>(
-    request: SqlConnectionRequest,
-    execute: () => Promise<T>
-  ): Promise<T> {
-    const result = await execute();
-    configuration.rememberSqlConnection(request);
-    return result;
-  }
 
   ipcMain.handle(
     IPC_CHANNELS.TEST_SQL_CONNECTION,
-    (_, request: SqlConnectionRequest) =>
-      withSavedConnection(request, () => testSqlConnection(request))
+    async (_, request: SqlConnectionRequest) => {
+      const result = await testSqlConnection({
+        ...request,
+        queryTimeoutMs: configuration.getSettings().sqlSettings.queryTimeoutMs,
+      });
+      configuration.rememberSqlConnection(request);
+      return result;
+    }
   );
 
   ipcMain.handle(
-    IPC_CHANNELS.PREVIEW_SQL_QUERY,
-    (_, request: SqlQueryRequest) =>
-      withSavedConnection(request, () => previewSqlQuery(request))
+    IPC_CHANNELS.EXECUTE_SQL_QUERY,
+    async (_, request: SqlQueryRequest): Promise<SqlExecution> => {
+      const id = ++latestLoadId;
+      const { queryTimeoutMs, previewRows } =
+        configuration.getSettings().sqlSettings;
+      const tables = await executeSqlQuery({ ...request, queryTimeoutMs });
+      checkLatestLoad(id);
+      const sourceLabel = [request.server.trim(), request.database.trim()]
+        .filter(Boolean)
+        .join(' / ');
+      sqlExecution = { id, tables, sourceLabel };
+      configuration.rememberSqlConnection(request);
+      return {
+        executionId: id,
+        results: tables.map(({ columns, rows }) => ({
+          columns,
+          rows: rows.slice(0, previewRows),
+          totalRowCount: rows.length,
+        })),
+      };
+    }
   );
+
   ipcMain.handle(
-    IPC_CHANNELS.LOAD_SQL_QUERY_DATA,
-    (_, request: SqlQueryRequest) =>
-      loadInput(
-        async () => {
-          const { columns, rows } = await loadSqlRows(request);
-          const sourceLabel = `${request.server.trim()} / ${request.database.trim()}`;
-          if (!columns.length) {
-            throw new Error('The SQL query returned no columns.');
-          }
-          return {
-            rows,
-            summary: {
-              columns,
-              sheetName: 'SQL Query',
-              sourceLabel,
-            },
-          };
-        },
-        () => configuration.rememberSqlConnection(request)
-      )
+    IPC_CHANNELS.SELECT_SQL_RESULT,
+    (_, executionId: number, index: number) => {
+      const table = sqlExecution?.tables[index];
+      if (
+        !sqlExecution ||
+        sqlExecution.id !== executionId ||
+        !Number.isInteger(index) ||
+        !table
+      ) {
+        throw new Error('The selected SQL result is no longer available.');
+      }
+      return useRows(
+        beginLoad(),
+        table.columns,
+        table.rows,
+        sqlExecution.sourceLabel,
+        `SQL result ${index + 1}`
+      );
+    }
   );
 
   downloads.on('progress', (progress: DownloadProgress) =>

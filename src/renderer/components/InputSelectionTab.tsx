@@ -21,6 +21,7 @@ const InputSelectionTab: React.FC<InputSelectionTabProps> = ({
 }) => {
   const [mode, setMode] = useState<'file' | 'sql'>('file');
   const [loading, setLoading] = useState(false);
+  const [fileLoadId, setFileLoadId] = useState(0);
   const [error, setError] = useState('');
   const workflow = { onDataLoaded, loading, setLoading, setError };
 
@@ -54,10 +55,20 @@ const InputSelectionTab: React.FC<InputSelectionTabProps> = ({
       </div>
 
       <div hidden={mode !== 'file'}>
-        <FileInput {...workflow} />
+        <FileInput
+          {...workflow}
+          onDataLoaded={data => {
+            setFileLoadId(data.loadId);
+            onDataLoaded(data);
+          }}
+        />
       </div>
       <div hidden={mode !== 'sql'}>
-        <SqlInput {...workflow} active={mode === 'sql'} />
+        <SqlInput
+          {...workflow}
+          fileLoadId={fileLoadId}
+          active={mode === 'sql'}
+        />
       </div>
 
       {currentData && (

@@ -1,5 +1,5 @@
 import * as sql from 'mssql';
-import { SQL_CONSTANTS } from './constants';
+import { defaultUserSettings } from '../shared/userSettings';
 import type { SqlConnectionRequest } from './contracts';
 
 export async function testSqlConnection(
@@ -17,30 +17,14 @@ export async function testSqlConnection(
 export async function connectSql(
   request: SqlConnectionRequest
 ): Promise<sql.ConnectionPool> {
-  if (!request.server?.trim()) {
-    throw new Error('SQL Server name is required');
-  }
-
-  if (!request.database?.trim()) {
-    throw new Error('SQL database is required');
-  }
-
-  if (!request.username?.trim()) {
-    throw new Error('SQL username is required');
-  }
-
-  if (!request.password) {
-    throw new Error('SQL password is required');
-  }
-
   const config: sql.config = {
     server: request.server.trim(),
-    database: request.database.trim(),
+    database: request.database.trim() || undefined,
     user: request.username.trim(),
     password: request.password,
-    connectionTimeout:
-      request.connectionTimeoutMs || SQL_CONSTANTS.CONNECTION_TIMEOUT_MS,
-    requestTimeout: request.queryTimeoutMs || SQL_CONSTANTS.QUERY_TIMEOUT_MS,
+    connectionTimeout: request.connectionTimeoutMs,
+    requestTimeout:
+      request.queryTimeoutMs ?? defaultUserSettings.sqlSettings.queryTimeoutMs,
     options: {
       encrypt: false,
       trustServerCertificate: true,

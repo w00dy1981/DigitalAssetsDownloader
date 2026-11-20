@@ -76,7 +76,7 @@ describe('SqlCredentialService', () => {
 
   it('does not mix passwords between SQL identities', () => {
     const service = new SqlCredentialService(tempDir, createSecureStorage());
-    const otherIdentity = { ...identity, database: 'OtherDb' };
+    const otherIdentity = { ...identity, database: '' };
 
     service.savePassword({ identity, password: 'first-password' });
     service.savePassword({

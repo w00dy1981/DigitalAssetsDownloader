@@ -12,7 +12,7 @@ import type {
   SqlPasswordDeleteRequest,
   SqlPasswordSaveRequest,
   SqlQueryRequest,
-  SqlQueryResult,
+  SqlExecution,
 } from '@/sql/contracts';
 import {
   IPC_CHANNELS as channels,
@@ -62,10 +62,10 @@ const electronAPI = {
 
   testSqlConnection: (request: SqlConnectionRequest) =>
     invoke<Success>(channels.TEST_SQL_CONNECTION, request),
-  previewSqlQuery: (request: SqlQueryRequest) =>
-    invoke<SqlQueryResult>(channels.PREVIEW_SQL_QUERY, request),
-  loadSqlQueryData: (request: SqlQueryRequest) =>
-    invoke<LoadedInput>(channels.LOAD_SQL_QUERY_DATA, request),
+  executeSqlQuery: (request: SqlQueryRequest) =>
+    invoke<SqlExecution>(channels.EXECUTE_SQL_QUERY, request),
+  selectSqlResult: (executionId: number, resultIndex: number) =>
+    invoke<LoadedInput>(channels.SELECT_SQL_RESULT, executionId, resultIndex),
   loadSavedSqlPassword: (identity: SqlCredentialIdentity) =>
     invoke<string | null>(channels.LOAD_SAVED_SQL_PASSWORD, identity),
   saveSqlPassword: (request: SqlPasswordSaveRequest) =>

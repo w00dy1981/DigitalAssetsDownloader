@@ -4,7 +4,7 @@ import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { DownloadService, type DownloadOptions } from '@/download/downloadRun';
 import * as sql from '@/sql/query';
-import type { SqlQueryResult } from '@/sql/contracts';
+import type { SqlTable } from '@/sql/contracts';
 import { IPC_CHANNELS } from '@/shared/types';
 import { defaultUserSettings } from '@/shared/userSettings';
 import { registerAssetWorkflow } from './assetWorkflow';
@@ -28,10 +28,12 @@ const sqlRequest = {
   password: 'test-password',
   query: 'SELECT Code, Image FROM Products',
 };
-const sqlResult: SqlQueryResult = {
+const sqlResult: SqlTable = {
   columns: ['Code', 'Image'],
-  rows: [{ Code: 'SQL', Image: 'sql.png' }],
-  totalRowCount: 2,
+  rows: [
+    { Code: 'SQL', Image: 'sql.png' },
+    { Code: 'Second', Image: 'two.png' },
+  ],
 };
 
 afterEach(() => {
@@ -42,17 +44,29 @@ afterEach(() => {
 test('returns summaries, preserves SQL preview rows, and starts only with the matching input', async () => {
   const rememberSqlConnection = jest.fn();
   registerAssetWorkflow(
-    { getSettings: () => defaultUserSettings, rememberSqlConnection },
+    {
+      getSettings: () => ({
+        ...defaultUserSettings,
+        sqlSettings: {
+          ...defaultUserSettings.sqlSettings,
+          previewRows: 1,
+          queryTimeoutMs: 0,
+        },
+      }),
+      rememberSqlConnection,
+    },
     jest.fn()
   );
-  let finishOlderLoad: (result: SqlQueryResult) => void = () => {};
+  let finishOlderLoad: (result: SqlTable[]) => void = () => {};
   const start = jest
     .spyOn(DownloadService.prototype, 'startDownloads')
     .mockResolvedValue(undefined);
-  jest.spyOn(sql, 'previewSqlQuery').mockResolvedValueOnce(sqlResult);
-  jest
-    .spyOn(sql, 'loadSqlRows')
-    .mockResolvedValueOnce(sqlResult)
+  const execute = jest
+    .spyOn(sql, 'executeSqlQuery')
+    .mockResolvedValueOnce([
+      { columns: ['Status'], rows: [{ Status: 'done' }] },
+      sqlResult,
+    ])
     .mockImplementationOnce(
       () =>
         new Promise(resolve => {
@@ -80,19 +94,38 @@ test('returns summaries, preserves SQL preview rows, and starts only with the ma
         quality: 90,
       },
     };
-    expect(await invoke(IPC_CHANNELS.PREVIEW_SQL_QUERY, sqlRequest)).toEqual(
-      sqlResult
+    const { executionId, results } = await invoke(
+      IPC_CHANNELS.EXECUTE_SQL_QUERY,
+      sqlRequest
     );
-    const sqlInput = await invoke(IPC_CHANNELS.LOAD_SQL_QUERY_DATA, sqlRequest);
+    expect(results[1]).toEqual({
+      columns: sqlResult.columns,
+      rows: [sqlResult.rows[0]],
+      totalRowCount: 2,
+    });
+    expect(execute).toHaveBeenCalledWith({ ...sqlRequest, queryTimeoutMs: 0 });
+    const sqlInput = await invoke(
+      IPC_CHANNELS.SELECT_SQL_RESULT,
+      executionId,
+      1
+    );
+    await invoke(IPC_CHANNELS.START_DOWNLOADS, config, sqlInput.loadId);
+    expect(start).toHaveBeenCalledWith(
+      config,
+      sqlResult.rows,
+      defaultUserSettings.downloadBehavior
+    );
+    start.mockClear();
+    expect(execute).toHaveBeenCalledTimes(1);
     expect(sqlInput).toEqual({
       loadId: expect.any(Number),
       columns: sqlResult.columns,
-      rowCount: 1,
-      sheetName: 'SQL Query',
+      rowCount: 2,
+      sheetName: 'SQL result 2',
       options: expect.objectContaining({ partNoColumn: '', imageColumns: [] }),
       sourceLabel: 'localhost / Assets',
     });
-    const olderLoad = invoke(IPC_CHANNELS.LOAD_SQL_QUERY_DATA, sqlRequest);
+    const olderLoad = invoke(IPC_CHANNELS.EXECUTE_SQL_QUERY, sqlRequest);
     const fileInput = await invoke(
       IPC_CHANNELS.LOAD_SHEET_DATA,
       filePath,
@@ -113,16 +146,19 @@ test('returns summaries, preserves SQL preview rows, and starts only with the ma
       invoke(IPC_CHANNELS.LOAD_SHEET_DATA, filePath, 'Sheet1')
     ).rejects.toThrow('Finish or cancel');
     running.mockRestore();
-    finishOlderLoad(sqlResult);
+    finishOlderLoad([sqlResult]);
     await expect(olderLoad).rejects.toThrow('A newer input load');
-    expect(rememberSqlConnection).toHaveBeenCalledTimes(2);
+    expect(rememberSqlConnection).toHaveBeenCalledTimes(1);
+    expect(() =>
+      invoke(IPC_CHANNELS.SELECT_SQL_RESULT, executionId, 1)
+    ).toThrow('no longer available');
 
     await expect(
       invoke(IPC_CHANNELS.START_DOWNLOADS, config, sqlInput.loadId)
     ).rejects.toThrow('Please map the columns again');
     expect(start).not.toHaveBeenCalled();
     await expect(
-      invoke(IPC_CHANNELS.LOAD_SQL_QUERY_DATA, sqlRequest)
+      invoke(IPC_CHANNELS.EXECUTE_SQL_QUERY, sqlRequest)
     ).rejects.toThrow('Connection lost');
     await invoke(IPC_CHANNELS.START_DOWNLOADS, config, fileInput.loadId);
     expect(start).toHaveBeenCalledWith(

@@ -1,64 +1,33 @@
 import { defaultUserSettings } from '@/shared/userSettings';
-import { SQL_CONSTANTS } from '@/sql/constants';
 import { useEffect, useState } from 'react';
-import type { SqlConnectionDetails, SqlQueryResult } from '@/sql/contracts';
+import type { SqlConnectionDetails, SqlExecution } from '@/sql/contracts';
 import type { InputWorkflowProps } from '../InputSelectionTab';
 import { SqlPreview } from './SqlPreview';
 import { SqlPasswordField, useSqlPassword } from './SqlPasswordField';
 
 const connectionFields = [
-  {
-    field: 'server',
-    label: 'SQL Server',
-    missing: 'Please enter a SQL Server name.',
-  },
-  {
-    field: 'database',
-    label: 'Database',
-    missing: 'Please enter a SQL database name.',
-  },
-  {
-    field: 'username',
-    label: 'Username',
-    missing: 'Please enter a SQL username.',
-  },
+  { field: 'server', label: 'SQL Server' },
+  { field: 'database', label: 'Database' },
+  { field: 'username', label: 'Username' },
 ] as const;
 
-const sqlActions = {
-  test: {
-    label: 'Test Connection',
-    style: 'secondary btn-test',
-    error: 'Failed to connect to SQL Server.',
-  },
-  preview: {
-    label: 'Preview Query',
-    style: 'primary',
-    error: 'Failed to preview SQL query.',
-  },
-  load: {
-    label: 'Load SQL Data',
-    style: 'success',
-    error: 'Failed to load SQL query data.',
-  },
-};
-
-type SqlAction = keyof typeof sqlActions;
-
-const { PREVIEW_ROW_LIMIT, FULL_LOAD_ROW_LIMIT } = SQL_CONSTANTS;
 const credentialPart = (text: string) => text.trim().toLowerCase();
 
 export function SqlInput({
   active,
+  fileLoadId,
   loading,
   setLoading,
   setError,
   onDataLoaded,
-}: InputWorkflowProps & { active: boolean }) {
+}: InputWorkflowProps & { active: boolean; fileLoadId: number }) {
   const [connection, setConnection] = useState<SqlConnectionDetails | null>(
     null
   );
   const [query, setQuery] = useState('');
-  const [preview, setPreview] = useState<SqlQueryResult | null>(null);
+  const [execution, setExecution] = useState<SqlExecution | null>(null);
+  const [resultIndex, setResultIndex] = useState(0);
+  const preview = execution?.results[resultIndex];
   const [notice, setNotice] = useState('');
 
   const credentials = useSqlPassword(
@@ -85,14 +54,12 @@ export function SqlInput({
   }, []);
 
   useEffect(() => {
-    if (!active) {
-      setPreview(null);
-      setNotice('');
-    }
-  }, [active]);
+    setExecution(null);
+    setNotice('');
+  }, [fileLoadId]);
 
   function resetResult() {
-    setPreview(null);
+    setExecution(null);
     setNotice('');
   }
 
@@ -105,67 +72,42 @@ export function SqlInput({
     resetResult();
   }
 
-  async function runSql(action: SqlAction) {
+  async function runSql(action: 'test' | 'run' | 'select') {
     if (!connection || loading) return;
-
-    const request = {
-      server: connection.server.trim(),
-      database: connection.database.trim(),
-      username: connection.username.trim(),
-      password: credentials.password.value,
-    };
-    const field = connectionFields.find(({ field }) => !request[field]);
-    if (field) {
-      setError(field.missing);
-      return;
-    }
-    if (!request.password) {
-      setError('Please enter the SQL password.');
-      return;
-    }
-    if (action !== 'test' && !query.trim()) {
-      setError('Please enter a SQL query.');
-      return;
-    }
-    if (action === 'load') {
-      if (!preview) return;
-      const rowCount = preview.totalRowCount;
-      const message =
-        rowCount > FULL_LOAD_ROW_LIMIT
-          ? `This query has ${rowCount.toLocaleString()} rows. This will load the first ${FULL_LOAD_ROW_LIMIT.toLocaleString()} rows from SQL Server. Continue?`
-          : `This will load ${rowCount.toLocaleString()} rows from SQL Server. Continue?`;
-      if (!window.confirm(message)) return;
-    }
-
     setLoading(true);
     setError('');
     setNotice('');
     try {
-      if (action === 'test') {
-        await window.electronAPI.testSqlConnection(request);
-        await credentials.savePassword();
-        setNotice(`Connected to ${request.server} / ${request.database}`);
+      if (action === 'select') {
+        if (execution)
+          onDataLoaded(
+            await window.electronAPI.selectSqlResult(
+              execution.executionId,
+              resultIndex
+            )
+          );
         return;
       }
-
-      const sql = {
-        ...request,
-        query,
-      };
-      if (action === 'preview') {
-        setPreview(null);
-        const result = await window.electronAPI.previewSqlQuery(sql);
-        setPreview(result);
+      const request = { ...connection, password: credentials.password.value };
+      if (action === 'test') {
+        await window.electronAPI.testSqlConnection(request);
+        setNotice(
+          `Connected to ${[request.server, request.database].filter(Boolean).join(' / ')}`
+        );
       } else {
-        const result = await window.electronAPI.loadSqlQueryData(sql);
-        setNotice(`Loaded ${result.rowCount.toLocaleString()} SQL rows.`);
-        onDataLoaded(result);
+        setExecution(null);
+        const result = await window.electronAPI.executeSqlQuery({
+          ...request,
+          query,
+        });
+        setExecution(result);
+        setResultIndex(0);
+        if (!result.results.length)
+          setNotice('SQL completed without returning a table.');
       }
       await credentials.savePassword();
     } catch (error) {
-      setError(
-        error instanceof Error ? error.message : sqlActions[action].error
-      );
+      setError(error instanceof Error ? error.message : String(error));
     } finally {
       setLoading(false);
     }
@@ -201,22 +143,22 @@ export function SqlInput({
           />
 
           <div className="sql-buttons-group">
-            {(['test', 'preview', 'load'] as const).map(action => (
-              <button
-                type="button"
-                key={action}
-                className={`btn btn-${sqlActions[action].style}`}
-                onClick={() => void runSql(action)}
-                disabled={loading || (action === 'load' && !preview)}
-                title={
-                  action === 'load' && !preview
-                    ? 'Preview the SQL query before loading data'
-                    : undefined
-                }
-              >
-                {sqlActions[action].label}
-              </button>
-            ))}
+            <button
+              type="button"
+              className="btn btn-secondary btn-test"
+              onClick={() => void runSql('test')}
+              disabled={loading}
+            >
+              Test Connection
+            </button>
+            <button
+              type="button"
+              className="btn btn-primary"
+              onClick={() => void runSql('run')}
+              disabled={loading || !query.trim()}
+            >
+              Run SQL
+            </button>
           </div>
 
           {notice && (
@@ -241,16 +183,45 @@ export function SqlInput({
               disabled={loading}
             />
             <small className="text-muted">
-              Use a read-only SQL login. Preview and load each run the query.
-              Query text is only kept for this session. Preview shows up to{' '}
-              {PREVIEW_ROW_LIMIT} rows. Load SQL Data can load up to{' '}
-              {FULL_LOAD_ROW_LIMIT.toLocaleString()} rows.
+              Run SQL executes the batch with this login's permissions. Leave
+              Database blank to use the login’s default database.
             </small>
           </div>
         </div>
       </div>
 
-      {preview && <SqlPreview preview={preview} />}
+      {execution && preview && (
+        <div>
+          {execution.results.length > 1 && (
+            <div className="form-group">
+              <label htmlFor="sql-result-set">Result set</label>
+              <select
+                className="form-control"
+                id="sql-result-set"
+                value={resultIndex}
+                disabled={loading}
+                onChange={e => setResultIndex(Number(e.target.value))}
+              >
+                {execution.results.map((result, index) => (
+                  <option value={index} key={index}>
+                    Result {index + 1} ({result.totalRowCount.toLocaleString()}{' '}
+                    rows)
+                  </option>
+                ))}
+              </select>
+            </div>
+          )}
+          <SqlPreview preview={preview} />
+          <button
+            type="button"
+            className="btn btn-success"
+            disabled={loading}
+            onClick={() => void runSql('select')}
+          >
+            Use Result
+          </button>
+        </div>
+      )}
     </div>
   );
 }

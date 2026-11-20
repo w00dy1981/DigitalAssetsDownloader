@@ -25,8 +25,16 @@ export interface SqlQueryRequest extends SqlConnectionRequest {
   query: string;
 }
 
-export interface SqlQueryResult {
+export interface SqlTable {
   columns: string[];
   rows: Record<string, string>[];
+}
+
+export interface SqlResultPreview extends SqlTable {
   totalRowCount: number;
+}
+
+export interface SqlExecution {
+  executionId: number;
+  results: SqlResultPreview[];
 }

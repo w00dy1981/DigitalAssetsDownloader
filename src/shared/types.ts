@@ -45,8 +45,8 @@ export const IPC_CHANNELS = {
 
   // SQL Server operations
   TEST_SQL_CONNECTION: 'test-sql-connection',
-  PREVIEW_SQL_QUERY: 'preview-sql-query',
-  LOAD_SQL_QUERY_DATA: 'load-sql-query-data',
+  EXECUTE_SQL_QUERY: 'execute-sql-query',
+  SELECT_SQL_RESULT: 'select-sql-result',
   LOAD_SAVED_SQL_PASSWORD: 'load-saved-sql-password',
   SAVE_SQL_PASSWORD: 'save-sql-password',
   DELETE_SAVED_SQL_PASSWORD: 'delete-saved-sql-password',

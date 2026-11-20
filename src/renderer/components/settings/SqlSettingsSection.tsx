@@ -1,6 +1,6 @@
 import React from 'react';
 import type { UserSettings } from '@/shared/userSettings';
-import { FormGroup } from '@/renderer/components/ui';
+import { FormGroup, NumberInput } from '@/renderer/components/ui';
 import { defaultUserSettings } from '@/shared/userSettings';
 
 interface SqlSettingsSectionProps {
@@ -53,13 +53,32 @@ export const SqlSettingsSection: React.FC<SqlSettingsSectionProps> = ({
         />
       </FormGroup>
 
-      <p
-        className="help-text"
-        style={{ marginTop: '0.5rem', fontSize: '0.85em', color: '#888' }}
+      <FormGroup
+        label="SQL request timeout"
+        htmlFor="sql-request-timeout"
+        helpText="Time to wait for the first server response. Enter 0 for no request timeout."
       >
-        SQL Server controls which databases this login can read. Use a login
-        with read-only permissions.
-      </p>
+        <NumberInput
+          id="sql-request-timeout"
+          value={sql.queryTimeoutMs}
+          min={0}
+          suffix="ms"
+          onChange={queryTimeoutMs => onSettingUpdate({ queryTimeoutMs })}
+        />
+      </FormGroup>
+
+      <FormGroup
+        label="SQL preview rows"
+        htmlFor="sql-preview-rows"
+        helpText="Rows to display from each result. All rows remain available for mapping."
+      >
+        <NumberInput
+          id="sql-preview-rows"
+          value={sql.previewRows}
+          min={0}
+          onChange={previewRows => onSettingUpdate({ previewRows })}
+        />
+      </FormGroup>
     </div>
   );
 };

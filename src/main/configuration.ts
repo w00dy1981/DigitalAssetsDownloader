@@ -25,7 +25,7 @@ export function registerConfiguration() {
       const defaults = getSettings().sqlSettings;
       return {
         server: saved?.server || defaults.defaultServer,
-        database: saved?.database || defaults.defaultDatabase,
+        database: saved?.database ?? defaults.defaultDatabase,
         username: saved?.username || defaults.defaultUsername,
       };
     }
