@@ -1,9 +1,10 @@
+import { limits } from '@/shared/downloadSettings';
 import React from 'react';
-import { UserSettings } from '@/shared/types';
+import type { UserSettings } from '@/shared/userSettings';
 import { NumberInput, FormGroup } from '@/renderer/components/ui';
 
 interface DownloadBehaviorSectionProps {
-  settings: UserSettings;
+  settings: UserSettings['downloadBehavior'];
   onSettingUpdate: (changes: Partial<UserSettings['downloadBehavior']>) => void;
 }
 
@@ -20,42 +21,42 @@ export const DownloadBehaviorSection: React.FC<
         helpText="Number of simultaneous downloads (1-20)"
       >
         <NumberInput
-          value={settings.downloadBehavior.defaultConcurrentDownloads}
+          id="concurrent-downloads"
+          value={settings.defaultConcurrentDownloads}
           onChange={value =>
             onSettingUpdate({ defaultConcurrentDownloads: value })
           }
-          min={1}
-          max={20}
+          {...limits.workers}
           suffix="workers"
         />
       </FormGroup>
 
       <FormGroup label="Connection Timeout" htmlFor="connection-timeout">
         <NumberInput
-          value={settings.downloadBehavior.connectionTimeout}
+          id="connection-timeout"
+          value={settings.connectionTimeout}
           onChange={value => onSettingUpdate({ connectionTimeout: value })}
-          min={1}
-          max={60}
+          {...limits.connectionTimeout}
           suffix="seconds"
         />
       </FormGroup>
 
       <FormGroup label="Read Timeout" htmlFor="read-timeout">
         <NumberInput
-          value={settings.downloadBehavior.readTimeout}
+          id="read-timeout"
+          value={settings.readTimeout}
           onChange={value => onSettingUpdate({ readTimeout: value })}
-          min={10}
-          max={300}
+          {...limits.readTimeout}
           suffix="seconds"
         />
       </FormGroup>
 
       <FormGroup label="Retry Attempts" htmlFor="retry-attempts">
         <NumberInput
-          value={settings.downloadBehavior.retryAttempts}
+          id="retry-attempts"
+          value={settings.retryAttempts}
           onChange={value => onSettingUpdate({ retryAttempts: value })}
-          min={1}
-          max={10}
+          {...limits.retryAttempts}
           suffix="attempts"
         />
       </FormGroup>

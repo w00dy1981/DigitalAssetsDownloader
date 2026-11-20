@@ -3,15 +3,15 @@ import { existsSync } from 'node:fs';
 import { join } from 'node:path';
 import log from 'electron-log';
 import { autoUpdater } from 'electron-updater';
-import { IPC_CHANNELS, UserSettings, UpdateCheckResult } from '@/shared/types';
-import { NETWORK_CONSTANTS, PATH_CONSTANTS } from '@/shared/constants';
+import { IPC_CHANNELS, UpdateCheckResult } from '@/shared/types';
+import type { UserSettings } from '@/shared/userSettings';
 
 export function registerUpdates(
   send: (channel: string, payload?: unknown) => void,
   settings?: UserSettings['updateSettings']
 ) {
   const enabled = existsSync(join(process.resourcesPath, 'app-update.yml'));
-  log.transports.file.maxSize = PATH_CONSTANTS.LOG_FILE_MAX_SIZE;
+  log.transports.file.maxSize = 5 * 1024 * 1024;
   autoUpdater.logger = log;
   autoUpdater.autoDownload = false;
   autoUpdater.autoInstallOnAppQuit = false;
@@ -52,7 +52,7 @@ export function registerUpdates(
           new Promise<never>((_, reject) => {
             timeout = setTimeout(
               () => reject(new Error('Update check timed out')),
-              NETWORK_CONSTANTS.UPDATE_CHECK_TIMEOUT
+              30_000
             );
           }),
         ]);
@@ -69,7 +69,7 @@ export function registerUpdates(
   ipcMain.handle(IPC_CHANNELS.INSTALL_UPDATE, () => {
     if (enabled) autoUpdater.quitAndInstall();
   });
-  ipcMain.handle('download-update', () =>
+  ipcMain.handle(IPC_CHANNELS.DOWNLOAD_UPDATE, () =>
     enabled ? autoUpdater.downloadUpdate() : { skipped: true }
   );
 

@@ -1,11 +1,10 @@
 import React from 'react';
-import { UserSettings } from '@/shared/types';
+import type { UserSettings } from '@/shared/userSettings';
 import { FormGroup } from '@/renderer/components/ui';
-import { CONSTANTS } from '@/shared/constants';
 import { defaultUserSettings } from '@/shared/userSettings';
 
 interface SqlSettingsSectionProps {
-  settings: UserSettings;
+  settings: UserSettings['sqlSettings'];
   onSettingUpdate: (
     changes: Partial<NonNullable<UserSettings['sqlSettings']>>
   ) => void;
@@ -15,7 +14,7 @@ export const SqlSettingsSection: React.FC<SqlSettingsSectionProps> = ({
   settings,
   onSettingUpdate,
 }) => {
-  const sql = settings.sqlSettings ?? defaultUserSettings.sqlSettings;
+  const sql = settings ?? defaultUserSettings.sqlSettings;
 
   const handleCrossDatabaseChange = (value: string) => {
     const parsed = value
@@ -47,7 +46,7 @@ export const SqlSettingsSection: React.FC<SqlSettingsSectionProps> = ({
           className="form-control"
           value={sql.defaultDatabase}
           onChange={e => onSettingUpdate({ defaultDatabase: e.target.value })}
-          placeholder={CONSTANTS.SQL.DEFAULT_DATABASE}
+          placeholder={defaultUserSettings.sqlSettings.defaultDatabase}
         />
       </FormGroup>
 
@@ -58,7 +57,7 @@ export const SqlSettingsSection: React.FC<SqlSettingsSectionProps> = ({
           className="form-control"
           value={sql.defaultUsername}
           onChange={e => onSettingUpdate({ defaultUsername: e.target.value })}
-          placeholder={CONSTANTS.SQL.DEFAULT_USERNAME}
+          placeholder={defaultUserSettings.sqlSettings.defaultUsername}
         />
       </FormGroup>
 

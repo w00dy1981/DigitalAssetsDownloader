@@ -1,8 +1,10 @@
+import { limits } from '@/shared/downloadSettings';
 import React from 'react';
-import { UserSettings } from '@/shared/types';
+import type { UserSettings } from '@/shared/userSettings';
+import { NumberInput } from '@/renderer/components/ui';
 
 interface ImageProcessingSectionProps {
-  settings: UserSettings;
+  settings: UserSettings['imageProcessing'];
   onSettingUpdate: (changes: Partial<UserSettings['imageProcessing']>) => void;
 }
 
@@ -18,69 +20,24 @@ export const ImageProcessingSection: React.FC<ImageProcessingSectionProps> = ({
         <label>
           <input
             type="checkbox"
-            checked={settings.imageProcessing.enabledByDefault}
+            checked={settings.enabledByDefault}
             onChange={e =>
               onSettingUpdate({ enabledByDefault: e.target.checked })
             }
           />
-          Enable background processing by default
+          Give transparent images a white background by default
         </label>
-        <small className="text-muted">
-          Automatically enable background processing for new configurations
-        </small>
-      </div>
-
-      <div className="form-group">
-        <label htmlFor="processing-method">Default Processing Method</label>
-        <select
-          id="processing-method"
-          value={settings.imageProcessing.defaultMethod}
-          onChange={() => onSettingUpdate({ defaultMethod: 'smart_detect' })}
-          className="form-control"
-        >
-          <option value="smart_detect">Smart Detection</option>
-        </select>
-        <small className="text-muted">
-          Detects PNG images with transparency and converts them to JPG with
-          white background
-        </small>
       </div>
 
       <div className="form-group">
         <label htmlFor="jpeg-quality">JPEG Quality</label>
-        <div className="number-input-group">
-          <input
-            id="jpeg-quality"
-            type="number"
-            min="60"
-            max="100"
-            value={settings.imageProcessing.defaultQuality}
-            onChange={e =>
-              onSettingUpdate({ defaultQuality: parseInt(e.target.value) })
-            }
-            className="form-control number-input"
-          />
-          <span className="input-suffix">%</span>
-        </div>
-      </div>
-
-      <div className="form-group">
-        <label htmlFor="edge-threshold">Edge Detection Threshold</label>
-        <div className="number-input-group">
-          <input
-            id="edge-threshold"
-            type="number"
-            min="10"
-            max="100"
-            value={settings.imageProcessing.defaultEdgeThreshold}
-            onChange={e =>
-              onSettingUpdate({
-                defaultEdgeThreshold: parseInt(e.target.value),
-              })
-            }
-            className="form-control number-input"
-          />
-        </div>
+        <NumberInput
+          id="jpeg-quality"
+          value={settings.defaultQuality}
+          onChange={value => onSettingUpdate({ defaultQuality: value })}
+          {...limits.quality}
+          suffix="%"
+        />
       </div>
     </div>
   );

@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import type { SqlCredentialIdentity } from '@/shared/types';
+import type { SqlCredentialIdentity } from '@/sql/contracts';
 
 const emptyPassword = {
   value: '',

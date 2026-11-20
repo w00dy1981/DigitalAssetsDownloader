@@ -1,0 +1,403 @@
+.process-tab .download-settings {
+  background: rgba(74, 85, 104, 0.6);
+  backdrop-filter: blur(10px);
+  border: 1px solid rgba(226, 232, 240, 0.4);
+  border-radius: 8px;
+  padding: 0.75rem;
+  margin-bottom: 1rem;
+}
+
+.process-tab .download-settings h3 {
+  margin: 0 0 0.75rem 0;
+  font-size: 1.1rem;
+}
+
+.process-tab .settings-compact {
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+}
+
+.process-tab .process-header-compact {
+  margin-bottom: 1rem;
+}
+
+.process-tab .process-header-compact h2 {
+  margin: 0;
+  font-size: 1.5rem;
+}
+
+.process-tab .checkbox-text {
+  margin-left: 0.25rem;
+}
+
+.process-tab .validation-errors {
+  background: linear-gradient(
+    135deg,
+    rgba(220, 53, 69, 0.1) 0%,
+    rgba(220, 53, 69, 0.05) 100%
+  );
+  border: 2px solid rgba(220, 53, 69, 0.3);
+  border-radius: 8px;
+  padding: 0.75rem;
+  margin-bottom: 1rem;
+  backdrop-filter: blur(10px);
+}
+
+.process-tab .validation-errors h3 {
+  color: #dc3545;
+  margin: 0 0 0.4rem 0;
+  font-size: 0.9rem;
+  font-weight: 600;
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.process-tab .validation-errors h3::before {
+  content: '⚠️';
+}
+
+.process-tab .error-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+
+.process-tab .error-item {
+  color: #dc3545;
+  font-size: 0.8rem;
+  margin-bottom: 0.2rem;
+  padding-left: 0.5rem;
+  font-weight: 500;
+}
+
+.process-tab .config-status {
+  background: linear-gradient(
+    135deg,
+    rgba(40, 167, 69, 0.1) 0%,
+    rgba(40, 167, 69, 0.05) 100%
+  );
+  border: 2px solid rgba(40, 167, 69, 0.3);
+  border-radius: 8px;
+  padding: 0.75rem;
+  margin-bottom: 1rem;
+  backdrop-filter: blur(10px);
+}
+
+.process-tab .success-message {
+  color: #28a745;
+  margin: 0;
+  font-size: 0.8rem;
+  font-weight: 600;
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.process-tab .progress-section,
+.process-tab .logs-section {
+  background: rgba(45, 55, 72, 0.95);
+  border-radius: 12px;
+  padding: 1.5rem;
+  margin-top: 2rem;
+  backdrop-filter: blur(20px);
+  border: 1px solid rgba(74, 85, 104, 0.5);
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.3);
+}
+
+.process-tab .progress-summary {
+  margin-bottom: 1.5rem;
+}
+
+.process-tab .summary-stats {
+  display: flex;
+  gap: 1rem;
+  justify-content: space-around;
+  margin-bottom: 1rem;
+}
+
+.process-tab .stat-card {
+  background: rgba(74, 85, 104, 0.9);
+  border-radius: 8px;
+  padding: 1rem;
+  text-align: center;
+  min-width: 80px;
+  border: 2px solid transparent;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+}
+
+.process-tab .stat-card.success {
+  border-color: rgba(40, 167, 69, 0.3);
+  background: linear-gradient(
+    135deg,
+    rgba(40, 167, 69, 0.1) 0%,
+    rgba(40, 167, 69, 0.05) 100%
+  );
+}
+
+.process-tab .stat-card.failed {
+  border-color: rgba(220, 53, 69, 0.3);
+  background: linear-gradient(
+    135deg,
+    rgba(220, 53, 69, 0.1) 0%,
+    rgba(220, 53, 69, 0.05) 100%
+  );
+}
+
+.process-tab .stat-card.total {
+  border-color: rgba(102, 126, 234, 0.3);
+  background: linear-gradient(
+    135deg,
+    rgba(102, 126, 234, 0.1) 0%,
+    rgba(102, 126, 234, 0.05) 100%
+  );
+}
+
+.process-tab .stat-card.percentage {
+  border-color: rgba(111, 66, 193, 0.3);
+  background: linear-gradient(
+    135deg,
+    rgba(111, 66, 193, 0.1) 0%,
+    rgba(111, 66, 193, 0.05) 100%
+  );
+}
+
+.process-tab .stat-card.processed {
+  border-color: rgba(255, 193, 7, 0.3);
+  background: linear-gradient(
+    135deg,
+    rgba(255, 193, 7, 0.1) 0%,
+    rgba(255, 193, 7, 0.05) 100%
+  );
+}
+
+.process-tab .stat-number {
+  font-size: 1.8rem;
+  font-weight: bold;
+  margin-bottom: 0.25rem;
+}
+
+.process-tab .stat-card.success .stat-number {
+  color: #28a745;
+}
+
+.process-tab .stat-card.failed .stat-number {
+  color: #dc3545;
+}
+
+.process-tab .stat-card.total .stat-number {
+  color: #667eea;
+}
+
+.process-tab .stat-card.percentage .stat-number {
+  color: #6f42c1;
+}
+
+.process-tab .stat-card.processed .stat-number {
+  color: #ffc107;
+}
+
+.process-tab .stat-label {
+  font-size: 0.8rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  color: #cbd5e0;
+}
+
+.process-tab .downloading-indicator {
+  color: #17a2b8;
+  font-weight: 600;
+  animation: download-progress-pulse 2s infinite;
+}
+
+@keyframes download-progress-pulse {
+  0% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0.6;
+  }
+  100% {
+    opacity: 1;
+  }
+}
+
+.process-tab .progress-container {
+  margin-bottom: 0.5rem;
+  margin-top: 0.5rem;
+}
+
+.process-tab .progress-bar {
+  width: 100%;
+  height: 12px;
+  background: rgba(0, 0, 0, 0.1);
+  border-radius: 6px;
+  overflow: hidden;
+  margin-bottom: 1rem;
+  box-shadow: inset 0 2px 4px rgba(0, 0, 0, 0.1);
+}
+
+.process-tab .progress-fill {
+  height: 100%;
+  border-radius: 6px;
+  transition:
+    width 0.3s ease,
+    background-color 0.3s ease;
+  background: linear-gradient(135deg, #28a745 0%, #20c997 100%);
+  box-shadow: 0 2px 4px rgba(40, 167, 69, 0.3);
+}
+
+.process-tab .progress-fill.warning {
+  background: linear-gradient(135deg, #ffc107 0%, #fd7e14 100%);
+}
+
+.process-tab .progress-fill.danger {
+  background: linear-gradient(135deg, #dc3545 0%, #e83e8c 100%);
+}
+
+.process-tab .progress-stats {
+  display: flex;
+  justify-content: center;
+  flex-wrap: wrap;
+  gap: 1rem;
+  margin-top: 0.5rem;
+}
+
+.process-tab .progress-stats .stat {
+  font-size: 0.9rem;
+  font-weight: 600;
+  padding: 0.25rem 0.5rem;
+  border-radius: 4px;
+  background: rgba(45, 55, 72, 0.7);
+  backdrop-filter: blur(10px);
+  border: 1px solid rgba(74, 85, 104, 0.5);
+  color: #e2e8f0;
+}
+
+.process-tab .current-file {
+  background: rgba(102, 126, 234, 0.1);
+  border: 1px solid rgba(102, 126, 234, 0.2);
+  border-radius: 6px;
+  padding: 0.75rem;
+  margin-top: 1rem;
+  font-size: 0.9rem;
+  font-family: 'SF Mono', 'Monaco', 'Cascadia Code', monospace;
+  word-break: break-all;
+}
+
+.process-tab .logs-container {
+  max-height: 200px;
+  overflow-y: auto;
+  border: 1px solid rgba(74, 85, 104, 0.5);
+  border-radius: 6px;
+  padding: 0.75rem;
+  background: rgba(74, 85, 104, 0.9);
+  font-family: 'SF Mono', 'Monaco', 'Cascadia Code', monospace;
+  font-size: 0.85rem;
+  color: #e2e8f0;
+}
+
+.process-tab .log-entry {
+  margin-bottom: 0.25rem;
+  padding: 0.25rem 0;
+  border-bottom: 1px solid rgba(226, 232, 240, 0.1);
+  color: #e2e8f0;
+}
+
+.process-tab .log-entry:last-child {
+  border-bottom: none;
+  margin-bottom: 0;
+}
+
+.process-tab .form-text {
+  font-size: 0.75rem;
+  color: #6c757d;
+  margin-top: 0.25rem;
+  font-style: italic;
+}
+
+.process-tab .process-layout {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 1rem;
+  height: calc(100vh - 240px);
+}
+
+.process-tab .process-left {
+  overflow-y: auto;
+  padding-right: 0.5rem;
+}
+
+.process-tab .process-right {
+  overflow-y: auto;
+  padding-left: 0.5rem;
+}
+
+@media (max-width: 1024px) {
+  .process-tab .process-layout {
+    grid-template-columns: 1fr;
+    height: auto;
+  }
+
+  .process-tab .process-left,
+  .process-tab .process-right {
+    overflow-y: visible;
+    padding: 0;
+  }
+}
+
+.process-tab .config-summary {
+  background: rgba(45, 55, 72, 0.8);
+  border: 1px solid rgba(74, 85, 104, 0.5);
+  border-radius: 8px;
+  padding: 0.75rem;
+  margin-bottom: 0.5rem;
+}
+
+.process-tab .config-summary h3 {
+  margin-bottom: 0.25rem;
+  font-size: 1rem;
+}
+
+.process-tab .summary-grid {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 0.25rem;
+  font-size: 0.85rem;
+}
+
+.process-tab .summary-row {
+  display: flex;
+  justify-content: space-between;
+  padding: 0.2rem 0;
+  border-bottom: 1px solid rgba(226, 232, 240, 0.3);
+}
+
+.process-tab .summary-label {
+  font-weight: 600;
+  color: #cbd5e0;
+}
+
+.process-tab .summary-value {
+  color: #e2e8f0;
+  font-weight: 500;
+  word-break: break-word;
+  text-align: right;
+  max-width: 60%;
+}
+
+.process-tab .download-settings select {
+  max-width: 200px;
+}
+
+.process-tab .download-settings .number-input {
+  max-width: 120px;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .process-tab .downloading-indicator {
+    animation: none;
+  }
+}

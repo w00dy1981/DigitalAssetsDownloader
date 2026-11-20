@@ -5,24 +5,26 @@ import type {
   OpenDialogReturnValue,
 } from 'electron';
 import type { ProgressInfo, UpdateInfo } from 'electron-updater';
-import type { SheetData } from '@/services/excelService';
+import type {
+  SqlConnectionRequest,
+  SqlCredentialIdentity,
+  SqlPasswordDeleteRequest,
+  SqlPasswordSaveRequest,
+  SqlQueryRequest,
+  SqlQueryResult,
+} from '@/sql/contracts';
 import {
   IPC_CHANNELS as channels,
   type AppConfig,
-  type DownloadCompletionEvent,
   type DownloadConfig,
-  type DownloadProgress,
-  type NetworkPathDefaults,
-  type SqlConnectionTestRequest,
-  type SqlCredentialIdentity,
-  type SqlLoadRequest,
-  type SqlPasswordDeleteRequest,
-  type SqlPasswordSaveRequest,
-  type SqlPreviewRequest,
-  type SqlQueryResult,
+  type LoadedInput,
   type UpdateCheckResult,
-  type UserSettings,
 } from '@/shared/types';
+import type { UserSettings } from '@/shared/userSettings';
+import type {
+  DownloadCompletionEvent,
+  DownloadProgress,
+} from '@/download/downloadRun';
 
 async function invoke<T>(channel: string, ...args: unknown[]): Promise<T> {
   try {
@@ -56,14 +58,14 @@ const electronAPI = {
   getSheetNames: (filePath: string) =>
     invoke<string[]>(channels.GET_SHEET_NAMES, filePath),
   loadSheetData: (filePath: string, sheetName: string) =>
-    invoke<SheetData>(channels.LOAD_SHEET_DATA, filePath, sheetName),
+    invoke<LoadedInput>(channels.LOAD_SHEET_DATA, filePath, sheetName),
 
-  testSqlConnection: (request: SqlConnectionTestRequest) =>
+  testSqlConnection: (request: SqlConnectionRequest) =>
     invoke<Success>(channels.TEST_SQL_CONNECTION, request),
-  previewSqlQuery: (request: SqlPreviewRequest) =>
+  previewSqlQuery: (request: SqlQueryRequest) =>
     invoke<SqlQueryResult>(channels.PREVIEW_SQL_QUERY, request),
-  loadSqlQueryData: (request: SqlLoadRequest) =>
-    invoke<SqlQueryResult>(channels.LOAD_SQL_QUERY_DATA, request),
+  loadSqlQueryData: (request: SqlQueryRequest) =>
+    invoke<LoadedInput>(channels.LOAD_SQL_QUERY_DATA, request),
   loadSavedSqlPassword: (identity: SqlCredentialIdentity) =>
     invoke<string | null>(channels.LOAD_SAVED_SQL_PASSWORD, identity),
   saveSqlPassword: (request: SqlPasswordSaveRequest) =>
@@ -78,19 +80,19 @@ const electronAPI = {
       AppConfig,
       'lastConfiguration' | 'sqlConnectionDetails'
     > | null>(channels.LOAD_CONFIG),
+  saveImageNetworkPath: (path: string) =>
+    invoke<void>(channels.SAVE_IMAGE_NETWORK_PATH, path),
   saveSettings: (settings: UserSettings) =>
     invoke<Success>(channels.SAVE_SETTINGS, settings),
   loadSettings: () => invoke<UserSettings>(channels.LOAD_SETTINGS),
-  saveNetworkPaths: (paths: NetworkPathDefaults) =>
-    invoke<void>(channels.SAVE_NETWORK_PATHS, paths),
 
   checkForUpdates: () => invoke<UpdateCheckResult>(channels.CHECK_FOR_UPDATES),
   installUpdate: () => invoke<void>(channels.INSTALL_UPDATE),
   downloadUpdate: () =>
     invoke<string[] | { skipped: true }>(channels.DOWNLOAD_UPDATE),
 
-  startDownloads: (config: DownloadConfig) =>
-    invoke<void>(channels.START_DOWNLOADS, config),
+  startDownloads: (config: DownloadConfig, loadId: LoadedInput['loadId']) =>
+    invoke<void>(channels.START_DOWNLOADS, config, loadId),
   cancelDownloads: () => invoke<void>(channels.CANCEL_DOWNLOADS),
 
   onDownloadProgress: (callback: (data: DownloadProgress) => void) =>

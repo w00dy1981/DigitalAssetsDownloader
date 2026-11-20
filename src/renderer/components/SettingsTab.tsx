@@ -1,16 +1,14 @@
 import React, { useState, useEffect } from 'react';
-import { UserSettings } from '@/shared/types';
+import type { UserSettings } from '@/shared/userSettings';
 import { useStatusMessage } from '../hooks/useStatusMessage';
 import {
   DefaultPathsSection,
   DownloadBehaviorSection,
   ImageProcessingSection,
   SqlSettingsSection,
-  UIPreferencesSection,
   UpdateSettingsSection,
 } from './settings';
 import { defaultUserSettings } from '@/shared/userSettings';
-import { logger } from '@/services/LoggingService';
 
 const SettingsTab: React.FC = () => {
   const [settings, setSettings] = useState<UserSettings | null>(null);
@@ -25,11 +23,7 @@ const SettingsTab: React.FC = () => {
         if (active) setSettings(saved);
       } catch (error) {
         const message = error instanceof Error ? error.message : String(error);
-        logger.error(
-          'Error loading settings',
-          new Error(message),
-          'SettingsTab'
-        );
+        console.error('Error loading settings', new Error(message));
         if (active) setLoadFailed(true);
       }
     };
@@ -76,9 +70,9 @@ const SettingsTab: React.FC = () => {
   }
 
   return (
-    <div className="tab-content settings-tab">
+    <div className="settings-tab">
       <div className="tab-header">
-        <h2>Settings</h2>
+        <h2 className="screen-title">Settings</h2>
         <div className="tab-actions">
           {saveStatus && (
             <span
@@ -94,44 +88,37 @@ const SettingsTab: React.FC = () => {
       </div>
 
       <div className="configuration-sections">
-        {/* First column - Default Paths, UI Preferences, and Update Settings */}
         <div className="default-paths">
           <DefaultPathsSection
-            settings={settings}
+            settings={settings.defaultPaths}
             onSettingUpdate={changes => updateSetting('defaultPaths', changes)}
           />
 
-          <UIPreferencesSection
-            settings={settings}
-            onSettingUpdate={changes => updateSetting('uiPreferences', changes)}
-          />
-
           <UpdateSettingsSection
-            settings={settings}
+            settings={settings.updateSettings}
             onSettingUpdate={changes =>
               updateSetting('updateSettings', changes)
             }
           />
         </div>
 
-        {/* Second column - Download Behavior, Image Processing, and SQL Server Defaults */}
         <div className="other-settings">
           <DownloadBehaviorSection
-            settings={settings}
+            settings={settings.downloadBehavior}
             onSettingUpdate={changes =>
               updateSetting('downloadBehavior', changes)
             }
           />
 
           <ImageProcessingSection
-            settings={settings}
+            settings={settings.imageProcessing}
             onSettingUpdate={changes =>
               updateSetting('imageProcessing', changes)
             }
           />
 
           <SqlSettingsSection
-            settings={settings}
+            settings={settings.sqlSettings}
             onSettingUpdate={changes => updateSetting('sqlSettings', changes)}
           />
         </div>

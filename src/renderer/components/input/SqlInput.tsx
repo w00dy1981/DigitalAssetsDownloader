@@ -1,7 +1,8 @@
+import { defaultUserSettings } from '@/shared/userSettings';
+import { SQL_CONSTANTS } from '@/sql/constants';
 import { useEffect, useState } from 'react';
-import { CONSTANTS } from '@/shared/constants';
-import type { SqlConnectionDetails, SqlQueryResult } from '@/shared/types';
-import type { InputWorkflowProps } from '../FileSelectionTab';
+import type { SqlConnectionDetails, SqlQueryResult } from '@/sql/contracts';
+import type { InputWorkflowProps } from '../InputSelectionTab';
 import { SqlPreview } from './SqlPreview';
 import { SqlPasswordField, useSqlPassword } from './SqlPasswordField';
 
@@ -43,12 +44,7 @@ const sqlActions = {
 
 type SqlAction = keyof typeof sqlActions;
 
-const {
-  PREVIEW_ROW_LIMIT,
-  FULL_LOAD_ROW_LIMIT,
-  QUERY_TIMEOUT_MS,
-  CONNECTION_TIMEOUT_MS,
-} = CONSTANTS.SQL;
+const { PREVIEW_ROW_LIMIT, FULL_LOAD_ROW_LIMIT } = SQL_CONSTANTS;
 const credentialPart = (text: string) => text.trim().toLowerCase();
 
 export function SqlInput({
@@ -88,11 +84,11 @@ export function SqlInput({
         database:
           saved?.database ||
           defaults?.defaultDatabase ||
-          CONSTANTS.SQL.DEFAULT_DATABASE,
+          defaultUserSettings.sqlSettings.defaultDatabase,
         username:
           saved?.username ||
           defaults?.defaultUsername ||
-          CONSTANTS.SQL.DEFAULT_USERNAME,
+          defaultUserSettings.sqlSettings.defaultUsername,
       });
     }
     void loadDefaults();
@@ -127,8 +123,6 @@ export function SqlInput({
       database: connection.database.trim(),
       username: connection.username.trim(),
       password: credentials.password.value,
-      queryTimeoutMs: QUERY_TIMEOUT_MS,
-      connectionTimeoutMs: CONNECTION_TIMEOUT_MS,
     };
     const field = connectionFields.find(({ field }) => !request[field]);
     if (field) {
@@ -168,37 +162,16 @@ export function SqlInput({
         ...request,
         query: query.trim(),
       };
-      const isPreview = action === 'preview';
-      if (isPreview) setPreview(null);
-      const result = isPreview
-        ? await window.electronAPI.previewSqlQuery({
-            ...sql,
-            rowLimit: PREVIEW_ROW_LIMIT,
-          })
-        : await window.electronAPI.loadSqlQueryData({
-            ...sql,
-            rowLimit: FULL_LOAD_ROW_LIMIT,
-          });
-
-      if (!isPreview && !result.columns.length) {
-        setError('The SQL query returned no columns.');
-        return;
-      }
-
-      await credentials.savePassword();
-      if (isPreview) {
+      if (action === 'preview') {
+        setPreview(null);
+        const result = await window.electronAPI.previewSqlQuery(sql);
         setPreview(result);
       } else {
+        const result = await window.electronAPI.loadSqlQueryData(sql);
         setNotice(`Loaded ${result.rowCount.toLocaleString()} SQL rows.`);
-        onDataLoaded({
-          columns: result.columns,
-          rows: result.rows,
-          sheetName: 'SQL Query',
-          filePath: result.sourceLabel,
-          sourceType: 'sql',
-          sourceLabel: result.sourceLabel,
-        });
+        onDataLoaded(result);
       }
+      await credentials.savePassword();
     } catch (error) {
       setError(
         error instanceof Error ? error.message : sqlActions[action].error

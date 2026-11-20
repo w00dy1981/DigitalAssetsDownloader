@@ -1,59 +1,23 @@
+import type { UserSettings } from './userSettings';
+import type { DownloadOptions } from '../download/downloadRun';
+import type { SqlConnectionDetails } from '@/sql/contracts';
 import type { UpdateInfo } from 'electron-updater';
 
-// Shared TypeScript interfaces for Digital Asset Downloader
-// Based on original Python app configuration schema (Lines 1200-1225)
-
-export interface SpreadsheetData {
+export interface LoadedInput {
+  loadId: number;
   columns: string[];
-  rows: Record<string, any>[];
+  rowCount: number;
   sheetName: string;
   filePath: string;
-  sourceType?: 'file' | 'sql';
-  sourceLabel?: string;
+  sourceType: 'file' | 'sql';
+  sourceLabel: string;
 }
 
-export interface DownloadConfig {
+export interface DownloadConfig extends DownloadOptions {
   excelFile: string;
   sheetName: string;
   sourceType?: 'file' | 'sql';
   sourceLabel?: string;
-  partNoColumn: string;
-  imageColumns: string[];
-  pdfColumn: string;
-  filenameColumn: string; // Key feature for source folder search
-  imageFolder: string;
-  pdfFolder: string;
-  sourceImageFolder: string;
-  imageFilePath: string; // Network path for CSV logging (user-configurable in Settings)
-  pdfFilePath: string; // Network path for CSV logging (user-configurable in Settings)
-  maxWorkers: number;
-  backgroundProcessing: {
-    enabled: boolean;
-    method: 'smart_detect';
-    quality: number;
-    edgeThreshold: number;
-  };
-}
-
-export interface DownloadProgress {
-  currentFile: string;
-  successful: number;
-  failed: number;
-  total: number;
-  percentage: number;
-  elapsedTime: number;
-  estimatedTimeRemaining: number;
-  backgroundProcessed: number; // Count of images that had background processing applied
-}
-
-export interface DownloadCompletionEvent {
-  successful: number;
-  failed: number;
-  total: number;
-  backgroundProcessed: number;
-  logFile?: string;
-  cancelled?: boolean;
-  error?: string;
 }
 
 export interface WindowState {
@@ -64,125 +28,14 @@ export interface WindowState {
   isMaximized: boolean;
 }
 
-export interface UserSettings {
-  defaultPaths: {
-    lastFileDialogPath: string;
-    imageDownloadFolder: string; // Default download folder for images
-    pdfDownloadFolder: string; // Default download folder for PDFs
-    sourceImageFolder: string; // Default source folder for searching
-    imageNetworkPath: string; // Default network path for image logging
-    pdfNetworkPath: string; // Default network path for PDF logging
-  };
-  downloadBehavior: {
-    defaultConcurrentDownloads: number; // Default worker count (1-20)
-    connectionTimeout: number; // Default connection timeout (5s)
-    readTimeout: number; // Default read timeout (30s)
-    retryAttempts: number; // Default retry count (3)
-  };
-  imageProcessing: {
-    enabledByDefault: boolean; // Background processing on/off by default
-    defaultMethod: 'smart_detect';
-    defaultQuality: number; // JPEG quality (60-100%)
-    defaultEdgeThreshold: number; // Edge detection threshold
-  };
-  uiPreferences: {
-    rememberFileDialogPath: boolean; // Enable/disable file dialog path memory
-    showAdvancedOptions: boolean; // Show/hide advanced configuration options
-    startupTab: 'file' | 'column' | 'process' | 'settings'; // Default tab on startup
-  };
-  updateSettings: {
-    enableAutoUpdates: boolean; // Enable/disable automatic updates
-    checkForUpdatesOnStartup: boolean; // Check for updates when app starts
-    downloadUpdatesAutomatically: boolean; // Auto-download vs prompt user
-  };
-  sqlSettings?: {
-    defaultServer: string;
-    defaultDatabase: string;
-    defaultUsername: string;
-    allowedCrossDatabases: string[];
-  };
-  // Enhanced configuration options (Issue #23)
-  advanced?: {
-    // Network timeout configurations
-    networkTimeouts?: {
-      connectionTimeout?: number; // Override default connection timeout
-      readTimeout?: number; // Override default read timeout
-      updateCheckTimeout?: number; // Override default update check timeout
-      excelTimeout?: number; // Override default Excel loading timeout
-    };
-    // UI configuration
-    windowSettings?: {
-      defaultWidth?: number; // Override default window width
-      defaultHeight?: number; // Override default window height
-      statusMessageDuration?: number; // Override status message display duration
-    };
-    // Image processing overrides
-    imageDefaults?: {
-      qualityOverride?: number; // Override default JPEG quality
-      edgeThresholdOverride?: number; // Override default edge threshold
-    };
-  };
-}
-
-export type NetworkPathDefaults = Pick<
-  UserSettings['defaultPaths'],
-  'imageNetworkPath' | 'pdfNetworkPath'
->;
-
 export type UpdateCheckResult =
   | { type: 'available' | 'not-available'; data: UpdateInfo }
   | { type: 'error'; data: string }
   | { type: 'auto-update-disabled' };
 
-export interface SqlConnectionDetails {
-  server: string;
-  database: string;
-  username: string;
-}
-
-export type SqlCredentialIdentity = SqlConnectionDetails;
-
-export interface SqlPasswordSaveRequest {
-  identity: SqlCredentialIdentity;
-  password: string;
-}
-
-export interface SqlPasswordDeleteRequest {
-  identity: SqlCredentialIdentity;
-}
-
-export interface SqlConnectionTestRequest extends SqlConnectionDetails {
-  password: string;
-  queryTimeoutMs?: number;
-  connectionTimeoutMs?: number;
-}
-
-export interface SqlQueryRequest extends SqlConnectionTestRequest {
-  query: string;
-  rowLimit?: number;
-  allowedCrossDatabases?: string[];
-}
-
-export interface SqlPreviewRequest extends SqlQueryRequest {
-  rowLimit: number;
-}
-
-export interface SqlLoadRequest extends SqlQueryRequest {
-  rowLimit: number;
-}
-
-export interface SqlQueryResult {
-  columns: string[];
-  rows: Record<string, any>[];
-  rowCount: number;
-  totalRowCount?: number;
-  sourceLabel: string;
-}
-
 export interface AppConfig {
   windowState: WindowState;
   lastConfiguration?: DownloadConfig;
-  recentFiles: string[];
   userSettings?: UserSettings;
   sqlConnectionDetails?: SqlConnectionDetails;
 }
@@ -220,8 +73,8 @@ export const IPC_CHANNELS = {
   DOWNLOAD_COMPLETE: 'download-complete',
 
   // Settings operations
+  SAVE_IMAGE_NETWORK_PATH: 'save-image-network-path',
   SAVE_SETTINGS: 'save-settings',
-  SAVE_NETWORK_PATHS: 'save-network-paths',
   LOAD_SETTINGS: 'load-settings',
 
   // Auto-updater operations

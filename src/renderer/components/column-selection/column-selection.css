@@ -1,0 +1,33 @@
+.column-selection-tab .configuration-sections {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 0.75rem;
+  margin-top: 0;
+}
+
+.column-selection-tab .data-info {
+  background: linear-gradient(
+    135deg,
+    rgba(102, 126, 234, 0.1) 0%,
+    rgba(118, 75, 162, 0.1) 100%
+  );
+  border: 1px solid rgba(102, 126, 234, 0.2);
+  border-radius: 6px;
+  padding: 0.4rem 0.6rem;
+  margin-bottom: 0.25rem;
+  font-size: 0.8rem;
+  backdrop-filter: blur(10px);
+}
+
+.column-selection-tab .mapping-intro {
+  color: #cbd5e0;
+  margin-bottom: 0.1rem;
+  line-height: 1.4;
+  font-size: 0.85rem;
+}
+
+@media (max-width: 767px) {
+  .column-selection-tab .configuration-sections {
+    grid-template-columns: 1fr;
+  }
+}

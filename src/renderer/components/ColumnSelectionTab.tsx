@@ -1,15 +1,13 @@
 import React from 'react';
-import { SpreadsheetData, DownloadConfig } from '@/shared/types';
-import { logger } from '@/services/LoggingService';
-import { useColumnSelectionState } from '@/renderer/hooks';
+import type { LoadedInput, DownloadConfig } from '@/shared/types';
+import { useColumnSelectionState } from './column-selection/useColumnSelectionState';
 import {
   ColumnMappingPanel,
   FolderConfigurationPanel,
-  NetworkPathsPanel,
 } from './column-selection';
 
 interface ColumnSelectionTabProps {
-  data: SpreadsheetData;
+  data: LoadedInput;
   onConfigurationComplete: (config: DownloadConfig) => void;
   initialConfig: DownloadConfig | null;
 }
@@ -19,21 +17,19 @@ const ColumnSelectionTab: React.FC<ColumnSelectionTabProps> = ({
   onConfigurationComplete,
   initialConfig,
 }) => {
-  const { config, error, setError, update, handleNext, changeNetworkPath } =
+  const { config, error, setError, update, handleNext } =
     useColumnSelectionState({ data, initialConfig, onConfigurationComplete });
   if (!config) return <p>Loading column settings...</p>;
-  const { imageFilePath, pdfFilePath } = config;
-  const columnOptions = data.columns.map(value => ({ value, label: value }));
 
   return (
-    <div className="tab-panel">
-      <h2>Column Selection & Configuration</h2>
-      <p>
+    <div className="column-selection-tab">
+      <h2 className="screen-title">Column Selection & Configuration</h2>
+      <p className="mapping-intro">
         Map your input columns to the appropriate data types and configure
         download settings.
       </p>
       <p className="data-info">
-        <strong>Loaded Data:</strong> {data.sheetName} ({data.rows.length} rows,{' '}
+        <strong>Loaded Data:</strong> {data.sheetName} ({data.rowCount} rows,{' '}
         {data.columns.length} columns)
       </p>
 
@@ -41,36 +37,13 @@ const ColumnSelectionTab: React.FC<ColumnSelectionTabProps> = ({
 
       <div className="configuration-sections">
         <ColumnMappingPanel
-          partNoColumn={config.partNoColumn}
-          onPartNoColumnChange={value => update('partNoColumn', value)}
-          imageColumns={config.imageColumns}
-          onImageColumnsChange={value => update('imageColumns', value)}
-          pdfColumn={config.pdfColumn}
-          onPdfColumnChange={value => update('pdfColumn', value)}
-          filenameColumn={config.filenameColumn}
-          onFilenameColumnChange={value => update('filenameColumn', value)}
-          columnOptions={columnOptions}
+          config={config}
+          update={update}
+          columns={data.columns}
         />
-
         <FolderConfigurationPanel
-          imageFolder={config.imageFolder}
-          onImageFolderChange={value => update('imageFolder', value)}
-          pdfFolder={config.pdfFolder}
-          onPdfFolderChange={value => update('pdfFolder', value)}
-          sourceImageFolder={config.sourceImageFolder}
-          onSourceImageFolderChange={value =>
-            update('sourceImageFolder', value)
-          }
-          onError={setError}
-        />
-
-        <NetworkPathsPanel
-          imageFilePath={imageFilePath}
-          onImageFilePathChange={value =>
-            changeNetworkPath('imageFilePath', value)
-          }
-          pdfFilePath={pdfFilePath}
-          onPdfFilePathChange={value => changeNetworkPath('pdfFilePath', value)}
+          config={config}
+          update={update}
           onError={setError}
         />
       </div>
@@ -86,10 +59,9 @@ const ColumnSelectionTab: React.FC<ColumnSelectionTabProps> = ({
             try {
               await window.electronAPI.saveConfig(config);
             } catch (error) {
-              logger.error(
+              console.error(
                 'ColumnSelectionTab: Error saving configuration',
-                error instanceof Error ? error : new Error(String(error)),
-                'ColumnSelectionTab'
+                error instanceof Error ? error : new Error(String(error))
               );
             }
           }}

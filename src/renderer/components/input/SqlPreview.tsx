@@ -1,4 +1,4 @@
-import { SqlQueryResult } from '@/shared/types';
+import type { SqlQueryResult } from '@/sql/contracts';
 
 export function SqlPreview({ preview }: { preview: SqlQueryResult }) {
   return (
@@ -9,56 +9,19 @@ export function SqlPreview({ preview }: { preview: SqlQueryResult }) {
           ` (${preview.totalRowCount.toLocaleString()} total rows)`}
       </h3>
       <div className="sql-preview-table-container">
-        <table
-          style={{
-            width: '100%',
-            borderCollapse: 'collapse',
-            fontSize: '12px',
-          }}
-        >
+        <table>
           <thead>
             <tr>
               {preview.columns.map(col => (
-                <th
-                  key={col}
-                  style={{
-                    padding: '6px 10px',
-                    background: '#2d3748',
-                    color: '#e2e8f0',
-                    border: '1px solid #4a5568',
-                    whiteSpace: 'nowrap',
-                    position: 'sticky',
-                    top: 0,
-                    fontWeight: 600,
-                  }}
-                >
-                  {col}
-                </th>
+                <th key={col}>{col}</th>
               ))}
             </tr>
           </thead>
           <tbody>
             {preview.rows.map((row, i) => (
-              <tr
-                key={i}
-                style={{
-                  background: i % 2 === 0 ? '#3a4556' : '#4a5568',
-                }}
-              >
+              <tr key={i}>
                 {preview.columns.map(col => (
-                  <td
-                    key={col}
-                    style={{
-                      padding: '4px 10px',
-                      border: '1px solid #4a5568',
-                      color: '#e2e8f0',
-                      maxWidth: '200px',
-                      overflow: 'hidden',
-                      textOverflow: 'ellipsis',
-                      whiteSpace: 'nowrap',
-                    }}
-                    title={String(row[col] ?? '')}
-                  >
+                  <td key={col} title={String(row[col] ?? '')}>
                     {String(row[col] ?? '')}
                   </td>
                 ))}

@@ -1,15 +1,17 @@
 import React from 'react';
-import { DownloadConfig } from '@/shared/types';
+import type { DownloadConfig, LoadedInput } from '@/shared/types';
 import { ProcessControls, ProgressDisplay, ActivityLog } from './process';
-import { useDownloadLifecycle } from '@/renderer/hooks';
+import { useDownloadLifecycle } from './process/useDownloadLifecycle';
 
 interface ProcessTabProps {
   config: DownloadConfig;
+  loadId: LoadedInput['loadId'];
   onConfigurationChange: (config: DownloadConfig) => void;
 }
 
 const ProcessTab: React.FC<ProcessTabProps> = ({
   config,
+  loadId,
   onConfigurationChange,
 }) => {
   const {
@@ -19,12 +21,12 @@ const ProcessTab: React.FC<ProcessTabProps> = ({
     logs,
     handleStartDownloads,
     handleCancelDownloads,
-  } = useDownloadLifecycle(config);
+  } = useDownloadLifecycle(config, loadId);
 
   return (
-    <div className="tab-panel">
+    <div className="process-tab">
       <div className="process-header-compact">
-        <h2>Process & Download</h2>
+        <h2 className="screen-title">Process & Download</h2>
       </div>
 
       <div className="process-layout">

@@ -1,8 +1,7 @@
-import { ValidationService } from '@/services/ValidationService';
-import React, { useCallback } from 'react';
+import { downloadConfigErrors, limits } from '@/shared/downloadSettings';
+import React from 'react';
 import { DownloadConfig } from '@/shared/types';
 import { NumberInput } from '@/renderer/components/ui';
-import { logger } from '@/services/LoggingService';
 
 interface ProcessControlsProps {
   config: DownloadConfig;
@@ -21,20 +20,11 @@ const ProcessControls: React.FC<ProcessControlsProps> = ({
   onStartDownloads,
   onCancelDownloads,
 }) => {
-  const updateConfig = useCallback(
-    (updates: Partial<DownloadConfig>) => {
-      logger.info(
-        'ProcessControls: Configuration updated',
-        'ProcessControls',
-        updates
-      );
-      onConfigurationChange({ ...config, ...updates });
-    },
-    [config, onConfigurationChange]
-  );
+  function updateConfig(updates: Partial<DownloadConfig>) {
+    onConfigurationChange({ ...config, ...updates });
+  }
 
-  const validationErrors =
-    ValidationService.validateDownloadConfig(config).errors;
+  const validationErrors = downloadConfigErrors(config);
   const isConfigValid = validationErrors.length === 0;
 
   return (
@@ -73,12 +63,14 @@ const ProcessControls: React.FC<ProcessControlsProps> = ({
             <span className="summary-label">Workers:</span>
             <span className="summary-value">{config.maxWorkers}</span>
           </div>
-          <div className="summary-row">
-            <span className="summary-label">Background Processing:</span>
-            <span className="summary-value">
-              {config.backgroundProcessing.enabled ? 'Enabled' : 'Disabled'}
-            </span>
-          </div>
+          {config.imageColumns.length > 0 && (
+            <div className="summary-row">
+              <span className="summary-label">Image Network Path:</span>
+              <span className="summary-value">
+                {config.imageFilePath || 'None'}
+              </span>
+            </div>
+          )}
         </div>
       </div>
 
@@ -114,89 +106,56 @@ const ProcessControls: React.FC<ProcessControlsProps> = ({
           <div className="form-group">
             <label htmlFor="workers-quick">Concurrent Downloads</label>
             <NumberInput
+              id="workers-quick"
               value={config.maxWorkers}
               onChange={value => updateConfig({ maxWorkers: value })}
-              min={1}
-              max={20}
-              style={{ maxWidth: '120px' }}
+              {...limits.workers}
             />
             <small className="form-text">
-              Number of simultaneous downloads (1-20)
+              Number of simultaneous downloads
             </small>
           </div>
 
-          {/* Background Processing */}
-          <div className="form-group">
-            <label className="checkbox-label">
-              <input
-                type="checkbox"
-                checked={config.backgroundProcessing.enabled}
-                onChange={e =>
-                  updateConfig({
-                    backgroundProcessing: {
-                      ...config.backgroundProcessing,
-                      enabled: e.target.checked,
-                    },
-                  })
-                }
-              />
-              <span className="checkbox-text">
-                Enable Background Processing
-              </span>
-            </label>
-            <small className="text-muted">
-              Process downloaded images to remove backgrounds and convert to
-              JPEG
-            </small>
-          </div>
-
-          {config.backgroundProcessing.enabled && (
-            <div className="bg-processing-options">
-              <div className="form-group-inline">
-                <div className="form-group">
-                  <label htmlFor="bg-method">Processing Method</label>
-                  <select
-                    id="bg-method"
-                    value={config.backgroundProcessing.method}
+          {config.imageColumns.length > 0 && (
+            <>
+              <div className="form-group">
+                <label className="checkbox-label">
+                  <input
+                    type="checkbox"
+                    checked={config.backgroundProcessing.enabled}
                     onChange={e =>
                       updateConfig({
                         backgroundProcessing: {
                           ...config.backgroundProcessing,
-                          method: e.target.value as any,
+                          enabled: e.target.checked,
                         },
                       })
                     }
-                    className="form-control"
-                    style={{ maxWidth: '200px' }}
-                  >
-                    <option value="smart_detect">Smart Detection</option>
-                  </select>
-                  <small className="text-muted method-explanation">
-                    Detects PNG images with transparency and converts them to
-                    JPG with white background
-                  </small>
-                </div>
-
-                <div className="form-group">
-                  <label htmlFor="quality">JPEG Quality (%)</label>
-                  <NumberInput
-                    value={config.backgroundProcessing.quality}
-                    onChange={value =>
-                      updateConfig({
-                        backgroundProcessing: {
-                          ...config.backgroundProcessing,
-                          quality: value,
-                        },
-                      })
-                    }
-                    min={60}
-                    max={100}
-                    suffix="%"
-                    style={{ maxWidth: '120px' }}
                   />
-                </div>
+                  <span className="checkbox-text">
+                    Give transparent images a white background
+                  </span>
+                </label>
               </div>
-            </div>
+
+              <div className="form-group">
+                <label htmlFor="quality">JPEG Quality</label>
+                <NumberInput
+                  id="quality"
+                  value={config.backgroundProcessing.quality}
+                  onChange={value =>
+                    updateConfig({
+                      backgroundProcessing: {
+                        ...config.backgroundProcessing,
+                        quality: value,
+                      },
+                    })
+                  }
+                  {...limits.quality}
+                  suffix="%"
+                />
+              </div>
+            </>
           )}
         </div>
       </div>
