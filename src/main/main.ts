@@ -521,14 +521,6 @@ class DigitalAssetDownloaderApp {
             });
           });
 
-          this.downloadService.on('cancelled', () => {
-            this.mainWindow?.webContents.send(IPC_CHANNELS.DOWNLOAD_COMPLETE, {
-              cancelled: true,
-              successful: this.downloadService.getProgress().successful,
-              failed: this.downloadService.getProgress().failed,
-            });
-          });
-
           // Start downloads
           await this.downloadService.startDownloads(
             config,

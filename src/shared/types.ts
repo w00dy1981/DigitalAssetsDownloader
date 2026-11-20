@@ -33,15 +33,6 @@ export interface DownloadConfig {
   };
 }
 
-export interface DownloadItem {
-  rowNumber: number;
-  partNumber: string;
-  urls: string[];
-  pdfUrl?: string;
-  customFilename?: string;
-  sourceFolder?: string;
-}
-
 export interface DownloadProgress {
   currentFile: string;
   successful: number;
@@ -61,19 +52,6 @@ export interface DownloadCompletionEvent {
   logFile?: string;
   cancelled?: boolean;
   error?: string;
-}
-
-export interface DownloadResult {
-  success: boolean;
-  url: string;
-  filePath: string;
-  networkPath: string;
-  error?: string;
-  httpStatus?: number;
-  contentType?: string;
-  fileSize?: number;
-  backgroundProcessed: boolean;
-  cancelled?: boolean;
 }
 
 export interface WindowState {
