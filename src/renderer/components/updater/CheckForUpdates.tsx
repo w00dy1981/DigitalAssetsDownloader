@@ -1,6 +1,5 @@
 import { useState } from 'react';
 import { useStatusMessage } from '@/renderer/hooks/useStatusMessage';
-import { UI_CONSTANTS } from '@/shared/constants';
 import { logger } from '@/services/LoggingService';
 
 export function CheckForUpdates() {
@@ -10,7 +9,7 @@ export function CheckForUpdates() {
   async function checkForUpdatesManually() {
     setIsCheckingForUpdates(true);
     showUpdateStatus('Checking for updates...');
-    const duration = UI_CONSTANTS.STATUS_MESSAGE_DURATION;
+    const duration = 8000;
 
     try {
       const result = await window.electronAPI.checkForUpdates();

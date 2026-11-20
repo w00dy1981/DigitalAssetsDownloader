@@ -1,4 +1,5 @@
-import type { DownloadConfig, UserSettings } from './types';
+import type { DownloadConfig } from './types';
+import type { UserSettings } from '@/shared/userSettings';
 
 export const limits = {
   workers: { min: 1, max: 20 },

@@ -9,7 +9,7 @@ import {
   screen,
   waitFor,
 } from '@testing-library/react';
-import { CONSTANTS } from '@/shared/constants';
+import { SQL_CONSTANTS } from '@/shared/constants';
 import InputSelectionTab from './InputSelectionTab';
 
 const api = {
@@ -142,7 +142,7 @@ test('requires a fresh SQL preview and confirmation before loading rows', async 
       expect.objectContaining({
         ...identity,
         query: 'SELECT SKU, URL FROM OtherAssets',
-        rowLimit: CONSTANTS.SQL.FULL_LOAD_ROW_LIMIT,
+        rowLimit: SQL_CONSTANTS.FULL_LOAD_ROW_LIMIT,
       })
     );
   } finally {

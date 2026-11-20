@@ -4,24 +4,22 @@ import {
   downloadConfigErrors,
   userSettingsErrors,
 } from '@/shared/downloadSettings';
-import { CONSTANTS } from '@/shared/constants';
 import {
   IPC_CHANNELS,
   type AppConfig,
   type DownloadConfig,
-  type NetworkPathDefaults,
   type SqlConnectionDetails,
-  type UserSettings,
   type WindowState,
 } from '@/shared/types';
+import type { NetworkPathDefaults, UserSettings } from '@/shared/userSettings';
 import { mergeUserSettings } from '@/shared/userSettings';
 
 export function registerConfiguration() {
   const store = new Store<AppConfig>({
     defaults: {
       windowState: {
-        width: CONSTANTS.UI.DEFAULT_WINDOW_WIDTH,
-        height: CONSTANTS.UI.DEFAULT_WINDOW_HEIGHT,
+        width: 1200,
+        height: 800,
         isMaximized: false,
       },
     },

@@ -1,6 +1,3 @@
-import { CONSTANTS } from './constants';
-import type { UserSettings } from './types';
-
 export const defaultUserSettings = {
   defaultPaths: {
     lastFileDialogPath: '',
@@ -11,16 +8,16 @@ export const defaultUserSettings = {
     pdfNetworkPath: '',
   },
   downloadBehavior: {
-    defaultConcurrentDownloads: CONSTANTS.DOWNLOAD.DEFAULT_WORKERS,
-    connectionTimeout: CONSTANTS.NETWORK.CONNECTION_TIMEOUT / 1000,
-    readTimeout: CONSTANTS.NETWORK.READ_TIMEOUT / 1000,
-    retryAttempts: CONSTANTS.DOWNLOAD.DEFAULT_RETRY_ATTEMPTS,
+    defaultConcurrentDownloads: 5,
+    connectionTimeout: 5,
+    readTimeout: 30,
+    retryAttempts: 3,
   },
   imageProcessing: {
     enabledByDefault: true,
-    defaultMethod: 'smart_detect',
-    defaultQuality: CONSTANTS.IMAGE.DEFAULT_QUALITY,
-    defaultEdgeThreshold: CONSTANTS.IMAGE.DEFAULT_EDGE_THRESHOLD,
+    defaultMethod: 'smart_detect' as const,
+    defaultQuality: 95,
+    defaultEdgeThreshold: 30,
   },
   uiPreferences: {
     rememberFileDialogPath: true,
@@ -34,13 +31,18 @@ export const defaultUserSettings = {
   },
   sqlSettings: {
     defaultServer: '',
-    defaultDatabase: CONSTANTS.SQL.DEFAULT_DATABASE,
-    defaultUsername: CONSTANTS.SQL.DEFAULT_USERNAME,
+    defaultDatabase: 'Baker',
+    defaultUsername: 'DigitalAssetsDownloader',
     allowedCrossDatabases: ['WebScrapes'],
   },
-} satisfies UserSettings;
+};
 
-type Settings = Required<UserSettings>;
+export type UserSettings = typeof defaultUserSettings;
+export type NetworkPathDefaults = Pick<
+  UserSettings['defaultPaths'],
+  'imageNetworkPath' | 'pdfNetworkPath'
+>;
+
 type SavedFields<T> = { [Section in keyof T]?: Partial<T[Section]> };
 
 function restoreDefaults<T extends Record<keyof T, object>>(
@@ -58,6 +60,8 @@ function restoreDefaults<T extends Record<keyof T, object>>(
   return settings;
 }
 
-export function mergeUserSettings(saved: SavedFields<Settings> = {}): Settings {
-  return restoreDefaults<Settings>(defaultUserSettings, saved);
+export function mergeUserSettings(
+  saved: SavedFields<UserSettings> = {}
+): UserSettings {
+  return restoreDefaults<UserSettings>(defaultUserSettings, saved);
 }

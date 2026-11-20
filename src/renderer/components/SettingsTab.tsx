@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { UserSettings } from '@/shared/types';
+import type { UserSettings } from '@/shared/userSettings';
 import { useStatusMessage } from '../hooks/useStatusMessage';
 import {
   DefaultPathsSection,

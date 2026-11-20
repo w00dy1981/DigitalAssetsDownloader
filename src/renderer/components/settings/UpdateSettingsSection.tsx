@@ -1,5 +1,5 @@
 import React from 'react';
-import type { UserSettings } from '@/shared/types';
+import type { UserSettings } from '@/shared/userSettings';
 import { CheckForUpdates } from '../updater/CheckForUpdates';
 
 interface UpdateSettingsSectionProps {

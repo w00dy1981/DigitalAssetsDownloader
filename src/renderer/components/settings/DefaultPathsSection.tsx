@@ -1,5 +1,5 @@
 import React from 'react';
-import { UserSettings } from '@/shared/types';
+import type { UserSettings } from '@/shared/userSettings';
 import { FolderSelector } from '@/renderer/components/ui/FolderSelector';
 
 interface DefaultPathsSectionProps {

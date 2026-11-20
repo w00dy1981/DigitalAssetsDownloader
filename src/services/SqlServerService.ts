@@ -8,7 +8,7 @@ import {
   SqlQueryResult,
 } from '@/shared/types';
 import { logger } from './LoggingService';
-import { CONSTANTS } from '@/shared/constants';
+import { SQL_CONSTANTS } from '@/shared/constants';
 
 const DANGEROUS_PATTERNS: Array<{ pattern: RegExp; label: string }> = [
   { pattern: /\binsert\b/i, label: 'INSERT' },
@@ -182,11 +182,11 @@ export class SqlServerService {
   }
 
   async previewQuery(request: SqlPreviewRequest): Promise<SqlQueryResult> {
-    return this.executeQuery(request, CONSTANTS.SQL.PREVIEW_ROW_LIMIT);
+    return this.executeQuery(request, SQL_CONSTANTS.PREVIEW_ROW_LIMIT);
   }
 
   async loadQueryData(request: SqlLoadRequest): Promise<SqlQueryResult> {
-    return this.executeQuery(request, CONSTANTS.SQL.FULL_LOAD_ROW_LIMIT);
+    return this.executeQuery(request, SQL_CONSTANTS.FULL_LOAD_ROW_LIMIT);
   }
 
   getSafeConnectionDetails(
@@ -319,8 +319,8 @@ SET ROWCOUNT 0;`
       user: request.username.trim(),
       password: request.password,
       connectionTimeout:
-        request.connectionTimeoutMs || CONSTANTS.SQL.CONNECTION_TIMEOUT_MS,
-      requestTimeout: request.queryTimeoutMs || CONSTANTS.SQL.QUERY_TIMEOUT_MS,
+        request.connectionTimeoutMs || SQL_CONSTANTS.CONNECTION_TIMEOUT_MS,
+      requestTimeout: request.queryTimeoutMs || SQL_CONSTANTS.QUERY_TIMEOUT_MS,
       options: {
         encrypt: false,
         trustServerCertificate: true,

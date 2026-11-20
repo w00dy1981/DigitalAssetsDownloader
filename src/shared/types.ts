@@ -1,8 +1,6 @@
+import type { UserSettings } from './userSettings';
 import type { DownloadOptions } from '../download/downloadRun';
 import type { UpdateInfo } from 'electron-updater';
-
-// Shared TypeScript interfaces for Digital Asset Downloader
-// Based on original Python app configuration schema (Lines 1200-1225)
 
 export interface SpreadsheetData {
   columns: string[];
@@ -32,50 +30,6 @@ export interface WindowState {
   y?: number;
   isMaximized: boolean;
 }
-
-export interface UserSettings {
-  defaultPaths: {
-    lastFileDialogPath: string;
-    imageDownloadFolder: string; // Default download folder for images
-    pdfDownloadFolder: string; // Default download folder for PDFs
-    sourceImageFolder: string; // Default source folder for searching
-    imageNetworkPath: string; // Default network path for image logging
-    pdfNetworkPath: string; // Default network path for PDF logging
-  };
-  downloadBehavior: {
-    defaultConcurrentDownloads: number; // Default worker count (1-20)
-    connectionTimeout: number; // Default connection timeout (5s)
-    readTimeout: number; // Default read timeout (30s)
-    retryAttempts: number; // Default retry count (3)
-  };
-  imageProcessing: {
-    enabledByDefault: boolean; // Background processing on/off by default
-    defaultMethod: 'smart_detect';
-    defaultQuality: number; // JPEG quality (60-100%)
-    defaultEdgeThreshold: number; // Edge detection threshold
-  };
-  uiPreferences: {
-    rememberFileDialogPath: boolean; // Enable/disable file dialog path memory
-    showAdvancedOptions: boolean; // Show/hide advanced configuration options
-    startupTab: 'file' | 'column' | 'process' | 'settings'; // Default tab on startup
-  };
-  updateSettings: {
-    enableAutoUpdates: boolean; // Enable/disable automatic updates
-    checkForUpdatesOnStartup: boolean; // Check for updates when app starts
-    downloadUpdatesAutomatically: boolean; // Auto-download vs prompt user
-  };
-  sqlSettings?: {
-    defaultServer: string;
-    defaultDatabase: string;
-    defaultUsername: string;
-    allowedCrossDatabases: string[];
-  };
-}
-
-export type NetworkPathDefaults = Pick<
-  UserSettings['defaultPaths'],
-  'imageNetworkPath' | 'pdfNetworkPath'
->;
 
 export type UpdateCheckResult =
   | { type: 'available' | 'not-available'; data: UpdateInfo }

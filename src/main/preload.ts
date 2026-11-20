@@ -10,7 +10,6 @@ import {
   IPC_CHANNELS as channels,
   type AppConfig,
   type DownloadConfig,
-  type NetworkPathDefaults,
   type SqlConnectionTestRequest,
   type SqlCredentialIdentity,
   type SqlLoadRequest,
@@ -19,8 +18,8 @@ import {
   type SqlPreviewRequest,
   type SqlQueryResult,
   type UpdateCheckResult,
-  type UserSettings,
 } from '@/shared/types';
+import type { NetworkPathDefaults, UserSettings } from '@/shared/userSettings';
 import type {
   DownloadCompletionEvent,
   DownloadProgress,

@@ -2,7 +2,6 @@ import { Workbook, CellValue, Worksheet, Cell, ValueType } from 'exceljs';
 import { parse } from 'fast-csv';
 import { createReadStream } from 'node:fs';
 import { pipeline } from 'node:stream/promises';
-import { NETWORK_CONSTANTS } from '@/shared/constants';
 import { sanitizePath, validateFileAccess } from '../files/pathSecurity';
 
 export interface SheetData {
@@ -37,22 +36,14 @@ async function within<T>(operation: Promise<T>, ms: number): Promise<T> {
 
 async function inputPath(filePath: string) {
   const safePath = sanitizePath(filePath);
-  if (
-    !(await within(
-      validateFileAccess(safePath),
-      NETWORK_CONSTANTS.CONNECTION_TIMEOUT
-    ))
-  ) {
+  if (!(await within(validateFileAccess(safePath), 5000))) {
     throw new Error('File does not exist or is not accessible');
   }
   return safePath;
 }
 
 async function readWorkbook(filePath: string) {
-  return within(
-    new Workbook().xlsx.readFile(filePath),
-    NETWORK_CONSTANTS.EXCEL_TIMEOUT
-  );
+  return within(new Workbook().xlsx.readFile(filePath), 30_000);
 }
 
 export async function getSheetNames(filePath: string): Promise<string[]> {

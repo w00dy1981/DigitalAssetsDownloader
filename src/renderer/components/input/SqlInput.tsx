@@ -1,5 +1,6 @@
+import { defaultUserSettings } from '@/shared/userSettings';
 import { useEffect, useState } from 'react';
-import { CONSTANTS } from '@/shared/constants';
+import { SQL_CONSTANTS } from '@/shared/constants';
 import type { SqlConnectionDetails, SqlQueryResult } from '@/shared/types';
 import type { InputWorkflowProps } from '../InputSelectionTab';
 import { SqlPreview } from './SqlPreview';
@@ -48,7 +49,7 @@ const {
   FULL_LOAD_ROW_LIMIT,
   QUERY_TIMEOUT_MS,
   CONNECTION_TIMEOUT_MS,
-} = CONSTANTS.SQL;
+} = SQL_CONSTANTS;
 const credentialPart = (text: string) => text.trim().toLowerCase();
 
 export function SqlInput({
@@ -88,11 +89,11 @@ export function SqlInput({
         database:
           saved?.database ||
           defaults?.defaultDatabase ||
-          CONSTANTS.SQL.DEFAULT_DATABASE,
+          defaultUserSettings.sqlSettings.defaultDatabase,
         username:
           saved?.username ||
           defaults?.defaultUsername ||
-          CONSTANTS.SQL.DEFAULT_USERNAME,
+          defaultUserSettings.sqlSettings.defaultUsername,
       });
     }
     void loadDefaults();

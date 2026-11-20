@@ -1,7 +1,6 @@
 import React from 'react';
-import { UserSettings } from '@/shared/types';
+import type { UserSettings } from '@/shared/userSettings';
 import { FormGroup } from '@/renderer/components/ui';
-import { CONSTANTS } from '@/shared/constants';
 import { defaultUserSettings } from '@/shared/userSettings';
 
 interface SqlSettingsSectionProps {
@@ -47,7 +46,7 @@ export const SqlSettingsSection: React.FC<SqlSettingsSectionProps> = ({
           className="form-control"
           value={sql.defaultDatabase}
           onChange={e => onSettingUpdate({ defaultDatabase: e.target.value })}
-          placeholder={CONSTANTS.SQL.DEFAULT_DATABASE}
+          placeholder={defaultUserSettings.sqlSettings.defaultDatabase}
         />
       </FormGroup>
 
@@ -58,7 +57,7 @@ export const SqlSettingsSection: React.FC<SqlSettingsSectionProps> = ({
           className="form-control"
           value={sql.defaultUsername}
           onChange={e => onSettingUpdate({ defaultUsername: e.target.value })}
-          placeholder={CONSTANTS.SQL.DEFAULT_USERNAME}
+          placeholder={defaultUserSettings.sqlSettings.defaultUsername}
         />
       </FormGroup>
 
