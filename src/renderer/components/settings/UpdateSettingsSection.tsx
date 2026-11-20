@@ -27,7 +27,8 @@ export const UpdateSettingsSection: React.FC<UpdateSettingsSectionProps> = ({
           Enable automatic updates
         </label>
         <small className="text-muted">
-          Allow the application to automatically check for and install updates
+          Allow the application to check for updates when it starts. You choose
+          when to download and install them.
         </small>
       </div>
 

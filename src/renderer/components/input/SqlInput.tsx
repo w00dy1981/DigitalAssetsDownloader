@@ -72,26 +72,16 @@ export function SqlInput({
   );
 
   useEffect(() => {
-    async function loadDefaults() {
-      const [appConfig, settings] = await Promise.all([
-        window.electronAPI.loadConfig().catch(() => null),
-        window.electronAPI.loadSettings().catch(() => null),
-      ]);
-      const saved = appConfig?.sqlConnectionDetails;
-      const defaults = settings?.sqlSettings;
-      setConnection({
-        server: saved?.server || defaults?.defaultServer || '',
-        database:
-          saved?.database ||
-          defaults?.defaultDatabase ||
-          defaultUserSettings.sqlSettings.defaultDatabase,
-        username:
-          saved?.username ||
-          defaults?.defaultUsername ||
-          defaultUserSettings.sqlSettings.defaultUsername,
+    void window.electronAPI
+      .loadSqlConnectionDetails()
+      .then(setConnection, () => {
+        const defaults = defaultUserSettings.sqlSettings;
+        setConnection({
+          server: defaults.defaultServer,
+          database: defaults.defaultDatabase,
+          username: defaults.defaultUsername,
+        });
       });
-    }
-    void loadDefaults();
   }, []);
 
   useEffect(() => {

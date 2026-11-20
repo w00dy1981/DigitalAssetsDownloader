@@ -35,7 +35,6 @@ export type UpdateCheckResult =
 
 export interface AppConfig {
   windowState: WindowState;
-  lastConfiguration?: DownloadConfig;
   userSettings?: UserSettings;
   sqlConnectionDetails?: SqlConnectionDetails;
 }
@@ -59,11 +58,9 @@ export const IPC_CHANNELS = {
   DELETE_SAVED_SQL_PASSWORD: 'delete-saved-sql-password',
 
   // Configuration
-  SAVE_CONFIG: 'save-config',
-  LOAD_CONFIG: 'load-config',
+  LOAD_SQL_CONNECTION_DETAILS: 'load-sql-connection-details',
 
   MENU_OPEN_FILE: 'menu-open-file',
-  MENU_SAVE_CONFIG: 'menu-save-config',
   MENU_OPEN_SETTINGS: 'menu-open-settings',
 
   // Download operations

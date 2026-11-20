@@ -1,6 +1,5 @@
 export const defaultUserSettings = {
   defaultPaths: {
-    lastFileDialogPath: '',
     imageDownloadFolder: '',
     pdfDownloadFolder: '',
     sourceImageFolder: '',
@@ -16,15 +15,9 @@ export const defaultUserSettings = {
     enabledByDefault: true,
     defaultQuality: 95,
   },
-  uiPreferences: {
-    rememberFileDialogPath: true,
-    showAdvancedOptions: false,
-    startupTab: 'file',
-  },
   updateSettings: {
     enableAutoUpdates: true,
     checkForUpdatesOnStartup: true,
-    downloadUpdatesAutomatically: false,
   },
   sqlSettings: {
     defaultServer: '',
@@ -41,7 +34,7 @@ function restoreDefaults<T extends Record<keyof T, object>>(
   defaults: T,
   saved: SavedFields<T>
 ): T {
-  const settings = { ...saved, ...defaults };
+  const settings = { ...defaults };
   for (const section in defaults) {
     const fields = { ...defaults[section] };
     for (const field in fields) {

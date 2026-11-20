@@ -125,12 +125,6 @@ function createMenu(): void {
         },
         { type: 'separator' },
         {
-          label: 'Save Configuration',
-          accelerator: 'CmdOrCtrl+S',
-          click: () => send(IPC_CHANNELS.MENU_SAVE_CONFIG),
-        },
-        { type: 'separator' },
-        {
           label: 'Settings...',
           accelerator: 'CmdOrCtrl+,',
           click: () => send(IPC_CHANNELS.MENU_OPEN_SETTINGS),

@@ -38,6 +38,7 @@ test('restores active paths and image options from older settings', () => {
       pdfDownloadFolder: '/downloads/pdfs',
       pdfNetworkPath: '/shared/pdfs',
     },
+    uiPreferences: { startupTab: 'file' },
     imageProcessing: {
       enabledByDefault: false,
       defaultQuality: 82,
@@ -52,6 +53,7 @@ test('restores active paths and image options from older settings', () => {
     imageNetworkPath: '/shared/images',
     pdfDownloadFolder: '/downloads/pdfs',
   });
+  expect(settings).not.toHaveProperty('uiPreferences');
   expect(settings.imageProcessing).toEqual({
     enabledByDefault: false,
     defaultQuality: 82,

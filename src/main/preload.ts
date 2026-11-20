@@ -6,6 +6,7 @@ import type {
 } from 'electron';
 import type { ProgressInfo, UpdateInfo } from 'electron-updater';
 import type {
+  SqlConnectionDetails,
   SqlConnectionRequest,
   SqlCredentialIdentity,
   SqlPasswordDeleteRequest,
@@ -15,7 +16,6 @@ import type {
 } from '@/sql/contracts';
 import {
   IPC_CHANNELS as channels,
-  type AppConfig,
   type DownloadConfig,
   type LoadedInput,
   type UpdateCheckResult,
@@ -73,13 +73,8 @@ const electronAPI = {
   deleteSavedSqlPassword: (request: SqlPasswordDeleteRequest) =>
     invoke<Success>(channels.DELETE_SAVED_SQL_PASSWORD, request),
 
-  saveConfig: (config: DownloadConfig) =>
-    invoke<Success>(channels.SAVE_CONFIG, config),
-  loadConfig: () =>
-    invoke<Pick<
-      AppConfig,
-      'lastConfiguration' | 'sqlConnectionDetails'
-    > | null>(channels.LOAD_CONFIG),
+  loadSqlConnectionDetails: () =>
+    invoke<SqlConnectionDetails>(channels.LOAD_SQL_CONNECTION_DETAILS),
   saveImageNetworkPath: (path: string) =>
     invoke<void>(channels.SAVE_IMAGE_NETWORK_PATH, path),
   saveSettings: (settings: UserSettings) =>
@@ -101,8 +96,6 @@ const electronAPI = {
     subscribe(channels.DOWNLOAD_COMPLETE, callback),
   onMenuOpenFile: (callback: () => void) =>
     subscribe(channels.MENU_OPEN_FILE, callback),
-  onMenuSaveConfig: (callback: () => void) =>
-    subscribe(channels.MENU_SAVE_CONFIG, callback),
   onMenuOpenSettings: (callback: () => void) =>
     subscribe(channels.MENU_OPEN_SETTINGS, callback),
   onUpdateChecking: (callback: () => void) =>

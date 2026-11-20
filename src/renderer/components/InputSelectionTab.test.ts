@@ -13,8 +13,7 @@ import type { LoadedInput } from '@/shared/types';
 import InputSelectionTab from './InputSelectionTab';
 
 const api = {
-  loadConfig: jest.fn(),
-  loadSettings: jest.fn(),
+  loadSqlConnectionDetails: jest.fn(),
   openFileDialog: jest.fn(),
   getSheetNames: jest.fn(),
   loadSheetData: jest.fn(),
@@ -39,8 +38,7 @@ beforeEach(() => {
     configurable: true,
     value: api,
   });
-  api.loadConfig.mockResolvedValue({ sqlConnectionDetails: identity });
-  api.loadSettings.mockResolvedValue({ sqlSettings: {} });
+  api.loadSqlConnectionDetails.mockResolvedValue(identity);
   api.loadSavedSqlPassword.mockResolvedValue(null);
 });
 
