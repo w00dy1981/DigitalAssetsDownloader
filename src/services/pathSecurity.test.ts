@@ -1,10 +1,8 @@
 import * as path from 'path';
 import {
   sanitizePath,
-  isPathSafe,
   safeJoin,
   validateFileAccess,
-  safeReadDir,
   PathSecurityError,
 } from './pathSecurity';
 
@@ -61,53 +59,9 @@ describe('pathSecurity', () => {
       );
     });
 
-    it('should handle multiple allowed roots', () => {
-      const options = { allowedRoots: ['/safe/root', '/another/safe'] };
-      const result1 = sanitizePath('test.txt', '/safe/root', options);
-      expect(result1).toBe(path.resolve('/safe/root', 'test.txt'));
-
-      const result2 = sanitizePath('test.txt', '/another/safe', options);
-      expect(result2).toBe(path.resolve('/another/safe', 'test.txt'));
-
-      expect(() => sanitizePath('test.txt', '/unsafe', options)).toThrow(
-        PathSecurityError
-      );
-    });
-
     it('should handle paths without allowed root', () => {
       const result = sanitizePath('test.txt');
-      // When no allowed root is provided, path is normalized but not necessarily absolute
-      // In Jest/browser contexts without native path module, this may return relative path
       expect(result).toBe(path.resolve('test.txt'));
-    });
-  });
-
-  describe('isPathSafe', () => {
-    it('should return true for safe paths', () => {
-      expect(isPathSafe('test.txt', testRoot)).toBe(true);
-      expect(isPathSafe('folder/test.txt', testRoot)).toBe(true);
-    });
-
-    it('should return false for unsafe paths', () => {
-      const consoleWarnSpy = jest.spyOn(console, 'warn').mockImplementation();
-
-      expect(isPathSafe('../etc/passwd', testRoot)).toBe(false);
-      expect(isPathSafe('../../etc/passwd', testRoot)).toBe(false);
-      expect(isPathSafe('test\0.txt', testRoot)).toBe(false);
-
-      expect(consoleWarnSpy).toHaveBeenCalled();
-      consoleWarnSpy.mockRestore();
-    });
-
-    it('should handle invalid path types', () => {
-      // Invalid path types should return false after being caught by sanitizePath
-      const consoleWarnSpy = jest.spyOn(console, 'warn').mockImplementation();
-
-      expect(isPathSafe(123 as any, testRoot)).toBe(false);
-      expect(isPathSafe({} as any, testRoot)).toBe(false);
-
-      expect(consoleWarnSpy).toHaveBeenCalled();
-      consoleWarnSpy.mockRestore();
     });
   });
 
@@ -163,14 +117,6 @@ describe('pathSecurity', () => {
       );
 
       consoleWarnSpy.mockRestore();
-    });
-  });
-
-  describe('safeReadDir', () => {
-    it('should throw PathSecurityError for unsafe directory path', async () => {
-      await expect(safeReadDir('../etc', testRoot)).rejects.toThrow(
-        PathSecurityError
-      );
     });
   });
 

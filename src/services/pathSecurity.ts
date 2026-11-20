@@ -1,11 +1,5 @@
 import * as pathModule from 'node:path';
-import { stat, readdir } from 'node:fs/promises';
-
-export interface PathValidationOptions {
-  allowedRoots?: string[];
-  allowAbsolute?: boolean;
-  maxDepth?: number;
-}
+import { stat } from 'node:fs/promises';
 
 export class PathSecurityError extends Error {
   constructor(
@@ -17,19 +11,7 @@ export class PathSecurityError extends Error {
   }
 }
 
-/**
- * Sanitizes and validates a file path to prevent directory traversal attacks
- * @param inputPath The path to sanitize
- * @param allowedRoot Optional root directory to restrict access to
- * @param options Additional validation options
- * @returns Sanitized absolute path
- * @throws PathSecurityError if path is malicious or outside allowed boundaries
- */
-export function sanitizePath(
-  inputPath: string,
-  allowedRoot?: string,
-  options: PathValidationOptions = {}
-): string {
+export function sanitizePath(inputPath: string, allowedRoot?: string): string {
   if (!inputPath || typeof inputPath !== 'string') {
     throw new PathSecurityError('Invalid path provided', inputPath);
   }
@@ -38,72 +20,11 @@ export function sanitizePath(
     throw new PathSecurityError('Path traversal attempt detected', inputPath);
   }
 
-  const normalizedPath = pathModule.normalize(inputPath);
-
-  if (normalizedPath.includes('..')) {
-    throw new PathSecurityError(
-      'Path traversal attempt detected after normalization',
-      inputPath
-    );
+  const resolved = pathModule.resolve(allowedRoot || '.', inputPath);
+  if (allowedRoot && !isWithinRoot(resolved, allowedRoot)) {
+    throw new PathSecurityError('Path outside allowed directory', inputPath);
   }
-
-  if (!allowedRoot) {
-    const resolved = pathModule.isAbsolute(normalizedPath)
-      ? normalizedPath
-      : pathModule.resolve(normalizedPath);
-    return resolved;
-  }
-
-  const resolvedAllowedRoot = pathModule.normalize(allowedRoot);
-  const resolvedPath = pathModule.normalize(
-    pathModule.isAbsolute(normalizedPath)
-      ? normalizedPath
-      : pathModule.join(resolvedAllowedRoot, normalizedPath)
-  );
-
-  if (!isWithinRoot(resolvedPath, resolvedAllowedRoot)) {
-    throw new PathSecurityError(
-      `Path outside allowed directory: ${resolvedPath} not within ${resolvedAllowedRoot}`,
-      inputPath
-    );
-  }
-
-  if (options.allowedRoots && options.allowedRoots.length > 0) {
-    const normalizedRoots = options.allowedRoots.map(root =>
-      pathModule.normalize(root)
-    );
-    const isAllowed = normalizedRoots.some(root =>
-      isWithinRoot(resolvedPath, root)
-    );
-
-    if (!isAllowed) {
-      throw new PathSecurityError(
-        `Path not in any allowed directory: ${resolvedPath}`,
-        inputPath
-      );
-    }
-  }
-
-  return resolvedPath;
-}
-
-/**
- * Validates if a file path is safe to access
- * @param filePath Path to validate
- * @param allowedRoot Optional root directory restriction
- * @returns true if path is safe, false otherwise
- */
-export function isPathSafe(filePath: string, allowedRoot?: string): boolean {
-  try {
-    sanitizePath(filePath, allowedRoot);
-    return true;
-  } catch (error) {
-    if (error instanceof PathSecurityError) {
-      console.warn(`Unsafe path detected: ${error.message}`);
-      return false;
-    }
-    throw error;
-  }
+  return resolved;
 }
 
 /**
@@ -131,8 +52,7 @@ export function safeJoin(basePath: string, ...components: string[]): string {
     }
   }
 
-  const joinedPath = pathModule.join(basePath, ...components);
-  return sanitizePath(joinedPath, basePath);
+  return sanitizePath(pathModule.join(...components), sanitizePath(basePath));
 }
 
 /**
@@ -162,54 +82,6 @@ export async function validateFileAccess(
       return false;
     }
     return false;
-  }
-}
-
-/**
- * Safely reads directory contents within security constraints
- * @param dirPath Directory path to read
- * @param allowedRoot Optional root directory restriction
- * @returns Promise resolving to array of safe file paths
- */
-export async function safeReadDir(
-  dirPath: string,
-  allowedRoot?: string
-): Promise<string[]> {
-  const safeDirPath = sanitizePath(dirPath, allowedRoot);
-
-  try {
-    const stats = await stat(safeDirPath);
-    if (!stats.isDirectory()) {
-      throw new PathSecurityError('Path is not a directory', dirPath);
-    }
-
-    const entries = await readdir(safeDirPath);
-    const safePaths: string[] = [];
-
-    for (const entry of entries) {
-      try {
-        const entryPath = safeJoin(safeDirPath, entry);
-        safePaths.push(entryPath);
-      } catch (error) {
-        if (error instanceof PathSecurityError) {
-          console.warn(`Skipping unsafe directory entry: ${entry}`);
-          continue;
-        }
-        throw error;
-      }
-    }
-
-    return safePaths;
-  } catch (error) {
-    if (error instanceof PathSecurityError) {
-      throw error;
-    }
-    throw new PathSecurityError(
-      `Failed to read directory: ${
-        error instanceof Error ? error.message : 'Unknown error'
-      }`,
-      dirPath
-    );
   }
 }
 
