@@ -63,7 +63,7 @@ export function planDownloads(
 
   for (const [index, row] of data.entries()) {
     const rawCode = row[config.partNoColumn];
-    if (!rawCode) continue;
+    if (rawCode == null || String(rawCode).trim() === '') continue;
 
     const urls = config.imageColumns
       .map(column => row[column])

@@ -637,7 +637,10 @@ const FileSelectionTab: React.FC<FileSelectionTabProps> = ({
         setError('Please enter a SQL SELECT query.');
         return false;
       }
-      if (requireQuery && !/^(select|with)\b/i.test(stripSqlComments(sqlQuery))) {
+      if (
+        requireQuery &&
+        !/^(select|with)\b/i.test(stripSqlComments(sqlQuery))
+      ) {
         setError('Only SELECT-style SQL queries are allowed.');
         return false;
       }

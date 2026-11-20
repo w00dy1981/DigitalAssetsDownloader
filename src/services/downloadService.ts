@@ -15,7 +15,10 @@ import { saveAsset, type AssetResult } from './saveAsset';
 import { safeJoin } from './pathSecurity';
 
 export type DownloadOptions = DownloadPlanConfig &
-  Pick<DownloadConfig, 'sourceImageFolder' | 'maxWorkers'>;
+  Pick<
+    DownloadConfig,
+    'sourceImageFolder' | 'maxWorkers' | 'backgroundProcessing'
+  >;
 
 export class DownloadService extends EventEmitter {
   private activeRun?: AbortController;
@@ -63,6 +66,7 @@ export class DownloadService extends EventEmitter {
       publishProgress();
       const options = {
         sourceFolder: config.sourceImageFolder,
+        processing: config.backgroundProcessing,
         signal: run.signal,
       };
 

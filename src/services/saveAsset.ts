@@ -3,6 +3,7 @@ import * as path from 'path';
 import { randomUUID } from 'crypto';
 import { setTimeout } from 'timers/promises';
 import axios from 'axios';
+import type { DownloadConfig } from '../shared/types';
 import type { PlannedAsset } from './downloadPlan';
 import { isImageFile } from './fileUtils';
 import { logger } from './LoggingService';
@@ -102,7 +103,11 @@ function describeError(error: unknown): string {
 
 export async function saveAsset(
   asset: PlannedAsset,
-  options: { sourceFolder: string; signal: AbortSignal }
+  options: {
+    sourceFolder: string;
+    signal: AbortSignal;
+    processing: DownloadConfig['backgroundProcessing'];
+  }
 ): Promise<AssetResult | undefined> {
   const { signal } = options;
   const sources = [...asset.urls];
@@ -146,7 +151,11 @@ export async function saveAsset(
       let networkPath = asset.networkPath;
       let backgroundProcessed = false;
       if (asset.kind === 'image') {
-        const image = await processImage(buffer);
+        const image = await processImage(
+          buffer,
+          options.processing.quality,
+          options.processing.enabled
+        );
         buffer = image.buffer;
         backgroundProcessed = image.backgroundProcessed;
         if (image.extension === 'webp') {

@@ -49,26 +49,27 @@ export async function writeDownloadWorkbook(
     const pdf = row.assets.find(asset => asset.kind === 'pdf');
     const imageResult = image && results.get(image);
     const pdfResult = pdf && results.get(pdf);
-    const result = imageResult ?? pdfResult;
-    if (!result) continue;
-
     const photo = imageResult?.success ? imageResult.networkPath : '';
-    // ABM expects a PDF filename in Product Data Sheet.
+    // ABM expects a filename for PDFs and a configured network path for images.
     const pdfName = pdfResult?.success ? path.basename(pdfResult.filePath) : '';
-    log.addRow([
-      row.rowNumber,
-      row.productCode,
-      result.url,
-      result.success ? 'Success' : 'Failure',
-      result.httpStatus,
-      result.contentType,
-      result.success ? result.fileSize : 0,
-      result.success ? 'Success' : result.error,
-      result.success ? result.filePath : '',
-      photo,
-      pdfName,
-      result.success && result.backgroundProcessed ? 'Yes' : 'No',
-    ]);
+    for (const asset of row.assets) {
+      const result = results.get(asset);
+      if (!result) continue;
+      log.addRow([
+        row.rowNumber,
+        row.productCode,
+        result.url,
+        result.success ? 'Success' : 'Failure',
+        result.httpStatus,
+        result.contentType,
+        result.success ? result.fileSize : 0,
+        result.success ? 'Success' : result.error,
+        result.success ? result.filePath : '',
+        asset.kind === 'image' ? photo : '',
+        asset.kind === 'pdf' ? pdfName : '',
+        result.success && result.backgroundProcessed ? 'Yes' : 'No',
+      ]);
+    }
     if (photo || pdfName)
       importRows.push({ productCode: row.productCode, photo, pdfName });
   }

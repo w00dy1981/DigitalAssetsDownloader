@@ -336,10 +336,7 @@ class DigitalAssetDownloaderApp {
       IPC_CHANNELS.LOAD_SHEET_DATA,
       async (_, filePath: string, sheetName: string) => {
         try {
-          const data = await loadSheetData(
-            filePath,
-            sheetName
-          );
+          const data = await loadSheetData(filePath, sheetName);
 
           // Store the data for downloads
           this.currentSpreadsheetData = data.rows;

@@ -225,9 +225,9 @@ describe('saved downloads and workbook', () => {
     );
     expect(erp.getCell('B3').text).toBe('');
     expect(erp.getCell('C3').text).toBe('FAILED.pdf');
-    expect(workbook.getWorksheet('Download Log')!.getCell('D3').text).toBe(
-      'Failure'
-    );
+    const log = workbook.getWorksheet('Download Log')!;
+    expect(log.getCell('D4').text).toBe('Failure');
+    expect(log.getCell('K5').text).toBe('FAILED.pdf');
   });
 
   test('an original WebP keeps its format in the saved file and workbook', async () => {

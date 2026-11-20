@@ -159,7 +159,8 @@ export const useDownloadLifecycle = ({
   }, [config]);
 
   const handleDownloadError = useCallback((error: unknown) => {
-    const normalizedError = error instanceof Error ? error : new Error(String(error));
+    const normalizedError =
+      error instanceof Error ? error : new Error(String(error));
 
     logger.error(
       'useDownloadLifecycle: Error starting downloads',
@@ -255,7 +256,8 @@ export const useDownloadLifecycle = ({
         );
         setLogs(prev => [...prev, 'Downloads cancellation requested']);
       } catch (error) {
-        const normalizedError = error instanceof Error ? error : new Error(String(error));
+        const normalizedError =
+          error instanceof Error ? error : new Error(String(error));
         setLogs(prev => [
           ...prev,
           `Error cancelling downloads: ${normalizedError.message}`,

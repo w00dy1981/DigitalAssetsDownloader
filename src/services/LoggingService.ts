@@ -4,7 +4,8 @@ function prefix(message: string, context?: string) {
 
 export const logger = {
   debug(message: string, context?: string, data?: unknown) {
-    if (process.env.NODE_ENV === 'development') console.debug(prefix(message, context), data ?? '');
+    if (process.env.NODE_ENV === 'development')
+      console.debug(prefix(message, context), data ?? '');
   },
   info(message: string, context?: string, data?: unknown) {
     console.info(prefix(message, context), data ?? '');

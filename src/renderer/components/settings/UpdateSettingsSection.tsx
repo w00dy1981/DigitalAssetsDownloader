@@ -127,7 +127,10 @@ export const UpdateSettingsSection: React.FC<UpdateSettingsSectionProps> = ({
 
     try {
       // Add shorter timeout for development mode
-      const timeoutDuration = process.env.NODE_ENV === 'development' ? CONSTANTS.UI.DEV_UPDATE_TIMEOUT : CONSTANTS.UI.PROD_UPDATE_TIMEOUT;
+      const timeoutDuration =
+        process.env.NODE_ENV === 'development'
+          ? CONSTANTS.UI.DEV_UPDATE_TIMEOUT
+          : CONSTANTS.UI.PROD_UPDATE_TIMEOUT;
       const timeoutId = setTimeout(() => {
         logger.warn(
           `UpdateSettings: Update check timed out after ${timeoutDuration / 1000}s`,
@@ -138,10 +141,7 @@ export const UpdateSettingsSection: React.FC<UpdateSettingsSectionProps> = ({
         const message = isDevelopment
           ? 'Update checks may not work in development mode - try again in production build'
           : 'Update check timed out - try again later';
-        showUpdateStatus(
-          message,
-          CONSTANTS.UI.STATUS_MESSAGE_DURATION
-        );
+        showUpdateStatus(message, CONSTANTS.UI.STATUS_MESSAGE_DURATION);
       }, timeoutDuration);
       setUpdateCheckTimeoutId(timeoutId);
 
@@ -165,10 +165,7 @@ export const UpdateSettingsSection: React.FC<UpdateSettingsSectionProps> = ({
       const message = isDevelopment
         ? 'Update checks are limited in development mode - build and test in production'
         : 'Update check failed - Please try again later';
-      showUpdateStatus(
-        message,
-        CONSTANTS.UI.STATUS_MESSAGE_DURATION
-      );
+      showUpdateStatus(message, CONSTANTS.UI.STATUS_MESSAGE_DURATION);
     }
   }, [isCheckingForUpdates, updateCheckTimeoutId, showUpdateStatus]);
 
