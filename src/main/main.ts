@@ -228,7 +228,7 @@ function registerDialogs(): void {
       title: 'Select Excel or CSV File',
       properties: ['openFile'],
       filters: [
-        { name: 'All Supported Files', extensions: spreadsheetExtensions },
+        { name: 'Excel and CSV files', extensions: spreadsheetExtensions },
         { name: 'All Files', extensions: ['*'] },
       ],
     })

@@ -47,10 +47,7 @@ function checkRange(
 }
 
 function checkFolder(errors: string[], name: string, folder: string) {
-  if (typeof folder !== 'string' || !folder.trim())
-    errors.push(`${name} is required`);
-  else if (folder.includes('..') || folder.includes('\0'))
-    errors.push(`${name} contains invalid or unsafe path characters`);
+  if (typeof folder !== 'string' || !folder) errors.push(`${name} is required`);
 }
 
 export function usesSourceImageFolder(config: DownloadPlanConfig): boolean {

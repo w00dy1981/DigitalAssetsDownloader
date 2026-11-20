@@ -67,7 +67,6 @@ export async function saveAsset(
     try {
       const { buffer, httpStatus, contentType } = await readSource(
         source,
-        asset.kind,
         signal,
         options.http
       );

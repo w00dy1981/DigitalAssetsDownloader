@@ -116,6 +116,22 @@ test('selects the second returned table and opens mapping without rerunning SQL'
   expect(api.selectSqlResult).toHaveBeenCalledWith(12, 1);
 });
 
+test('drops a workbook with double dots and lets the workbook reader open it', async () => {
+  api.getSheetNames.mockResolvedValue(['Assets']);
+  render(
+    createElement(InputSelectionTab, {
+      currentData: null,
+      onDataLoaded: jest.fn(),
+    })
+  );
+  const path = '/tmp/Acme..2026/Supplier..November.workbook';
+  fireEvent.drop(screen.getByLabelText('Excel or CSV File'), {
+    dataTransfer: { files: [{ name: 'Supplier..November.workbook', path }] },
+  });
+  expect(await screen.findByLabelText('Select Sheet')).toHaveValue('Assets');
+  expect(api.getSheetNames).toHaveBeenCalledWith(path);
+});
+
 test('clears the previous sheet when a replacement file cannot be read', async () => {
   api.openFileDialog
     .mockResolvedValueOnce({ canceled: false, filePaths: ['/tmp/first.xlsx'] })
@@ -139,7 +155,7 @@ test('clears the previous sheet when a replacement file cannot be read', async (
   fireEvent.click(browse);
 
   expect(await screen.findByRole('alert')).toHaveTextContent(
-    'Failed to read the selected spreadsheet.'
+    'Unreadable spreadsheet'
   );
   expect(screen.getByLabelText('Excel or CSV File')).toHaveValue(
     '/tmp/broken.xlsx'

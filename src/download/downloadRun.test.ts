@@ -241,6 +241,39 @@ test('PDF-only mapping uses the saved source folder only when selected', async (
   });
 });
 
+test('direct and discovered JPEGs use their content across double-dot paths', async () => {
+  config.sourceImageFolder = path.join(root, 'Acme..2026');
+  config.imageFolder = path.join(root, 'output..images');
+  await fs.mkdir(config.sourceImageFolder);
+  const image = new Jimp({ width: 3, height: 2, color: 0xff0000ff });
+  const bytes = await image.getBuffer('image/jpeg');
+  const direct = path.join(root, 'photo..jpg');
+  await fs.writeFile(direct, bytes);
+  await fs.writeFile(
+    path.join(config.sourceImageFolder, 'A1..000.txt'),
+    'notes'
+  );
+  for (const name of ['A1..photo.jfif', 'B2..photo.jpe']) {
+    await fs.writeFile(path.join(config.sourceImageFolder, name), bytes);
+  }
+  const { result, workbook } = await download([
+    { Code: 'A1', Image: 'missing' },
+    { Code: 'B2', Image: 'missing' },
+    { Code: 'DIRECT', Image: direct },
+  ]);
+  expect(result).toMatchObject({ successful: 3, failed: 0 });
+  for (const [i, code] of ['A1', 'B2', 'DIRECT'].entries()) {
+    const saved = workbook
+      .getWorksheet('Download Log')!
+      .getCell('I' + (i + 2)).text;
+    expect(saved).toBe(path.join(config.imageFolder, code + '.jpg'));
+    expect((await Jimp.read(saved)).width).toBe(3);
+    expect(
+      workbook.getWorksheet('ERP Import')!.getCell('B' + (i + 2)).text
+    ).toBe(path.join(config.imageFilePath, code + '.jpg'));
+  }
+});
+
 test('an unavailable source folder falls back to the mapped image for each product', async () => {
   config.sourceImageFolder = path.join(root, 'missing');
   const red = await makeImage('red', 0xff0000ff);
@@ -489,7 +522,7 @@ test('an existing relative folder or file beginning with www. stays local', asyn
     ]);
     expect(result).toMatchObject({ successful: 2, failed: 0 });
     const log = workbook.getWorksheet('Download Log')!;
-    expect(log.getCell('C2').text).toBe(folder);
+    expect(log.getCell('C2').text).toBe(path.join(folder, 'photo.png'));
     expect(log.getCell('C3').text).toBe(pdf);
     expect(await fs.readFile(log.getCell('I3').text)).toEqual(bytes);
   } finally {

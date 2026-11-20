@@ -1,7 +1,7 @@
 import * as path from 'path';
 import { usesSourceImageFolder } from '../shared/downloadSettings';
 import { createHash } from 'node:crypto';
-import { joinFilename, sanitizePath } from '../files/pathSecurity';
+import { joinFilename } from '../files/pathSecurity';
 
 export type PlannedAsset = { fileStem: string } & (
   | {
@@ -20,11 +20,9 @@ export interface PlannedRow {
   assets: PlannedAsset[];
 }
 
-function imageNetworkStem(referenceFolder: string, stem: string): string {
-  const reference = referenceFolder?.trim();
+function imageNetworkStem(reference: string, stem: string): string {
   if (!reference) return '';
   if (path.win32.isAbsolute(reference) && !path.posix.isAbsolute(reference)) {
-    sanitizePath(reference);
     return path.win32.join(reference, stem);
   }
   return joinFilename(reference, stem);
