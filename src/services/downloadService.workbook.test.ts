@@ -70,6 +70,10 @@ describe('saved downloads and workbook', () => {
     const log = workbook.getWorksheet('Download Log')!;
     const files = [2, 3, 4].map(row => log.getRow(row).getCell(9).text);
     expect(new Set(files.map(file => file.toLowerCase())).size).toBe(3);
+    const subset = await download([{ Code: 'ITEM/1', Image: blue }]);
+    expect(
+      subset.workbook.getWorksheet('Download Log')!.getCell('I2').text
+    ).toBe(files[1]);
     const images = await Promise.all(files.map(file => Jimp.read(file)));
     expect(images[0].getPixelColor(0, 0)).toBe(images[2].getPixelColor(0, 0));
     expect(images[0].getPixelColor(0, 0)).not.toBe(

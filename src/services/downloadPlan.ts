@@ -1,4 +1,5 @@
 import * as path from 'path';
+import { createHash } from 'node:crypto';
 import type { DownloadConfig } from '../shared/types';
 import { safeJoin, sanitizePath } from './pathSecurity';
 
@@ -57,8 +58,7 @@ export function planDownloads(
   config: DownloadPlanConfig,
   data: readonly Record<string, unknown>[]
 ): PlannedRow[] {
-  const claimed = new Set<string>();
-  const nextSuffix = new Map<string, number>();
+  const occurrences = new Map<string, number>();
   const rows: PlannedRow[] = [];
 
   for (const [index, row] of data.entries()) {
@@ -73,20 +73,18 @@ export function planDownloads(
     if (urls.length === 0 && !pdfUrl) continue;
 
     const productCode = String(rawCode);
-    const sanitised = productCode
-      .replace(/\s+/g, '_')
-      .replace(/[^a-z0-9_]/gi, '');
-    const base = /^(?:CON|PRN|AUX|NUL|COM[0-9]|LPT[0-9])$/i.test(sanitised)
-      ? `_${sanitised}`
-      : sanitised || 'asset';
-    const key = base.toLowerCase();
-    let stem = base;
-    let suffix = nextSuffix.get(key) ?? 2;
-    while (claimed.has(stem.toLowerCase())) {
-      stem = `${base}_${suffix++}`;
-    }
-    claimed.add(stem.toLowerCase());
-    nextSuffix.set(key, suffix);
+    // ABM references survive later runs containing a different subset of products.
+    const readable = productCode.replace(/[^A-Za-z0-9_-]+/g, '_').slice(0, 120);
+    const plain =
+      readable === productCode &&
+      readable === readable.toUpperCase() &&
+      !/^(?:CON|PRN|AUX|NUL|COM[0-9]|LPT[0-9])$/.test(readable);
+    const base = plain
+      ? readable
+      : `${readable}~${createHash('sha256').update(productCode).digest('hex').slice(0, 24)}`;
+    const occurrence = (occurrences.get(productCode) ?? 0) + 1;
+    occurrences.set(productCode, occurrence);
+    const stem = occurrence === 1 ? base : `${base}~${occurrence}`;
 
     const assets: PlannedAsset[] = [];
     if (urls.length > 0) {
