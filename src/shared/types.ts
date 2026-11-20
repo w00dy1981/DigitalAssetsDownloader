@@ -1,3 +1,4 @@
+import type { DownloadOptions } from '../download/downloadRun';
 import type { UpdateInfo } from 'electron-updater';
 
 // Shared TypeScript interfaces for Digital Asset Downloader
@@ -12,48 +13,16 @@ export interface SpreadsheetData {
   sourceLabel?: string;
 }
 
-export interface DownloadConfig {
+export interface DownloadConfig extends DownloadOptions {
   excelFile: string;
   sheetName: string;
   sourceType?: 'file' | 'sql';
   sourceLabel?: string;
-  partNoColumn: string;
-  imageColumns: string[];
-  pdfColumn: string;
-  filenameColumn: string; // Key feature for source folder search
-  imageFolder: string;
-  pdfFolder: string;
-  sourceImageFolder: string;
-  imageFilePath: string; // Network path for CSV logging (user-configurable in Settings)
   pdfFilePath: string; // Network path for CSV logging (user-configurable in Settings)
-  maxWorkers: number;
-  backgroundProcessing: {
-    enabled: boolean;
+  backgroundProcessing: DownloadOptions['backgroundProcessing'] & {
     method: 'smart_detect';
-    quality: number;
     edgeThreshold: number;
   };
-}
-
-export interface DownloadProgress {
-  currentFile: string;
-  successful: number;
-  failed: number;
-  total: number;
-  percentage: number;
-  elapsedTime: number;
-  estimatedTimeRemaining: number;
-  backgroundProcessed: number; // Count of images that had background processing applied
-}
-
-export interface DownloadCompletionEvent {
-  successful: number;
-  failed: number;
-  total: number;
-  backgroundProcessed: number;
-  logFile?: string;
-  cancelled?: boolean;
-  error?: string;
 }
 
 export interface WindowState {

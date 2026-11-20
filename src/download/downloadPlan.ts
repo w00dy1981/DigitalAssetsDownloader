@@ -1,6 +1,6 @@
 import * as path from 'path';
 import { createHash } from 'node:crypto';
-import { joinFilename, sanitizePath } from './pathSecurity';
+import { joinFilename, sanitizePath } from '../files/pathSecurity';
 
 interface Destination {
   fileStem: string;

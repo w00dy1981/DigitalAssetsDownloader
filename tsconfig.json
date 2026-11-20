@@ -20,12 +20,7 @@
     "rootDir": "./src",
     "baseUrl": "./src",
     "paths": {
-      "@/*": ["./*"],
-      "@/main/*": ["./main/*"],
-      "@/renderer/*": ["./renderer/*"],
-      "@/shared/*": ["./shared/*"],
-      "@/services/*": ["./services/*"],
-      "@/workers/*": ["./workers/*"]
+      "@/*": ["./*"]
     },
     "typeRoots": [
       "node_modules/@types"

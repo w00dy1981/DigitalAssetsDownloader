@@ -5,8 +5,8 @@ import { setTimeout } from 'timers/promises';
 import axios from 'axios';
 import type { Readable } from 'node:stream';
 import type { PlannedAsset } from './downloadPlan';
-import { processImage, type ImageOptions } from './ImageProcessingService';
-import { joinFilename, sanitizePath } from './pathSecurity';
+import { processImage, type ImageOptions } from './processImage';
+import { joinFilename, sanitizePath } from '../files/pathSecurity';
 
 interface SourceDetails {
   url: string;

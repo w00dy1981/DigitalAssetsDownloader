@@ -4,7 +4,7 @@ import { FormGroup } from '@/renderer/components/ui';
 interface ColumnMappingPanelProps {
   partNoColumn: string;
   onPartNoColumnChange: (value: string) => void;
-  imageColumns: string[];
+  imageColumns: readonly string[];
   onImageColumnsChange: (value: string[]) => void;
   pdfColumn: string;
   onPdfColumnChange: (value: string) => void;

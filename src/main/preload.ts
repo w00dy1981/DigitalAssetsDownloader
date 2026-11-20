@@ -5,13 +5,11 @@ import type {
   OpenDialogReturnValue,
 } from 'electron';
 import type { ProgressInfo, UpdateInfo } from 'electron-updater';
-import type { SheetData } from '@/services/excelService';
+import type { SheetData } from '@/input/spreadsheet';
 import {
   IPC_CHANNELS as channels,
   type AppConfig,
-  type DownloadCompletionEvent,
   type DownloadConfig,
-  type DownloadProgress,
   type NetworkPathDefaults,
   type SqlConnectionTestRequest,
   type SqlCredentialIdentity,
@@ -23,6 +21,10 @@ import {
   type UpdateCheckResult,
   type UserSettings,
 } from '@/shared/types';
+import type {
+  DownloadCompletionEvent,
+  DownloadProgress,
+} from '@/download/downloadRun';
 
 async function invoke<T>(channel: string, ...args: unknown[]): Promise<T> {
   try {

@@ -24,10 +24,6 @@ module.exports = {
     extensions: ['.ts', '.js'],
     alias: {
       '@': path.resolve(__dirname, 'src'),
-      '@/main': path.resolve(__dirname, 'src/main'),
-      '@/shared': path.resolve(__dirname, 'src/shared'),
-      '@/services': path.resolve(__dirname, 'src/services'),
-      '@/workers': path.resolve(__dirname, 'src/workers'),
     },
   },
   output: {

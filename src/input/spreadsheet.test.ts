@@ -2,7 +2,7 @@ import { mkdtemp, rm, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { Workbook } from 'exceljs';
-import { getSheetNames, loadSheetData } from './excelService';
+import { getSheetNames, loadSheetData } from './spreadsheet';
 
 it('reads the same mapped values across blank Excel columns and padded CSV headers', async () => {
   const dir = await mkdtemp(join(tmpdir(), 'asset-input-'));

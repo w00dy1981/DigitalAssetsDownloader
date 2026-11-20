@@ -1,17 +1,19 @@
 import { ipcMain } from 'electron';
-import { DownloadService } from '@/services/downloadService';
-import { getSheetNames, loadSheetData } from '@/services/excelService';
+import { DownloadService } from '@/download/downloadRun';
+import { getSheetNames, loadSheetData } from '@/input/spreadsheet';
 import { SqlServerService } from '@/services/SqlServerService';
 import { downloadConfigErrors } from '@/shared/downloadSettings';
 import {
   IPC_CHANNELS,
-  type DownloadCompletionEvent,
   type DownloadConfig,
-  type DownloadProgress,
   type SqlConnectionTestRequest,
   type SqlLoadRequest,
   type SqlPreviewRequest,
 } from '@/shared/types';
+import type {
+  DownloadCompletionEvent,
+  DownloadProgress,
+} from '@/download/downloadRun';
 import type { DesktopConfiguration } from './configuration';
 
 export function registerAssetWorkflow(

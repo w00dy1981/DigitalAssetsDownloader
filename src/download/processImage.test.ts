@@ -1,5 +1,5 @@
 import { Jimp } from 'jimp';
-import { processImage } from './ImageProcessingService';
+import { processImage } from './processImage';
 
 test('a transparent PNG becomes an opaque white JPEG', async () => {
   const source = new Jimp({ width: 8, height: 8, color: 0x00000000 });

@@ -1,5 +1,5 @@
 import React from 'react';
-import { DownloadProgress } from '@/shared/types';
+import type { DownloadProgress } from '@/download/downloadRun';
 import { logger } from '@/services/LoggingService';
 
 interface ProgressDisplayProps {

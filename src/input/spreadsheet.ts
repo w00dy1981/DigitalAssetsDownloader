@@ -3,7 +3,7 @@ import { parse } from 'fast-csv';
 import { createReadStream } from 'node:fs';
 import { pipeline } from 'node:stream/promises';
 import { NETWORK_CONSTANTS } from '@/shared/constants';
-import { sanitizePath, validateFileAccess } from './pathSecurity';
+import { sanitizePath, validateFileAccess } from '../files/pathSecurity';
 
 export interface SheetData {
   columns: string[];

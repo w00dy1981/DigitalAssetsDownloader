@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react';
-import type { DownloadConfig, DownloadProgress } from '@/shared/types';
+import type { DownloadConfig } from '@/shared/types';
+import type { DownloadProgress } from '@/download/downloadRun';
 
 const initialProgress: DownloadProgress = {
   currentFile: '',

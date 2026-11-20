@@ -1,9 +1,5 @@
 import * as path from 'path';
 import { EventEmitter } from 'events';
-import type {
-  DownloadCompletionEvent,
-  DownloadProgress,
-} from '../shared/types';
 import {
   planDownloads,
   type DownloadPlanConfig,
@@ -16,8 +12,29 @@ import {
   type AssetResult,
   type HttpSettings,
 } from './saveAsset';
-import type { ImageOptions } from './ImageProcessingService';
-import { joinFilename } from './pathSecurity';
+import type { ImageOptions } from './processImage';
+import { joinFilename } from '../files/pathSecurity';
+
+export interface DownloadProgress {
+  currentFile: string;
+  successful: number;
+  failed: number;
+  total: number;
+  percentage: number;
+  elapsedTime: number;
+  estimatedTimeRemaining: number;
+  backgroundProcessed: number; // Count of images that had background processing applied
+}
+
+export interface DownloadCompletionEvent {
+  successful: number;
+  failed: number;
+  total: number;
+  backgroundProcessed: number;
+  logFile?: string;
+  cancelled?: boolean;
+  error?: string;
+}
 
 export interface DownloadOptions extends DownloadPlanConfig {
   sourceImageFolder: string;
