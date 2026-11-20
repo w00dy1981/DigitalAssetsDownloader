@@ -2,10 +2,10 @@ import { ipcMain } from 'electron';
 import { mkdtemp, rm, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
-import { DownloadService } from '@/download/downloadRun';
+import { DownloadService, type DownloadOptions } from '@/download/downloadRun';
 import * as sql from '@/sql/query';
 import type { SqlQueryResult } from '@/sql/contracts';
-import { IPC_CHANNELS, type DownloadConfig } from '@/shared/types';
+import { IPC_CHANNELS } from '@/shared/types';
 import { defaultUserSettings } from '@/shared/userSettings';
 import { registerAssetWorkflow } from './assetWorkflow';
 
@@ -65,9 +65,7 @@ test('returns summaries, preserves SQL preview rows, and starts only with the ma
   try {
     const filePath = join(folder, 'products.csv');
     await writeFile(filePath, 'Code,Image\nFILE,file.png\n');
-    const config: DownloadConfig = {
-      excelFile: filePath,
-      sheetName: 'Sheet1',
+    const config: DownloadOptions = {
       partNoColumn: 'Code',
       imageColumns: ['Image'],
       pdfColumn: '',
@@ -91,8 +89,7 @@ test('returns summaries, preserves SQL preview rows, and starts only with the ma
       columns: sqlResult.columns,
       rowCount: 1,
       sheetName: 'SQL Query',
-      filePath: 'localhost / Assets',
-      sourceType: 'sql',
+      options: expect.objectContaining({ partNoColumn: '', imageColumns: [] }),
       sourceLabel: 'localhost / Assets',
     });
     const olderLoad = invoke(IPC_CHANNELS.LOAD_SQL_QUERY_DATA, sqlRequest);
@@ -106,8 +103,7 @@ test('returns summaries, preserves SQL preview rows, and starts only with the ma
       columns: ['Code', 'Image'],
       rowCount: 1,
       sheetName: 'Sheet1',
-      filePath,
-      sourceType: 'file',
+      options: sqlInput.options,
       sourceLabel: filePath,
     });
     const running = jest

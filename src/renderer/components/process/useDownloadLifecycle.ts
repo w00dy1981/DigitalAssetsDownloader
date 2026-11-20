@@ -1,24 +1,10 @@
 import { useEffect, useState } from 'react';
-import type { DownloadConfig, LoadedInput } from '@/shared/types';
+import type { LoadedInput } from '@/shared/types';
 import type { DownloadProgress } from '@/download/downloadRun';
 
-const initialProgress: DownloadProgress = {
-  currentFile: '',
-  successful: 0,
-  failed: 0,
-  total: 0,
-  percentage: 0,
-  elapsedTime: 0,
-  estimatedTimeRemaining: 0,
-  backgroundProcessed: 0,
-};
-
-export function useDownloadLifecycle(
-  config: DownloadConfig,
-  loadId: LoadedInput['loadId']
-) {
+export function useDownloadLifecycle({ options, loadId }: LoadedInput) {
   const [phase, setPhase] = useState<'idle' | 'running' | 'cancelling'>('idle');
-  const [progress, setProgress] = useState(initialProgress);
+  const [progress, setProgress] = useState<DownloadProgress | null>(null);
   const [logs, setLogs] = useState<string[]>([]);
 
   useEffect(() => {
@@ -51,10 +37,10 @@ export function useDownloadLifecycle(
   async function handleStartDownloads() {
     if (phase !== 'idle') return;
     setPhase('running');
-    setProgress(initialProgress);
+    setProgress(null);
     setLogs(['Starting downloads...']);
     try {
-      await window.electronAPI.startDownloads(config, loadId);
+      await window.electronAPI.startDownloads(options, loadId);
     } catch (error) {
       setPhase('idle');
       setLogs(previous => [
@@ -78,8 +64,7 @@ export function useDownloadLifecycle(
     }
   }
   return {
-    isDownloading: phase !== 'idle',
-    isCancelPending: phase === 'cancelling',
+    phase,
     progress,
     logs,
     handleStartDownloads,

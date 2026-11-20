@@ -10,16 +10,8 @@ export interface LoadedInput {
   columns: string[];
   rowCount: number;
   sheetName: string;
-  filePath: string;
-  sourceType: 'file' | 'sql';
+  options: DownloadOptions;
   sourceLabel: string;
-}
-
-export interface DownloadConfig extends DownloadOptions {
-  excelFile: string;
-  sheetName: string;
-  sourceType?: 'file' | 'sql';
-  sourceLabel?: string;
 }
 
 export interface WindowState {

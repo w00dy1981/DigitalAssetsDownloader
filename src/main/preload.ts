@@ -16,12 +16,12 @@ import type {
 } from '@/sql/contracts';
 import {
   IPC_CHANNELS as channels,
-  type DownloadConfig,
   type LoadedInput,
   type UpdateCheckResult,
 } from '@/shared/types';
 import type { UserSettings } from '@/shared/userSettings';
 import type {
+  DownloadOptions,
   DownloadCompletionEvent,
   DownloadProgress,
 } from '@/download/downloadRun';
@@ -86,7 +86,7 @@ const electronAPI = {
   downloadUpdate: () =>
     invoke<string[] | { skipped: true }>(channels.DOWNLOAD_UPDATE),
 
-  startDownloads: (config: DownloadConfig, loadId: LoadedInput['loadId']) =>
+  startDownloads: (config: DownloadOptions, loadId: LoadedInput['loadId']) =>
     invoke<void>(channels.START_DOWNLOADS, config, loadId),
   cancelDownloads: () => invoke<void>(channels.CANCEL_DOWNLOADS),
 

@@ -1,15 +1,13 @@
 import { downloadConfigErrors, userSettingsErrors } from './downloadSettings';
 import { defaultUserSettings } from './userSettings';
-import { DownloadConfig } from '@/shared/types';
+import type { DownloadOptions } from '@/download/downloadRun';
 
 describe('download settings', () => {
   describe('validateDownloadConfig', () => {
-    let validConfig: DownloadConfig;
+    let validConfig: DownloadOptions;
 
     beforeEach(() => {
       validConfig = {
-        excelFile: '/path/to/file.xlsx',
-        sheetName: 'Sheet1',
         partNoColumn: 'PartNumber',
         imageColumns: ['ImageURL1'],
         pdfColumn: 'PDFURL',

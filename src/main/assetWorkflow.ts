@@ -4,13 +4,13 @@ import { getSheetNames, loadSheetData } from '@/input/spreadsheet';
 import { testSqlConnection } from '@/sql/connection';
 import type { SqlConnectionRequest, SqlQueryRequest } from '@/sql/contracts';
 import { loadSqlRows, previewSqlQuery } from '@/sql/query';
-import { downloadConfigErrors } from '@/shared/downloadSettings';
 import {
-  IPC_CHANNELS,
-  type LoadedInput,
-  type DownloadConfig,
-} from '@/shared/types';
+  downloadConfigErrors,
+  initialDownloadOptions,
+} from '@/shared/downloadSettings';
+import { IPC_CHANNELS, type LoadedInput } from '@/shared/types';
 import type {
+  DownloadOptions,
   DownloadCompletionEvent,
   DownloadProgress,
 } from '@/download/downloadRun';
@@ -41,7 +41,7 @@ export function registerAssetWorkflow(
   async function loadInput(
     read: () => Promise<{
       rows: Rows;
-      summary: Omit<LoadedInput, 'loadId' | 'rowCount'>;
+      summary: Omit<LoadedInput, 'loadId' | 'rowCount' | 'options'>;
     }>,
     rememberConnection?: () => void
   ): Promise<LoadedInput> {
@@ -52,9 +52,10 @@ export function registerAssetWorkflow(
       throw new Error('A newer input load replaced this request.');
     }
     checkInputCanChange();
+    const options = initialDownloadOptions(configuration.getSettings());
     rememberConnection?.();
     loadedInput = { loadId, rows };
-    return { ...summary, loadId, rowCount: rows.length };
+    return { ...summary, loadId, rowCount: rows.length, options };
   }
 
   ipcMain.handle(IPC_CHANNELS.GET_SHEET_NAMES, (_, filePath: string) =>
@@ -70,8 +71,6 @@ export function registerAssetWorkflow(
           summary: {
             columns,
             sheetName,
-            filePath,
-            sourceType: 'file',
             sourceLabel: filePath,
           },
         };
@@ -113,8 +112,6 @@ export function registerAssetWorkflow(
             summary: {
               columns,
               sheetName: 'SQL Query',
-              filePath: sourceLabel,
-              sourceType: 'sql',
               sourceLabel,
             },
           };
@@ -131,7 +128,7 @@ export function registerAssetWorkflow(
   );
   ipcMain.handle(
     IPC_CHANNELS.START_DOWNLOADS,
-    async (_, config: DownloadConfig, loadId: number) => {
+    async (_, config: DownloadOptions, loadId: number) => {
       if (!loadedInput) {
         throw new Error('No input data loaded. Please load input data first.');
       }
