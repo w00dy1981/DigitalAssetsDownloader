@@ -161,7 +161,6 @@ export interface SqlQueryResult {
 export interface AppConfig {
   windowState: WindowState;
   lastConfiguration?: DownloadConfig;
-  recentFiles: string[];
   userSettings?: UserSettings;
   sqlConnectionDetails?: SqlConnectionDetails;
 }

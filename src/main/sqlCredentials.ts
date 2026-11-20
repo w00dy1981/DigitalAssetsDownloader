@@ -1,8 +1,9 @@
 import { createHash } from 'crypto';
 import * as fs from 'fs';
 import * as path from 'path';
-import { safeStorage } from 'electron';
+import { app, ipcMain, safeStorage } from 'electron';
 import {
+  IPC_CHANNELS,
   SqlCredentialIdentity,
   SqlPasswordDeleteRequest,
   SqlPasswordSaveRequest,
@@ -45,10 +46,6 @@ export class SqlCredentialService {
     } catch {
       throw this.toCredentialError();
     }
-  }
-
-  hasSavedPassword(identity: SqlCredentialIdentity): boolean {
-    return this.loadSavedPassword(identity) !== null;
   }
 
   savePassword(request: SqlPasswordSaveRequest): { success: true } {
@@ -115,4 +112,24 @@ export class SqlCredentialService {
       'Secure credential storage is unavailable or could not be accessed.'
     );
   }
+}
+
+export function registerSqlCredentials() {
+  const credentials = new SqlCredentialService(
+    path.join(app.getPath('userData'), 'sql-credentials')
+  );
+  ipcMain.handle(
+    IPC_CHANNELS.LOAD_SAVED_SQL_PASSWORD,
+    (_, identity: SqlCredentialIdentity) =>
+      credentials.loadSavedPassword(identity)
+  );
+  ipcMain.handle(
+    IPC_CHANNELS.SAVE_SQL_PASSWORD,
+    (_, request: SqlPasswordSaveRequest) => credentials.savePassword(request)
+  );
+  ipcMain.handle(
+    IPC_CHANNELS.DELETE_SAVED_SQL_PASSWORD,
+    (_, request: SqlPasswordDeleteRequest) =>
+      credentials.deleteSavedPassword(request)
+  );
 }

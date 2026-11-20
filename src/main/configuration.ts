@@ -24,7 +24,6 @@ export function registerConfiguration() {
         height: CONSTANTS.UI.DEFAULT_WINDOW_HEIGHT,
         isMaximized: false,
       },
-      recentFiles: [],
     },
   });
   const getSettings = () => mergeUserSettings(store.get('userSettings'));
@@ -77,16 +76,6 @@ export function registerConfiguration() {
     getStartupUpdateSettings: () => store.get('userSettings')?.updateSettings,
     getWindowState: () => store.get('windowState'),
     saveWindowState: (state: WindowState) => store.set('windowState', state),
-    recordRecentFile(filePath: string) {
-      const recentFiles = store.get('recentFiles');
-      store.set(
-        'recentFiles',
-        [filePath, ...recentFiles.filter(file => file !== filePath)].slice(
-          0,
-          10
-        )
-      );
-    },
     rememberSqlConnection(details: SqlConnectionDetails) {
       store.set('sqlConnectionDetails', details);
     },

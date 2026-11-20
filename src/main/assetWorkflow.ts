@@ -1,8 +1,6 @@
-import { app, ipcMain } from 'electron';
-import { join } from 'node:path';
+import { ipcMain } from 'electron';
 import { DownloadService } from '@/services/downloadService';
 import { getSheetNames, loadSheetData } from '@/services/excelService';
-import { SqlCredentialService } from '@/services/SqlCredentialService';
 import { SqlServerService } from '@/services/SqlServerService';
 import { downloadConfigErrors } from '@/shared/downloadSettings';
 import {
@@ -11,10 +9,7 @@ import {
   type DownloadConfig,
   type DownloadProgress,
   type SqlConnectionTestRequest,
-  type SqlCredentialIdentity,
   type SqlLoadRequest,
-  type SqlPasswordDeleteRequest,
-  type SqlPasswordSaveRequest,
   type SqlPreviewRequest,
 } from '@/shared/types';
 import type { DesktopConfiguration } from './configuration';
@@ -22,7 +17,7 @@ import type { DesktopConfiguration } from './configuration';
 export function registerAssetWorkflow(
   configuration: Pick<
     DesktopConfiguration,
-    'getSettings' | 'recordRecentFile' | 'rememberSqlConnection'
+    'getSettings' | 'rememberSqlConnection'
   >,
   send: (
     channel: string,
@@ -31,9 +26,6 @@ export function registerAssetWorkflow(
 ) {
   const downloads = new DownloadService();
   const sql = new SqlServerService();
-  const credentials = new SqlCredentialService(
-    join(app.getPath('userData'), 'sql-credentials')
-  );
   let loadedRows: readonly Record<string, unknown>[] | undefined;
 
   ipcMain.handle(IPC_CHANNELS.GET_SHEET_NAMES, (_, filePath: string) =>
@@ -43,7 +35,6 @@ export function registerAssetWorkflow(
     IPC_CHANNELS.LOAD_SHEET_DATA,
     async (_, filePath: string, sheetName: string) => {
       const data = await loadSheetData(filePath, sheetName);
-      configuration.recordRecentFile(filePath);
       loadedRows = data.rows;
       return data;
     }
@@ -88,21 +79,6 @@ export function registerAssetWorkflow(
       loadedRows = result.rows;
       return result;
     }
-  );
-
-  ipcMain.handle(
-    IPC_CHANNELS.LOAD_SAVED_SQL_PASSWORD,
-    (_, identity: SqlCredentialIdentity) =>
-      credentials.loadSavedPassword(identity)
-  );
-  ipcMain.handle(
-    IPC_CHANNELS.SAVE_SQL_PASSWORD,
-    (_, request: SqlPasswordSaveRequest) => credentials.savePassword(request)
-  );
-  ipcMain.handle(
-    IPC_CHANNELS.DELETE_SAVED_SQL_PASSWORD,
-    (_, request: SqlPasswordDeleteRequest) =>
-      credentials.deleteSavedPassword(request)
   );
 
   downloads.on('progress', (progress: DownloadProgress) =>

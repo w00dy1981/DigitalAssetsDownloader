@@ -16,6 +16,7 @@ import {
   registerConfiguration,
   type DesktopConfiguration,
 } from './configuration';
+import { registerSqlCredentials } from './sqlCredentials';
 import { registerUpdates } from './updates';
 
 // Global error handlers to catch crashes
@@ -261,6 +262,7 @@ async function initialize(): Promise<void> {
   await app.whenReady();
   const configuration = registerConfiguration();
   registerDialogs();
+  registerSqlCredentials();
   registerAssetWorkflow(configuration, send);
   createMenu();
   await createWindow(configuration);

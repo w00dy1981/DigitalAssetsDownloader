@@ -4,19 +4,9 @@ import * as path from 'path';
 import {
   buildSqlCredentialAccount,
   SqlCredentialService,
-} from './SqlCredentialService';
+} from './sqlCredentials';
 
-jest.mock('electron', () => ({
-  safeStorage: {
-    isEncryptionAvailable: jest.fn(() => true),
-    encryptString: jest.fn((value: string) =>
-      Buffer.from(`encrypted:${value}`, 'utf8')
-    ),
-    decryptString: jest.fn((value: Buffer) =>
-      value.toString('utf8').replace(/^encrypted:/, '')
-    ),
-  },
-}));
+jest.mock('electron', () => ({}));
 
 const createSecureStorage = (isAvailable = true) => ({
   isEncryptionAvailable: jest.fn(() => isAvailable),
@@ -64,7 +54,7 @@ describe('SqlCredentialService', () => {
     const secureStorage = createSecureStorage();
     const service = new SqlCredentialService(tempDir, secureStorage);
 
-    expect(service.hasSavedPassword(identity)).toBe(false);
+    expect(service.loadSavedPassword(identity)).toBeNull();
 
     service.savePassword({ identity, password: 'secret-password' });
 
@@ -76,12 +66,11 @@ describe('SqlCredentialService', () => {
     expect(fs.readFileSync(credentialFile, 'utf8')).not.toContain(
       'secret-password'
     );
-    expect(service.hasSavedPassword(identity)).toBe(true);
     expect(service.loadSavedPassword(identity)).toBe('secret-password');
 
     service.deleteSavedPassword({ identity });
 
-    expect(service.hasSavedPassword(identity)).toBe(false);
+    expect(service.loadSavedPassword(identity)).toBeNull();
     expect(service.loadSavedPassword(identity)).toBeNull();
   });
 
