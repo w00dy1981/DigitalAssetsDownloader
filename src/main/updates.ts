@@ -69,7 +69,7 @@ export function registerUpdates(
   ipcMain.handle(IPC_CHANNELS.INSTALL_UPDATE, () => {
     if (enabled) autoUpdater.quitAndInstall();
   });
-  ipcMain.handle('download-update', () =>
+  ipcMain.handle(IPC_CHANNELS.DOWNLOAD_UPDATE, () =>
     enabled ? autoUpdater.downloadUpdate() : { skipped: true }
   );
 
