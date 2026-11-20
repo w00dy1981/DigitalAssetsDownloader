@@ -1,0 +1,4 @@
+- SQL Server now decides which queries and databases your login can access. The app sends your query as entered, including cross-database joins, stored procedure calls and batches.
+- Preview and Load each run the query. Use a read-only SQL login for downloads. Preview shows up to 50 rows and the exact total for the first result set. Load keeps up to 10,000 rows.
+- Column and folder choices stay with the loaded input when you switch between Column Selection and Process.
+- Supplier links starting with `www.` now download over HTTPS.
