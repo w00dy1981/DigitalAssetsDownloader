@@ -4,14 +4,8 @@ const webpack = require('webpack');
 const packageJson = require('./package.json');
 
 module.exports = {
-  target: 'electron-renderer',
+  target: 'web',
   entry: './src/renderer/index.tsx',
-  externals: {
-    // Only exclude modules that should truly be external in renderer
-    // Node.js built-ins should not be external - let webpack handle them or use browser alternatives
-    'electron': 'commonjs electron',
-    'sharp': 'commonjs sharp',
-  },
   module: {
     rules: [
       {
@@ -28,10 +22,6 @@ module.exports = {
         test: /\.css$/,
         use: ['style-loader', 'css-loader'],
       },
-      {
-        test: /\.(png|jpe?g|gif|svg)$/i,
-        type: 'asset/resource',
-      },
     ],
   },
   resolve: {
@@ -47,18 +37,9 @@ module.exports = {
   plugins: [
     new HtmlWebpackPlugin({
       template: './src/renderer/index.html',
-      inject: true,              // Explicitly inject scripts for cross-platform reliability
-      scriptLoading: 'blocking', // Ensure blocking load for Electron
-      cache: false,              // Prevent caching issues on Windows builds
     }),
     new webpack.DefinePlugin({
       'process.env.APP_VERSION': JSON.stringify(packageJson.version),
-      'process.env.NODE_ENV': JSON.stringify(process.env.NODE_ENV || 'production'),
     }),
   ],
-  devServer: {
-    contentBase: path.join(__dirname, 'dist/renderer'),
-    port: 3000,
-    hot: true,
-  },
 };

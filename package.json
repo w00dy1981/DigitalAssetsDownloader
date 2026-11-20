@@ -10,7 +10,7 @@
     "build:main:watch": "webpack --config webpack.main.config.js --mode development --watch",
     "build:renderer": "webpack --config webpack.renderer.config.js --mode production",
     "build:renderer:watch": "webpack --config webpack.renderer.config.js --mode development --watch",
-    "start:electron": "wait-on dist/main/main.js && electron .",
+    "start:electron": "wait-on dist/main/main.js dist/main/preload.js dist/renderer/index.html dist/renderer/renderer.js && electron .",
     "dist": "npm run build && electron-builder",
     "dist:mac": "npm run build && electron-builder --mac",
     "dist:win": "npm run build && electron-builder --win",
@@ -43,7 +43,6 @@
   "devDependencies": {
     "@testing-library/jest-dom": "^6.6.4",
     "@testing-library/react": "^16.3.0",
-    "@testing-library/user-event": "^14.6.1",
     "@types/jest": "^30.0.0",
     "@types/mssql": "^9.1.11",
     "@types/node": "^20.10.0",
@@ -71,8 +70,7 @@
     "typescript": "^5.3.3",
     "wait-on": "^7.2.0",
     "webpack": "^5.89.0",
-    "webpack-cli": "^5.1.4",
-    "webpack-dev-server": "^4.15.1"
+    "webpack-cli": "^5.1.4"
   },
   "dependencies": {
     "axios": "^1.6.2",
@@ -92,7 +90,7 @@
     "directories": {
       "output": "release"
     },
-    "icon": "build/icon.png",
+    "icon": "AppIcon.png",
     "files": [
       "dist/**/*",
       "node_modules/**/*"
@@ -112,9 +110,7 @@
       "category": "public.app-category.productivity",
       "target": "dmg",
       "hardenedRuntime": true,
-      "gatekeeperAssess": false,
-      "entitlements": "build/entitlements.mac.plist",
-      "entitlementsInherit": "build/entitlements.mac.plist"
+      "gatekeeperAssess": false
     },
     "win": {
       "target": {
