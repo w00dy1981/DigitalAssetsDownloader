@@ -77,6 +77,36 @@ test('sanitised and case-insensitive filename collisions keep each saved asset',
   expect(images[0].getPixelColor(0, 0)).not.toBe(images[1].getPixelColor(0, 0));
 });
 
+test('a later HTTP attempt can finish with both timeouts disabled', async () => {
+  let attempts = 0;
+  const server = createServer((_, response) => {
+    if (++attempts === 1) {
+      response.writeHead(404).end();
+      return;
+    }
+    response.write('%PDF-');
+    setTimeout(() => response.end('1.4 example'), 25);
+  });
+  await new Promise<void>(resolve => server.listen(0, '127.0.0.1', resolve));
+  try {
+    const address = server.address();
+    if (!address || typeof address === 'string')
+      throw new Error('No HTTP port');
+    await new DownloadService().startDownloads(
+      { ...config, maxWorkers: 30 },
+      [{ Code: 'LATE', PDF: `http://127.0.0.1:${address.port}/pdf` }],
+      { retryAttempts: 12, connectionTimeout: 0, readTimeout: 0 }
+    );
+    expect(attempts).toBe(2);
+    expect(
+      await fs.readFile(path.join(config.pdfFolder, 'LATE.pdf'), 'utf8')
+    ).toBe('%PDF-1.4 example');
+  } finally {
+    server.closeAllConnections();
+    await new Promise<void>(resolve => server.close(() => resolve()));
+  }
+});
+
 test('the configured attempt limit stops retries and records the HTTP failure', async () => {
   let requests = 0;
   const server = createServer((_, response) => {

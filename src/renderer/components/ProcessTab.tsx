@@ -87,7 +87,7 @@ export default function ProcessTab({ data, onChange }: WorkflowScreenProps) {
                   id="workers-quick"
                   value={options.maxWorkers}
                   onChange={value => onChange({ maxWorkers: value })}
-                  {...limits.workers}
+                  {...limits.count}
                 />
                 <small className="form-text">
                   Number of simultaneous downloads

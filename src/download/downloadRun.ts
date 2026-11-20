@@ -1,3 +1,7 @@
+import {
+  downloadConfigErrors,
+  httpSettingsErrors,
+} from '../shared/downloadSettings';
 import * as path from 'path';
 import { EventEmitter } from 'events';
 import {
@@ -53,18 +57,11 @@ export class DownloadService extends EventEmitter<{
     http: HttpSettings
   ): Promise<void> {
     if (this.activeRun) throw new Error('Downloads already in progress');
-    if (!Number.isInteger(config.maxWorkers) || config.maxWorkers < 1) {
-      throw new Error('Maximum workers must be a positive integer');
-    }
-
-    if (
-      ![http.connectionTimeout, http.readTimeout, http.retryAttempts].every(
-        value => Number.isInteger(value) && value > 0
-      ) ||
-      http.retryAttempts > 10
-    ) {
-      throw new Error('Invalid HTTP timeout or retry settings');
-    }
+    const errors = [
+      ...downloadConfigErrors(config),
+      ...httpSettingsErrors(http),
+    ];
+    if (errors.length) throw new Error(errors.join(', '));
     const run = new AbortController();
     this.activeRun = run;
     let completion: DownloadCompletionEvent;

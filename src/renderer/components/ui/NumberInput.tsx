@@ -6,6 +6,7 @@ interface NumberInputProps {
   onChange: (value: number) => void;
   min?: number;
   max?: number;
+  step?: number | 'any';
   suffix?: string;
   style?: React.CSSProperties;
 }
@@ -16,12 +17,12 @@ export const NumberInput: React.FC<NumberInputProps> = ({
   onChange,
   min,
   max,
+  step,
   suffix,
   style,
 }) => {
   const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const numValue = parseInt(e.target.value) || 0;
-    onChange(numValue);
+    onChange(e.target.valueAsNumber);
   };
 
   return (
@@ -29,10 +30,11 @@ export const NumberInput: React.FC<NumberInputProps> = ({
       <input
         id={id}
         type="number"
-        value={value}
+        value={Number.isNaN(value) ? '' : value}
         onChange={handleChange}
         min={min}
         max={max}
+        step={step}
         className="form-control number-input"
         style={style}
       />

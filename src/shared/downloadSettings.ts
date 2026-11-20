@@ -1,14 +1,14 @@
 import type { DownloadPlanConfig } from '@/download/downloadPlan';
+import type { HttpSettings } from '@/download/assetSource';
 import type { DownloadOptions } from '@/download/downloadRun';
 import type { UserSettings } from '@/shared/userSettings';
 
 export const limits = {
-  workers: { min: 1, max: 20 },
-  connectionTimeout: { min: 1, max: 60 },
-  readTimeout: { min: 10, max: 300 },
-  retryAttempts: { min: 1, max: 10 },
-  quality: { min: 60, max: 100 },
-};
+  count: { min: 1, step: 1 },
+  // Node timers above 2^31 - 1 milliseconds expire after just one millisecond.
+  httpTimeout: { min: 0, max: 0x7fffffff / 1000, step: 0.001 },
+  quality: { min: 1, max: 100, step: 'any' },
+} as const;
 
 export function initialDownloadOptions({
   defaultPaths,
@@ -36,11 +36,14 @@ function checkRange(
   errors: string[],
   name: string,
   value: number,
-  { min, max }: { min: number; max: number }
+  { min, max, step }: { min: number; max?: number; step: number | string }
 ) {
   if (!Number.isFinite(value)) errors.push(`${name} must be a valid number`);
+  else if (step === 1 && !Number.isSafeInteger(value))
+    errors.push(`${name} must be a whole number`);
   else if (value < min) errors.push(`${name} must be at least ${min}`);
-  else if (value > max) errors.push(`${name} must be no more than ${max}`);
+  else if (max !== undefined && value > max)
+    errors.push(`${name} must be no more than ${max}`);
 }
 
 function checkFolder(errors: string[], name: string, folder: string) {
@@ -73,7 +76,7 @@ export function downloadConfigErrors(config: DownloadOptions): string[] {
     checkFolder(errors, 'Image Download Folder', config.imageFolder);
   if (config.pdfColumn)
     checkFolder(errors, 'PDF Download Folder', config.pdfFolder);
-  checkRange(errors, 'Max Workers', config.maxWorkers, limits.workers);
+  checkRange(errors, 'Max Workers', config.maxWorkers, limits.count);
   if (hasImages) {
     checkRange(
       errors,
@@ -82,6 +85,19 @@ export function downloadConfigErrors(config: DownloadOptions): string[] {
       limits.quality
     );
   }
+  return errors;
+}
+
+export function httpSettingsErrors(settings: HttpSettings): string[] {
+  const errors: string[] = [];
+  checkRange(
+    errors,
+    'Connection Timeout',
+    settings.connectionTimeout,
+    limits.httpTimeout
+  );
+  checkRange(errors, 'Read Timeout', settings.readTimeout, limits.httpTimeout);
+  checkRange(errors, 'Download Attempts', settings.retryAttempts, limits.count);
   return errors;
 }
 
@@ -94,26 +110,9 @@ export function userSettingsErrors({
     errors,
     'Concurrent Downloads',
     downloadBehavior.defaultConcurrentDownloads,
-    limits.workers
+    limits.count
   );
-  checkRange(
-    errors,
-    'Connection Timeout',
-    downloadBehavior.connectionTimeout,
-    limits.connectionTimeout
-  );
-  checkRange(
-    errors,
-    'Read Timeout',
-    downloadBehavior.readTimeout,
-    limits.readTimeout
-  );
-  checkRange(
-    errors,
-    'Retry Attempts',
-    downloadBehavior.retryAttempts,
-    limits.retryAttempts
-  );
+  errors.push(...httpSettingsErrors(downloadBehavior));
   checkRange(
     errors,
     'Default JPEG Quality',

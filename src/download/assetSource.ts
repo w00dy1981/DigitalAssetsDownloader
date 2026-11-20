@@ -89,20 +89,23 @@ async function fetchSource(
             'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
           Accept: 'image/*,application/pdf,*/*;q=0.8',
         },
-        timeout: settings.connectionTimeout * 1000,
+        timeout: Math.ceil(settings.connectionTimeout * 1000),
         responseType: 'stream',
         signal,
       });
       // Axios' Node timeout covers the wait for headers. Bound the time between body chunks separately.
       response.request.setTimeout(0);
-      const timeout = globalThis.setTimeout(
-        () => response.data.destroy(new Error('Read timeout')),
-        settings.readTimeout * 1000
-      );
+      const timeout =
+        settings.readTimeout > 0
+          ? globalThis.setTimeout(
+              () => response.data.destroy(new Error('Read timeout')),
+              Math.ceil(settings.readTimeout * 1000)
+            )
+          : undefined;
       try {
         const chunks: Buffer[] = [];
         for await (const chunk of response.data) {
-          timeout.refresh();
+          timeout?.refresh();
           chunks.push(chunk);
         }
         return {
@@ -115,22 +118,13 @@ async function fetchSource(
       }
     } catch (error) {
       if (axios.isAxiosError<Readable>(error)) error.response?.data.destroy();
-      if (
-        attempt >= settings.retryAttempts ||
-        signal.aborted ||
-        (axios.isAxiosError(error) && error.response?.status === 404)
-      )
-        throw error;
+      if (attempt >= settings.retryAttempts || signal.aborted) throw error;
       await setTimeout(Math.min(1000 * attempt, 5000), undefined, { signal });
     }
   }
 }
 
 function describeError(error: unknown): string {
-  if (axios.isAxiosError(error)) {
-    if (error.response?.status === 404) return 'File not found (404)';
-    if (error.code === 'ECONNABORTED') return 'Timeout error';
-  }
   return error instanceof Error ? error.message : String(error);
 }
 

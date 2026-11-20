@@ -9,10 +9,7 @@ import type {
   SqlExecution,
 } from '@/sql/contracts';
 import { executeSqlQuery } from '@/sql/query';
-import {
-  downloadConfigErrors,
-  initialDownloadOptions,
-} from '@/shared/downloadSettings';
+import { initialDownloadOptions } from '@/shared/downloadSettings';
 import { IPC_CHANNELS, type LoadedInput } from '@/shared/types';
 import type {
   DownloadOptions,
@@ -163,8 +160,6 @@ export function registerAssetWorkflow(
       if (loadId !== loadedInput.loadId) {
         throw new Error('Input data changed. Please map the columns again.');
       }
-      const errors = downloadConfigErrors(config);
-      if (errors.length) throw new Error(errors.join(', '));
 
       await downloads.startDownloads(
         config,
