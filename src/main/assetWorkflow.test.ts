@@ -42,7 +42,9 @@ afterEach(() => {
 });
 
 test('returns summaries, preserves SQL preview rows, and starts only with the matching input', async () => {
-  const rememberSqlConnection = jest.fn();
+  const rememberSqlConnection = jest.fn(() => {
+    throw new Error('Store is read-only');
+  });
   registerAssetWorkflow(
     {
       getSettings: () => ({
@@ -94,10 +96,11 @@ test('returns summaries, preserves SQL preview rows, and starts only with the ma
         quality: 90,
       },
     };
-    const { executionId, results } = await invoke(
+    const { executionId, results, warning } = await invoke(
       IPC_CHANNELS.EXECUTE_SQL_QUERY,
       sqlRequest
     );
+    expect(warning).toMatch(/SQL succeeded.*could not be saved/);
     expect(results[1]).toEqual({
       columns: sqlResult.columns,
       rows: [sqlResult.rows[0]],

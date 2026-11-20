@@ -61,7 +61,10 @@ const electronAPI = {
     invoke<LoadedInput>(channels.LOAD_SHEET_DATA, filePath, sheetName),
 
   testSqlConnection: (request: SqlConnectionRequest) =>
-    invoke<Success>(channels.TEST_SQL_CONNECTION, request),
+    invoke<Success & { warning?: string }>(
+      channels.TEST_SQL_CONNECTION,
+      request
+    ),
   executeSqlQuery: (request: SqlQueryRequest) =>
     invoke<SqlExecution>(channels.EXECUTE_SQL_QUERY, request),
   selectSqlResult: (executionId: number, resultIndex: number) =>

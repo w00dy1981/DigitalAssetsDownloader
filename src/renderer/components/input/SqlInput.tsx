@@ -90,7 +90,8 @@ export function SqlInput({
       }
       const request = { ...connection, password: credentials.password.value };
       if (action === 'test') {
-        await window.electronAPI.testSqlConnection(request);
+        const result = await window.electronAPI.testSqlConnection(request);
+        if (result?.warning) setError(result.warning);
         setNotice(
           `Connected to ${[request.server, request.database].filter(Boolean).join(' / ')}`
         );
@@ -101,6 +102,7 @@ export function SqlInput({
           query,
         });
         setExecution(result);
+        if (result.warning) setError(result.warning);
         setResultIndex(0);
         if (!result.results.length)
           setNotice('SQL completed without returning a table.');

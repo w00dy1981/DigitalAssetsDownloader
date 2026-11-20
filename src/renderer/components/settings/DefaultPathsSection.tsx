@@ -23,7 +23,6 @@ export const DefaultPathsSection: React.FC<DefaultPathsSectionProps> = ({
           onChange={path => onSettingUpdate({ imageDownloadFolder: path })}
           placeholder="Choose folder for downloading images..."
           dialogTitle="Select Image Download Folder"
-          editable={true}
         />
       </div>
 
@@ -35,7 +34,6 @@ export const DefaultPathsSection: React.FC<DefaultPathsSectionProps> = ({
           onChange={path => onSettingUpdate({ pdfDownloadFolder: path })}
           placeholder="Choose folder for downloading PDFs..."
           dialogTitle="Select PDF Download Folder"
-          editable={true}
         />
       </div>
 
@@ -47,7 +45,6 @@ export const DefaultPathsSection: React.FC<DefaultPathsSectionProps> = ({
           onChange={path => onSettingUpdate({ sourceImageFolder: path })}
           placeholder="Choose folder to search for existing images..."
           dialogTitle="Select Source Image Folder"
-          editable={true}
         />
         <small className="text-muted">
           Optional: Folder to search for existing images by part number
@@ -62,7 +59,6 @@ export const DefaultPathsSection: React.FC<DefaultPathsSectionProps> = ({
           onChange={path => onSettingUpdate({ imageNetworkPath: path })}
           placeholder="\\server\share\images"
           dialogTitle="Select Image Network Path"
-          editable={true}
         />
         <small className="text-muted">
           Optional. The Excel workbook uses this path to reference images for

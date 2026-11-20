@@ -35,6 +35,7 @@ export interface SqlResultPreview extends SqlTable {
 }
 
 export interface SqlExecution {
+  warning?: string;
   executionId: number;
   results: SqlResultPreview[];
 }

@@ -44,6 +44,14 @@ export function registerAssetWorkflow(
       );
   }
 
+  function rememberConnection(request: SqlConnectionRequest) {
+    try {
+      configuration.rememberSqlConnection(request);
+    } catch {
+      return 'SQL succeeded, but connection details could not be saved on this device.';
+    }
+  }
+
   function beginLoad() {
     checkInputCanChange();
     return ++latestLoadId;
@@ -94,8 +102,7 @@ export function registerAssetWorkflow(
         ...request,
         queryTimeoutMs: configuration.getSettings().sqlSettings.queryTimeoutMs,
       });
-      configuration.rememberSqlConnection(request);
-      return result;
+      return { ...result, warning: rememberConnection(request) };
     }
   );
 
@@ -111,8 +118,8 @@ export function registerAssetWorkflow(
         .filter(Boolean)
         .join(' / ');
       sqlExecution = { id, tables, sourceLabel };
-      configuration.rememberSqlConnection(request);
       return {
+        warning: rememberConnection(request),
         executionId: id,
         results: tables.map(({ columns, rows }) => ({
           columns,
