@@ -414,6 +414,6 @@ describe('SqlServerService execution', () => {
       connectionTimeoutMs: 15000,
     });
     const config = jest.mocked(mssql.ConnectionPool).mock.calls[0][0];
-    expect(config.requestTimeout).toBe(5000);
+    expect(config).toMatchObject({ requestTimeout: 5000 });
   });
 });

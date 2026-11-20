@@ -8,7 +8,6 @@ interface ProcessControlsProps {
   config: DownloadConfig;
   onConfigurationChange: (config: DownloadConfig) => void;
   isDownloading: boolean;
-  isStartPending: boolean;
   isCancelPending: boolean;
   onStartDownloads: () => void;
   onCancelDownloads: () => void;
@@ -18,7 +17,6 @@ const ProcessControls: React.FC<ProcessControlsProps> = ({
   config,
   onConfigurationChange,
   isDownloading,
-  isStartPending,
   isCancelPending,
   onStartDownloads,
   onCancelDownloads,
@@ -210,18 +208,14 @@ const ProcessControls: React.FC<ProcessControlsProps> = ({
             type="button"
             className="btn btn-success"
             onClick={onStartDownloads}
-            disabled={isDownloading || isStartPending || !isConfigValid}
+            disabled={isDownloading || !isConfigValid}
             title={
               !isConfigValid
                 ? 'Please fix configuration issues before starting downloads'
                 : ''
             }
           >
-            {isStartPending
-              ? 'Starting...'
-              : isDownloading
-                ? 'Downloading...'
-                : 'Start Downloads'}
+            {isDownloading ? 'Downloading...' : 'Start Downloads'}
           </button>
 
           {(isDownloading || isCancelPending) && (

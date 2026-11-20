@@ -1,13 +1,12 @@
-import React, { useState, useEffect, useCallback } from 'react';
-import { UserSettings, IPC_CHANNELS } from '@/shared/types';
+import React, { useState } from 'react';
+import { UserSettings } from '@/shared/types';
 import { useStatusMessage } from '@/renderer/hooks';
-import { CONSTANTS } from '@/shared/constants';
-import { ipcService } from '@/services/IPCService';
+import { UI_CONSTANTS } from '@/shared/constants';
 import { logger } from '@/services/LoggingService';
 
 interface UpdateSettingsSectionProps {
   settings: UserSettings;
-  onSettingUpdate: (path: string, value: any) => void;
+  onSettingUpdate: (changes: Partial<UserSettings['updateSettings']>) => void;
 }
 
 export const UpdateSettingsSection: React.FC<UpdateSettingsSectionProps> = ({
@@ -15,159 +14,40 @@ export const UpdateSettingsSection: React.FC<UpdateSettingsSectionProps> = ({
   onSettingUpdate,
 }) => {
   const [isCheckingForUpdates, setIsCheckingForUpdates] = useState(false);
-  const [updateCheckTimeoutId, setUpdateCheckTimeoutId] =
-    useState<NodeJS.Timeout | null>(null);
   const [updateStatus, showUpdateStatus] = useStatusMessage();
 
-  const handleUpdateSettingChange = (settingKey: string, value: any) => {
-    onSettingUpdate(`updateSettings.${settingKey}`, value);
-  };
-
-  // Set up update event listeners
-  useEffect(() => {
-    const handleUpdateChecking = () => {
-      logger.info('UpdateSettings: Update check started', 'UpdateSettings');
-      setIsCheckingForUpdates(true);
-      showUpdateStatus('Checking for updates...');
-    };
-
-    const handleUpdateAvailable = (updateInfo: any) => {
-      logger.info(
-        'UpdateSettings: Update available',
-        'UpdateSettings',
-        updateInfo
-      );
-      if (updateCheckTimeoutId) {
-        clearTimeout(updateCheckTimeoutId);
-        setUpdateCheckTimeoutId(null);
-      }
-      setIsCheckingForUpdates(false);
-      showUpdateStatus(
-        `Update available: v${updateInfo.version}`,
-        CONSTANTS.UI.STATUS_MESSAGE_DURATION
-      );
-    };
-
-    const handleUpdateNotAvailable = () => {
-      logger.info('UpdateSettings: No updates available', 'UpdateSettings');
-      if (updateCheckTimeoutId) {
-        clearTimeout(updateCheckTimeoutId);
-        setUpdateCheckTimeoutId(null);
-      }
-      setIsCheckingForUpdates(false);
-      showUpdateStatus('You are running the latest version', 5000);
-    };
-
-    const handleUpdateError = (error: string) => {
-      logger.error(
-        'UpdateSettings: Update check failed',
-        new Error(error),
-        'UpdateSettings'
-      );
-      if (updateCheckTimeoutId) {
-        clearTimeout(updateCheckTimeoutId);
-        setUpdateCheckTimeoutId(null);
-      }
-      setIsCheckingForUpdates(false);
-      showUpdateStatus(
-        `Update check failed: ${error}`,
-        CONSTANTS.UI.STATUS_MESSAGE_DURATION
-      );
-    };
-
-    // Set up listeners with proper IPC channels
-    ipcService.onUpdateChecking(handleUpdateChecking);
-    ipcService.onUpdateAvailable(handleUpdateAvailable);
-    ipcService.onUpdateNotAvailable(handleUpdateNotAvailable);
-    ipcService.onUpdateError(handleUpdateError);
-
-    // Cleanup - remove all listeners for these channels when component unmounts
-    return () => {
-      ipcService.cleanup([
-        IPC_CHANNELS.UPDATE_CHECKING,
-        IPC_CHANNELS.UPDATE_AVAILABLE,
-        IPC_CHANNELS.UPDATE_NOT_AVAILABLE,
-        IPC_CHANNELS.UPDATE_ERROR,
-      ]);
-
-      // Clear any pending timeout
-      if (updateCheckTimeoutId) {
-        clearTimeout(updateCheckTimeoutId);
-        setUpdateCheckTimeoutId(null);
-      }
-    };
-  }, [updateCheckTimeoutId, showUpdateStatus]);
-
-  // Manual update check with timeout mechanism and development mode detection
-  const checkForUpdatesManually = useCallback(async () => {
-    logger.info(
-      'UpdateSettings: Manual update check requested',
-      'UpdateSettings'
-    );
-
-    if (isCheckingForUpdates) {
-      logger.warn(
-        'UpdateSettings: Update check already in progress - ignoring request',
-        'UpdateSettings'
-      );
-      return; // Prevent multiple clicks
-    }
-
-    // Detect development mode (when running with npm run dev)
-    const isDevelopment =
-      process.env.NODE_ENV === 'development' ||
-      !ipcService.isElectronAvailable();
-
-    if (isDevelopment) {
-      logger.warn(
-        'UpdateSettings: Development mode detected - update functionality may be limited',
-        'UpdateSettings'
-      );
-    }
+  const checkForUpdatesManually = async () => {
+    setIsCheckingForUpdates(true);
+    showUpdateStatus('Checking for updates...');
+    const duration = UI_CONSTANTS.STATUS_MESSAGE_DURATION;
 
     try {
-      // Add shorter timeout for development mode
-      const timeoutDuration =
-        process.env.NODE_ENV === 'development'
-          ? CONSTANTS.UI.DEV_UPDATE_TIMEOUT
-          : CONSTANTS.UI.PROD_UPDATE_TIMEOUT;
-      const timeoutId = setTimeout(() => {
-        logger.warn(
-          `UpdateSettings: Update check timed out after ${timeoutDuration / 1000}s`,
-          'UpdateSettings'
-        );
-        setIsCheckingForUpdates(false);
-        setUpdateCheckTimeoutId(null);
-        const message = isDevelopment
-          ? 'Update checks may not work in development mode - try again in production build'
-          : 'Update check timed out - try again later';
-        showUpdateStatus(message, CONSTANTS.UI.STATUS_MESSAGE_DURATION);
-      }, timeoutDuration);
-      setUpdateCheckTimeoutId(timeoutId);
-
-      await ipcService.checkForUpdates();
-    } catch (error) {
-      logger.error(
-        'UpdateSettings: Manual update check failed',
-        error instanceof Error ? error : new Error(String(error)),
-        'UpdateSettings'
-      );
-      // Clear timeout on error
-      if (updateCheckTimeoutId) {
-        clearTimeout(updateCheckTimeoutId);
-        setUpdateCheckTimeoutId(null);
+      const result = await window.electronAPI.checkForUpdates();
+      switch (result.type) {
+        case 'available':
+          showUpdateStatus(
+            `Update available: v${result.data.version}`,
+            duration
+          );
+          break;
+        case 'not-available':
+          showUpdateStatus('You are running the latest version', duration);
+          break;
+        case 'auto-update-disabled':
+          showUpdateStatus('Updates are unavailable in this build.', duration);
+          break;
+        case 'error':
+          showUpdateStatus(`Update check failed: ${result.data}`, duration);
+          break;
       }
+    } catch (error) {
+      const message = error instanceof Error ? error.message : String(error);
+      showUpdateStatus(`Update check failed: ${message}`, duration);
+      logger.error('Update check failed', new Error(message), 'UpdateSettings');
+    } finally {
       setIsCheckingForUpdates(false);
-
-      const isDevelopment =
-        process.env.NODE_ENV === 'development' ||
-        !ipcService.isElectronAvailable();
-      const message = isDevelopment
-        ? 'Update checks are limited in development mode - build and test in production'
-        : 'Update check failed - Please try again later';
-      showUpdateStatus(message, CONSTANTS.UI.STATUS_MESSAGE_DURATION);
     }
-  }, [isCheckingForUpdates, updateCheckTimeoutId, showUpdateStatus]);
+  };
 
   return (
     <div className="config-section">
@@ -179,7 +59,7 @@ export const UpdateSettingsSection: React.FC<UpdateSettingsSectionProps> = ({
             type="checkbox"
             checked={settings.updateSettings.enableAutoUpdates}
             onChange={e =>
-              handleUpdateSettingChange('enableAutoUpdates', e.target.checked)
+              onSettingUpdate({ enableAutoUpdates: e.target.checked })
             }
           />
           Enable automatic updates
@@ -195,10 +75,7 @@ export const UpdateSettingsSection: React.FC<UpdateSettingsSectionProps> = ({
             type="checkbox"
             checked={settings.updateSettings.checkForUpdatesOnStartup}
             onChange={e =>
-              handleUpdateSettingChange(
-                'checkForUpdatesOnStartup',
-                e.target.checked
-              )
+              onSettingUpdate({ checkForUpdatesOnStartup: e.target.checked })
             }
             disabled={!settings.updateSettings.enableAutoUpdates}
           />
@@ -215,10 +92,9 @@ export const UpdateSettingsSection: React.FC<UpdateSettingsSectionProps> = ({
             type="checkbox"
             checked={settings.updateSettings.downloadUpdatesAutomatically}
             onChange={e =>
-              handleUpdateSettingChange(
-                'downloadUpdatesAutomatically',
-                e.target.checked
-              )
+              onSettingUpdate({
+                downloadUpdatesAutomatically: e.target.checked,
+              })
             }
             disabled={!settings.updateSettings.enableAutoUpdates}
           />

@@ -2,33 +2,27 @@ import React from 'react';
 import { UserSettings } from '@/shared/types';
 import { FormGroup } from '@/renderer/components/ui';
 import { CONSTANTS } from '@/shared/constants';
+import { defaultUserSettings } from '@/shared/userSettings';
 
 interface SqlSettingsSectionProps {
   settings: UserSettings;
-  onSettingUpdate: (path: string, value: any) => void;
+  onSettingUpdate: (
+    changes: Partial<NonNullable<UserSettings['sqlSettings']>>
+  ) => void;
 }
 
 export const SqlSettingsSection: React.FC<SqlSettingsSectionProps> = ({
   settings,
   onSettingUpdate,
 }) => {
-  const sql = settings.sqlSettings ?? {
-    defaultServer: '',
-    defaultDatabase: CONSTANTS.SQL.DEFAULT_DATABASE,
-    defaultUsername: CONSTANTS.SQL.DEFAULT_USERNAME,
-    allowedCrossDatabases: ['WebScrapes'],
-  };
-
-  const handleChange = (key: string, value: string) => {
-    onSettingUpdate(`sqlSettings.${key}`, value);
-  };
+  const sql = settings.sqlSettings ?? defaultUserSettings.sqlSettings;
 
   const handleCrossDatabaseChange = (value: string) => {
     const parsed = value
       .split(',')
       .map(s => s.trim())
       .filter(Boolean);
-    onSettingUpdate('sqlSettings.allowedCrossDatabases', parsed);
+    onSettingUpdate({ allowedCrossDatabases: parsed });
   };
 
   return (
@@ -41,7 +35,7 @@ export const SqlSettingsSection: React.FC<SqlSettingsSectionProps> = ({
           type="text"
           className="form-control"
           value={sql.defaultServer}
-          onChange={e => handleChange('defaultServer', e.target.value)}
+          onChange={e => onSettingUpdate({ defaultServer: e.target.value })}
           placeholder="e.g. MYSERVER\SQLEXPRESS"
         />
       </FormGroup>
@@ -52,7 +46,7 @@ export const SqlSettingsSection: React.FC<SqlSettingsSectionProps> = ({
           type="text"
           className="form-control"
           value={sql.defaultDatabase}
-          onChange={e => handleChange('defaultDatabase', e.target.value)}
+          onChange={e => onSettingUpdate({ defaultDatabase: e.target.value })}
           placeholder={CONSTANTS.SQL.DEFAULT_DATABASE}
         />
       </FormGroup>
@@ -63,7 +57,7 @@ export const SqlSettingsSection: React.FC<SqlSettingsSectionProps> = ({
           type="text"
           className="form-control"
           value={sql.defaultUsername}
-          onChange={e => handleChange('defaultUsername', e.target.value)}
+          onChange={e => onSettingUpdate({ defaultUsername: e.target.value })}
           placeholder={CONSTANTS.SQL.DEFAULT_USERNAME}
         />
       </FormGroup>

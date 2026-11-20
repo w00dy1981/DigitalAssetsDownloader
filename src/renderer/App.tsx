@@ -1,14 +1,11 @@
-import React, { useState, useCallback } from 'react';
+import React, { useState, useCallback, useEffect } from 'react';
 import type { UpdateInfo } from 'electron-updater';
 import { SpreadsheetData, DownloadConfig } from '@/shared/types';
 import FileSelectionTab from './components/FileSelectionTab';
 import ColumnSelectionTab from './components/ColumnSelectionTab';
 import ProcessTab from './components/ProcessTab';
 import SettingsTab from './components/SettingsTab';
-import { useEventListeners } from './hooks/useEventListeners';
-import { configurationService } from '@/services/ConfigurationService';
 import { logger } from '@/services/LoggingService';
-import { ipcService } from '@/services/IPCService';
 import { useStatusMessage } from './hooks/useStatusMessage';
 import './App.css';
 
@@ -46,134 +43,81 @@ const App: React.FC = () => {
     setIsUpdateDownloaded(false);
   }, []);
 
-  // Event listeners using custom hook
-  useEventListeners([
-    {
-      channel: 'menu-open-file',
-      handler: () => setActiveTab(0),
-      dependencies: [],
-    },
-    {
-      channel: 'menu-save-config',
-      handler: () => {
-        if (downloadConfig) {
-          saveConfiguration();
-        }
-      },
-      dependencies: [downloadConfig],
-    },
-    {
-      channel: 'menu-open-settings',
-      handler: () => setActiveTab(3),
-      dependencies: [],
-    },
-    {
-      channel: 'update-checking',
-      handler: () => {
+  useEffect(() => {
+    const api = window.electronAPI;
+    if (!api) return;
+
+    const unsubscribe = [
+      api.onMenuOpenFile(() => setActiveTab(0)),
+      api.onMenuOpenSettings(() => setActiveTab(3)),
+      api.onUpdateChecking(() => {
         setIsCheckingForUpdate(true);
         setUpdateStatus('Checking for updates...');
         setIsDownloadingUpdate(false);
         setUpdateDownloadProgress(null);
-      },
-      dependencies: [],
-    },
-    {
-      channel: 'update-available',
-      handler: info => {
+      }),
+      api.onUpdateAvailable(info => {
         setHasUpdateAvailable(true);
-        setUpdateInfo((info as UpdateInfo) ?? null);
+        setUpdateInfo(info);
         setIsCheckingForUpdate(false);
         setIsDownloadingUpdate(false);
         setUpdateDownloadProgress(null);
         setIsUpdateDownloaded(false);
         setUpdateStatus('Update available. Ready to download.');
-      },
-      dependencies: [],
-    },
-    {
-      channel: 'update-not-available',
-      handler: () => {
+      }),
+      api.onUpdateNotAvailable(info => {
         clearUpdateNotification();
-        setUpdateStatus('You are running the latest version.');
-      },
-      dependencies: [clearUpdateNotification],
-    },
-    {
-      channel: 'update-download-progress',
-      handler: progress => {
-        const percent =
-          typeof (progress as { percent?: number }).percent === 'number'
-            ? ((progress as { percent?: number }).percent as number)
-            : 0;
+        setUpdateStatus(
+          'reason' in info
+            ? 'Updates are unavailable in this build.'
+            : 'You are running the latest version.'
+        );
+      }),
+      api.onUpdateDownloadProgress(({ percent }) => {
         setIsDownloadingUpdate(true);
         setIsCheckingForUpdate(false);
         setUpdateDownloadProgress(percent);
         setUpdateStatus(`Downloading update... ${Math.round(percent)}%`);
-      },
-      dependencies: [],
-    },
-    {
-      channel: 'update-downloaded',
-      handler: info => {
+      }),
+      api.onUpdateDownloaded(info => {
         setIsDownloadingUpdate(false);
         setIsCheckingForUpdate(false);
         setUpdateDownloadProgress(100);
         setIsUpdateDownloaded(true);
-        if (info) {
-          setUpdateInfo((info as UpdateInfo) ?? null);
-        }
+        setUpdateInfo(info);
         setHasUpdateAvailable(true);
         setUpdateStatus('Update downloaded. Ready to install.');
-      },
-      dependencies: [],
-    },
-    {
-      channel: 'update-error',
-      handler: errorMessage => {
-        const message =
-          typeof errorMessage === 'string'
-            ? errorMessage
-            : 'An unexpected error occurred during update.';
+      }),
+      api.onUpdateError(message => {
         setUpdateStatus(`Update error: ${message}`);
         setIsCheckingForUpdate(false);
         setIsDownloadingUpdate(false);
         setUpdateDownloadProgress(null);
         logger.error('App: Auto-update error', new Error(message), 'App');
-      },
-      dependencies: [],
-    },
-  ]);
+      }),
+    ];
 
-  const saveConfiguration = async () => {
+    return () => unsubscribe.forEach(off => off());
+  }, [clearUpdateNotification]);
+
+  useEffect(() => {
     if (!downloadConfig) return;
 
-    try {
-      const result =
-        await configurationService.saveDownloadConfig(downloadConfig);
-      if (result.success) {
-        showStatusMessage(result.message, 3000);
-        logger.info('App: Configuration saved successfully', 'App');
-      } else {
-        showStatusMessage(result.message, 3000);
+    return window.electronAPI?.onMenuSaveConfig(async () => {
+      try {
+        await window.electronAPI.saveConfig(downloadConfig);
+        showStatusMessage('Configuration saved successfully', 3000);
+      } catch (error) {
+        const message = error instanceof Error ? error.message : String(error);
+        showStatusMessage(`Error saving configuration: ${message}`, 3000);
         logger.error(
           'App: Error saving configuration',
-          new Error(result.message),
+          new Error(message),
           'App'
         );
       }
-    } catch (error) {
-      const message =
-        error instanceof Error
-          ? error.message
-          : 'Failed to save configuration.';
-      showStatusMessage(message, 3000);
-      logger.error(
-        'App: Unexpected error saving configuration',
-        error instanceof Error ? error : new Error(message),
-        'App'
-      );
-    }
-  };
+    });
+  }, [downloadConfig, showStatusMessage]);
 
   const handleDataLoaded = (data: SpreadsheetData) => {
     setSpreadsheetData(data);
@@ -204,7 +148,7 @@ const App: React.FC = () => {
       setUpdateStatus('Starting update download...');
       setIsCheckingForUpdate(false);
       setIsDownloadingUpdate(true);
-      await ipcService.downloadUpdate();
+      await window.electronAPI.downloadUpdate();
     } catch (error) {
       const message = error instanceof Error ? error.message : String(error);
       setUpdateStatus(`Download failed: ${message}`);
@@ -220,7 +164,7 @@ const App: React.FC = () => {
   const handleInstallUpdate = useCallback(async () => {
     try {
       setUpdateStatus('Installing update...');
-      await ipcService.installUpdate();
+      await window.electronAPI.installUpdate();
     } catch (error) {
       const message = error instanceof Error ? error.message : String(error);
       setUpdateStatus(`Install failed: ${message}`);
@@ -310,11 +254,13 @@ const App: React.FC = () => {
             initialConfig={downloadConfig}
           />
         )}
-        {activeTab === 2 && downloadConfig && (
-          <ProcessTab
-            config={downloadConfig}
-            onConfigurationChange={setDownloadConfig}
-          />
+        {downloadConfig && (
+          <div hidden={activeTab !== 2}>
+            <ProcessTab
+              config={downloadConfig}
+              onConfigurationChange={setDownloadConfig}
+            />
+          </div>
         )}
         {activeTab === 3 && <SettingsTab />}
       </main>

@@ -4,17 +4,13 @@ import { FolderSelector } from '@/renderer/components/ui/FolderSelector';
 
 interface DefaultPathsSectionProps {
   settings: UserSettings;
-  onSettingUpdate: (path: string, value: any) => void;
+  onSettingUpdate: (changes: Partial<UserSettings['defaultPaths']>) => void;
 }
 
 export const DefaultPathsSection: React.FC<DefaultPathsSectionProps> = ({
   settings,
   onSettingUpdate,
 }) => {
-  const handlePathChange = (settingKey: string, value: string) => {
-    onSettingUpdate(`defaultPaths.${settingKey}`, value);
-  };
-
   return (
     <div className="config-section default-paths">
       <h3>Default Paths</h3>
@@ -24,7 +20,7 @@ export const DefaultPathsSection: React.FC<DefaultPathsSectionProps> = ({
         <FolderSelector
           id="image-download-folder"
           value={settings.defaultPaths.imageDownloadFolder}
-          onChange={path => handlePathChange('imageDownloadFolder', path)}
+          onChange={path => onSettingUpdate({ imageDownloadFolder: path })}
           placeholder="Choose folder for downloading images..."
           dialogTitle="Select Image Download Folder"
           editable={true}
@@ -36,7 +32,7 @@ export const DefaultPathsSection: React.FC<DefaultPathsSectionProps> = ({
         <FolderSelector
           id="pdf-download-folder"
           value={settings.defaultPaths.pdfDownloadFolder}
-          onChange={path => handlePathChange('pdfDownloadFolder', path)}
+          onChange={path => onSettingUpdate({ pdfDownloadFolder: path })}
           placeholder="Choose folder for downloading PDFs..."
           dialogTitle="Select PDF Download Folder"
           editable={true}
@@ -48,7 +44,7 @@ export const DefaultPathsSection: React.FC<DefaultPathsSectionProps> = ({
         <FolderSelector
           id="source-image-folder"
           value={settings.defaultPaths.sourceImageFolder}
-          onChange={path => handlePathChange('sourceImageFolder', path)}
+          onChange={path => onSettingUpdate({ sourceImageFolder: path })}
           placeholder="Choose folder to search for existing images..."
           dialogTitle="Select Source Image Folder"
           editable={true}
@@ -65,7 +61,7 @@ export const DefaultPathsSection: React.FC<DefaultPathsSectionProps> = ({
         <FolderSelector
           id="image-network-path"
           value={settings.defaultPaths.imageNetworkPath}
-          onChange={path => handlePathChange('imageNetworkPath', path)}
+          onChange={path => onSettingUpdate({ imageNetworkPath: path })}
           placeholder="Network path for image file logging..."
           dialogTitle="Select Image Network Path"
           editable={true}
@@ -82,7 +78,7 @@ export const DefaultPathsSection: React.FC<DefaultPathsSectionProps> = ({
         <FolderSelector
           id="pdf-network-path"
           value={settings.defaultPaths.pdfNetworkPath}
-          onChange={path => handlePathChange('pdfNetworkPath', path)}
+          onChange={path => onSettingUpdate({ pdfNetworkPath: path })}
           placeholder="Network path for PDF file logging..."
           dialogTitle="Select PDF Network Path"
           editable={true}

@@ -4,16 +4,12 @@ import { NumberInput, FormGroup } from '@/renderer/components/ui';
 
 interface DownloadBehaviorSectionProps {
   settings: UserSettings;
-  onSettingUpdate: (path: string, value: any) => void;
+  onSettingUpdate: (changes: Partial<UserSettings['downloadBehavior']>) => void;
 }
 
 export const DownloadBehaviorSection: React.FC<
   DownloadBehaviorSectionProps
 > = ({ settings, onSettingUpdate }) => {
-  const handleDownloadSettingChange = (settingKey: string, value: number) => {
-    onSettingUpdate(`downloadBehavior.${settingKey}`, value);
-  };
-
   return (
     <div className="config-section">
       <h3>Download Behavior</h3>
@@ -26,7 +22,7 @@ export const DownloadBehaviorSection: React.FC<
         <NumberInput
           value={settings.downloadBehavior.defaultConcurrentDownloads}
           onChange={value =>
-            handleDownloadSettingChange('defaultConcurrentDownloads', value)
+            onSettingUpdate({ defaultConcurrentDownloads: value })
           }
           min={1}
           max={20}
@@ -37,9 +33,7 @@ export const DownloadBehaviorSection: React.FC<
       <FormGroup label="Connection Timeout" htmlFor="connection-timeout">
         <NumberInput
           value={settings.downloadBehavior.connectionTimeout}
-          onChange={value =>
-            handleDownloadSettingChange('connectionTimeout', value)
-          }
+          onChange={value => onSettingUpdate({ connectionTimeout: value })}
           min={1}
           max={60}
           suffix="seconds"
@@ -49,7 +43,7 @@ export const DownloadBehaviorSection: React.FC<
       <FormGroup label="Read Timeout" htmlFor="read-timeout">
         <NumberInput
           value={settings.downloadBehavior.readTimeout}
-          onChange={value => handleDownloadSettingChange('readTimeout', value)}
+          onChange={value => onSettingUpdate({ readTimeout: value })}
           min={10}
           max={300}
           suffix="seconds"
@@ -59,9 +53,7 @@ export const DownloadBehaviorSection: React.FC<
       <FormGroup label="Retry Attempts" htmlFor="retry-attempts">
         <NumberInput
           value={settings.downloadBehavior.retryAttempts}
-          onChange={value =>
-            handleDownloadSettingChange('retryAttempts', value)
-          }
+          onChange={value => onSettingUpdate({ retryAttempts: value })}
           min={1}
           max={10}
           suffix="attempts"

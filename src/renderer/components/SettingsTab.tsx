@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect } from 'react';
 import { UserSettings } from '@/shared/types';
 import { useStatusMessage } from '../hooks/useStatusMessage';
 import {
@@ -9,101 +9,89 @@ import {
   UIPreferencesSection,
   UpdateSettingsSection,
 } from './settings';
-import { configurationService } from '@/services/ConfigurationService';
+import { defaultUserSettings } from '@/shared/userSettings';
 import { logger } from '@/services/LoggingService';
 
-interface SettingsTabProps {
-  onSettingsChange?: (settings: UserSettings) => void;
-}
-
-const SettingsTab: React.FC<SettingsTabProps> = ({ onSettingsChange }) => {
-  // State for all settings
-  const [settings, setSettings] = useState<UserSettings>(() =>
-    configurationService.getDefaultUserSettings()
-  );
-  const [hasChanges, setHasChanges] = useState<boolean>(false);
+const SettingsTab: React.FC = () => {
+  const [settings, setSettings] = useState<UserSettings | null>(null);
+  const [hasChanges, setHasChanges] = useState(false);
+  const [loadFailed, setLoadFailed] = useState(false);
   const [saveStatus, showSaveStatus] = useStatusMessage();
 
-  // Load settings on component mount
   useEffect(() => {
-    let isMounted = true;
-
+    let active = true;
     const loadSettings = async () => {
       try {
-        const savedSettings = await configurationService.loadUserSettings();
-        if (isMounted) {
-          setSettings(savedSettings);
+        const saved = await window.electronAPI.loadSettings();
+        if (active) setSettings(saved);
+      } catch (error) {
+        const message = error instanceof Error ? error.message : String(error);
+        logger.error(
+          'Error loading settings',
+          new Error(message),
+          'SettingsTab'
+        );
+        if (active) setLoadFailed(true);
+      }
+    };
+    void loadSettings();
+    return () => {
+      active = false;
+    };
+  }, []);
+
+  useEffect(() => {
+    if (!settings || !hasChanges) return;
+
+    let active = true;
+    const timeout = setTimeout(async () => {
+      try {
+        await window.electronAPI.saveSettings(settings);
+        if (active) {
           setHasChanges(false);
-          onSettingsChange?.(savedSettings);
+          showSaveStatus('Settings saved successfully', 2000);
         }
       } catch (error) {
+        const message = error instanceof Error ? error.message : String(error);
         logger.error(
-          'SettingsTab: Error loading settings',
-          error instanceof Error ? error : new Error(String(error)),
+          'Error saving settings',
+          new Error(message),
           'SettingsTab'
         );
-        showSaveStatus('Error loading settings', 2000);
+        if (active) showSaveStatus(`Error saving settings: ${message}`, 2000);
       }
-    };
-
-    loadSettings();
+    }, 1000);
 
     return () => {
-      isMounted = false;
+      active = false;
+      clearTimeout(timeout);
     };
-  }, [onSettingsChange, showSaveStatus]);
+  }, [settings, hasChanges, showSaveStatus]);
 
-  // Save settings function
-  const saveSettings = useCallback(async () => {
-    try {
-      const result = await configurationService.saveUserSettings(settings);
-
-      if (result.success) {
-        showSaveStatus(result.message, 2000);
-        setHasChanges(false);
-        onSettingsChange?.(settings);
-      } else {
-        showSaveStatus(result.message, 2000);
-        logger.error(
-          'SettingsTab: Error saving settings',
-          new Error(result.message),
-          'SettingsTab'
-        );
-      }
-    } catch (error) {
-      logger.error(
-        'SettingsTab: Unexpected error saving settings',
-        error instanceof Error ? error : new Error(String(error)),
-        'SettingsTab'
-      );
-      showSaveStatus('Error saving settings', 2000);
-    }
-  }, [settings, onSettingsChange, showSaveStatus]);
-
-  // Auto-save with debounce
-  useEffect(() => {
-    if (hasChanges) {
-      const timeoutId = setTimeout(() => {
-        saveSettings();
-      }, 1000);
-
-      return () => clearTimeout(timeoutId);
-    }
-  }, [settings, hasChanges, saveSettings]);
-
-  // Reset to defaults
-  const resetToDefaults = useCallback(() => {
-    setSettings(configurationService.getDefaultUserSettings());
+  const resetToDefaults = () => {
+    setSettings({ ...defaultUserSettings });
     setHasChanges(true);
-  }, []);
+  };
 
-  // Update setting helper
-  const updateSetting = useCallback((path: string, value: unknown) => {
-    setSettings(prev =>
-      configurationService.updateUserSetting(prev, path, value)
+  const updateSetting = <Section extends keyof UserSettings>(
+    section: Section,
+    changes: Partial<NonNullable<UserSettings[Section]>>
+  ) => {
+    if (!settings) return;
+    setSettings({
+      ...settings,
+      [section]: { ...settings[section], ...changes },
+    });
+    setHasChanges(true);
+  };
+
+  if (!settings) {
+    return (
+      <div className="settings-tab">
+        {loadFailed ? 'Error loading settings' : 'Loading settings...'}
+      </div>
     );
-    setHasChanges(true);
-  }, []);
+  }
 
   return (
     <div className="tab-content settings-tab">
@@ -128,17 +116,19 @@ const SettingsTab: React.FC<SettingsTabProps> = ({ onSettingsChange }) => {
         <div className="default-paths">
           <DefaultPathsSection
             settings={settings}
-            onSettingUpdate={updateSetting}
+            onSettingUpdate={changes => updateSetting('defaultPaths', changes)}
           />
 
           <UIPreferencesSection
             settings={settings}
-            onSettingUpdate={updateSetting}
+            onSettingUpdate={changes => updateSetting('uiPreferences', changes)}
           />
 
           <UpdateSettingsSection
             settings={settings}
-            onSettingUpdate={updateSetting}
+            onSettingUpdate={changes =>
+              updateSetting('updateSettings', changes)
+            }
           />
         </div>
 
@@ -146,17 +136,21 @@ const SettingsTab: React.FC<SettingsTabProps> = ({ onSettingsChange }) => {
         <div className="other-settings">
           <DownloadBehaviorSection
             settings={settings}
-            onSettingUpdate={updateSetting}
+            onSettingUpdate={changes =>
+              updateSetting('downloadBehavior', changes)
+            }
           />
 
           <ImageProcessingSection
             settings={settings}
-            onSettingUpdate={updateSetting}
+            onSettingUpdate={changes =>
+              updateSetting('imageProcessing', changes)
+            }
           />
 
           <SqlSettingsSection
             settings={settings}
-            onSettingUpdate={updateSetting}
+            onSettingUpdate={changes => updateSetting('sqlSettings', changes)}
           />
         </div>
       </div>

@@ -1,6 +1,5 @@
 import React from 'react';
 import { SpreadsheetData, DownloadConfig } from '@/shared/types';
-import { configurationService } from '@/services/ConfigurationService';
 import { logger } from '@/services/LoggingService';
 import {
   useColumnSelectionState,
@@ -98,13 +97,12 @@ const ColumnSelectionTab: React.FC<ColumnSelectionTabProps> = ({
           type="button"
           className="btn btn-secondary"
           onClick={async () => {
-            const result =
-              await configurationService.saveDownloadConfig(config);
-
-            if (!result.success) {
+            try {
+              await window.electronAPI.saveConfig(config);
+            } catch (error) {
               logger.error(
                 'ColumnSelectionTab: Error saving configuration',
-                new Error(result.message),
+                error instanceof Error ? error : new Error(String(error)),
                 'ColumnSelectionTab'
               );
             }

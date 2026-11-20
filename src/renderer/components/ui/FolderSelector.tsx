@@ -1,6 +1,4 @@
 import React from 'react';
-import { useFolderDialog } from '../../hooks/useFolderDialog';
-import { ipcService } from '@/services/IPCService';
 import { logger } from '@/services/LoggingService';
 
 interface FolderSelectorProps {
@@ -29,46 +27,29 @@ export const FolderSelector: React.FC<FolderSelectorProps> = ({
   dialogTitle,
   editable = false,
 }) => {
-  const { openFolderDialog } = useFolderDialog();
-
   const handleBrowse = async () => {
-    // For enhanced mode, use direct electronAPI call to match existing behavior
-    if (editable && dialogTitle) {
-      try {
-        const result = await ipcService.openFolderDialog({
-          title: dialogTitle,
-          properties: ['openDirectory'],
-        });
-
-        if (
-          !result.canceled &&
-          result.filePaths &&
-          result.filePaths.length > 0
-        ) {
-          onChange(result.filePaths[0]);
-        }
-      } catch (error) {
-        const message = error instanceof Error ? error.message : String(error);
-        if (onError) {
-          onError(message);
-        } else {
-          logger.error(
-            'FolderSelector: Error opening folder dialog',
-            error instanceof Error ? error : new Error(message),
-            'FolderSelector'
-          );
-        }
-      }
-    } else {
-      // Use existing hook for backward compatibility
-      openFolderDialog(
-        onChange,
+    try {
+      const { canceled, filePaths } = await window.electronAPI.openFolderDialog(
         {
           title: dialogTitle || 'Select Folder',
-          defaultPath: value,
-        },
-        onError
+          defaultPath: editable && dialogTitle ? undefined : value,
+        }
       );
+      if (!canceled && filePaths[0]) onChange(filePaths[0]);
+    } catch (error) {
+      const message =
+        editable && dialogTitle && error instanceof Error
+          ? error.message
+          : 'Failed to open folder dialog.';
+      if (onError) {
+        onError(message);
+      } else {
+        logger.error(
+          'FolderSelector: Error opening folder dialog',
+          error instanceof Error ? error : new Error(message),
+          'FolderSelector'
+        );
+      }
     }
   };
 

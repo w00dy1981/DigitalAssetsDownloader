@@ -115,9 +115,6 @@ export class DownloadService extends EventEmitter {
         logFile,
         cancelled: run.signal.aborted,
       };
-    } catch (error) {
-      this.emit('error', error);
-      throw error;
     } finally {
       this.activeRun = undefined;
     }

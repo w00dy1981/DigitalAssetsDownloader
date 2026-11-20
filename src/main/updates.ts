@@ -3,7 +3,7 @@ import { existsSync } from 'node:fs';
 import { join } from 'node:path';
 import log from 'electron-log';
 import { autoUpdater } from 'electron-updater';
-import { IPC_CHANNELS, UserSettings } from '@/shared/types';
+import { IPC_CHANNELS, UserSettings, UpdateCheckResult } from '@/shared/types';
 import { NETWORK_CONSTANTS, PATH_CONSTANTS } from '@/shared/constants';
 
 export function registerUpdates(
@@ -35,34 +35,37 @@ export function registerUpdates(
     send(IPC_CHANNELS.UPDATE_DOWNLOADED, info)
   );
 
-  ipcMain.handle(IPC_CHANNELS.CHECK_FOR_UPDATES, async () => {
-    if (!enabled) {
-      send(IPC_CHANNELS.UPDATE_NOT_AVAILABLE, {
-        version: app.getVersion(),
-        reason: 'auto-update-disabled',
-      });
-      return { type: 'auto-update-disabled' };
+  ipcMain.handle(
+    IPC_CHANNELS.CHECK_FOR_UPDATES,
+    async (): Promise<UpdateCheckResult> => {
+      if (!enabled) {
+        send(IPC_CHANNELS.UPDATE_NOT_AVAILABLE, {
+          version: app.getVersion(),
+          reason: 'auto-update-disabled',
+        });
+        return { type: 'auto-update-disabled' };
+      }
+      let timeout: ReturnType<typeof setTimeout> | undefined;
+      try {
+        const result = await Promise.race([
+          autoUpdater.checkForUpdates(),
+          new Promise<never>((_, reject) => {
+            timeout = setTimeout(
+              () => reject(new Error('Update check timed out')),
+              NETWORK_CONSTANTS.UPDATE_CHECK_TIMEOUT
+            );
+          }),
+        ]);
+        if (!result) throw new Error('Update check returned no result');
+        return {
+          type: result.isUpdateAvailable ? 'available' : 'not-available',
+          data: result.updateInfo,
+        };
+      } finally {
+        clearTimeout(timeout);
+      }
     }
-    let timeout: ReturnType<typeof setTimeout> | undefined;
-    try {
-      const result = await Promise.race([
-        autoUpdater.checkForUpdates(),
-        new Promise<never>((_, reject) => {
-          timeout = setTimeout(
-            () => reject(new Error('Update check timed out')),
-            NETWORK_CONSTANTS.UPDATE_CHECK_TIMEOUT
-          );
-        }),
-      ]);
-      if (!result) throw new Error('Update check returned no result');
-      return {
-        type: result.isUpdateAvailable ? 'available' : 'not-available',
-        data: result.updateInfo,
-      };
-    } finally {
-      clearTimeout(timeout);
-    }
-  });
+  );
   ipcMain.handle(IPC_CHANNELS.INSTALL_UPDATE, () => {
     if (enabled) autoUpdater.quitAndInstall();
   });

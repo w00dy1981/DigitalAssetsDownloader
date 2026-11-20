@@ -7,6 +7,8 @@ import {
   IPC_CHANNELS,
   AppConfig,
   DownloadConfig,
+  NetworkPathDefaults,
+  UserSettings,
   SqlConnectionTestRequest,
   SqlCredentialIdentity,
   SqlPasswordDeleteRequest,
@@ -19,6 +21,8 @@ import { DownloadService } from '@/services/downloadService';
 import { CONSTANTS } from '@/shared/constants';
 import { SqlServerService } from '@/services/SqlServerService';
 import { SqlCredentialService } from '@/services/SqlCredentialService';
+import { ValidationService } from '@/services/ValidationService';
+import { mergeUserSettings } from '@/shared/userSettings';
 
 // Global error handlers to catch crashes
 process.on('uncaughtException', error => {
@@ -290,308 +294,187 @@ class DigitalAssetDownloaderApp {
       return result;
     });
 
-    ipcMain.handle(IPC_CHANNELS.SAVE_FILE_DIALOG, async (_, options) => {
-      const result = await dialog.showSaveDialog(this.mainWindow!, {
-        filters: [
-          { name: 'CSV Files', extensions: ['csv'] },
-          { name: 'All Files', extensions: ['*'] },
-        ],
-        ...options,
-      });
-      return result;
-    });
-
-    // Configuration handlers
-    ipcMain.handle(IPC_CHANNELS.SAVE_CONFIG, async (_, config) => {
+    ipcMain.handle(IPC_CHANNELS.SAVE_CONFIG, (_, config: DownloadConfig) => {
+      const { errors } = ValidationService.validateDownloadConfig(config);
+      if (errors.length)
+        throw new Error(`Invalid configuration: ${errors.join(', ')}`);
       this.store.set('lastConfiguration', config);
       return { success: true };
     });
 
-    ipcMain.handle(IPC_CHANNELS.LOAD_CONFIG, async () => {
-      const lastConfiguration = this.store.get('lastConfiguration') as
-        | DownloadConfig
-        | undefined;
+    ipcMain.handle(IPC_CHANNELS.LOAD_CONFIG, () => {
+      const lastConfiguration = this.store.get('lastConfiguration');
       const sqlConnectionDetails = this.store.get('sqlConnectionDetails');
       if (!lastConfiguration && !sqlConnectionDetails) return null;
-      return { lastConfiguration, sqlConnectionDetails } as Partial<AppConfig>;
+      return { lastConfiguration, sqlConnectionDetails };
     });
 
     // Excel/CSV handlers - Implemented with ExcelService
     ipcMain.handle(
       IPC_CHANNELS.GET_SHEET_NAMES,
       async (_, filePath: string) => {
-        try {
-          const sheets = await getSheetNames(filePath);
-          return sheets;
-        } catch (error) {
-          console.error('Error getting sheet names:', error);
-          const errorMessage =
-            error instanceof Error ? error.message : 'Unknown error';
-          throw new Error(errorMessage);
-        }
+        const sheets = await getSheetNames(filePath);
+        return sheets;
       }
     );
 
     ipcMain.handle(
       IPC_CHANNELS.LOAD_SHEET_DATA,
       async (_, filePath: string, sheetName: string) => {
-        try {
-          const data = await loadSheetData(filePath, sheetName);
+        const data = await loadSheetData(filePath, sheetName);
 
-          // Store the data for downloads
-          this.currentSpreadsheetData = data.rows;
+        // Store the data for downloads
+        this.currentSpreadsheetData = data.rows;
 
-          // Add file to recent files list
-          const recentFiles = this.store.get('recentFiles', []);
-          const updatedRecentFiles = [
-            filePath,
-            ...recentFiles.filter(f => f !== filePath),
-          ].slice(0, 10);
-          this.store.set('recentFiles', updatedRecentFiles);
+        // Add file to recent files list
+        const recentFiles = this.store.get('recentFiles', []);
+        const updatedRecentFiles = [
+          filePath,
+          ...recentFiles.filter(f => f !== filePath),
+        ].slice(0, 10);
+        this.store.set('recentFiles', updatedRecentFiles);
 
-          return data;
-        } catch (error) {
-          console.error('Error loading sheet data:', error);
-          const errorMessage =
-            error instanceof Error ? error.message : 'Unknown error';
-          throw new Error(errorMessage);
-        }
+        return data;
       }
     );
 
     ipcMain.handle(
       IPC_CHANNELS.TEST_SQL_CONNECTION,
       async (_, request: SqlConnectionTestRequest) => {
-        try {
-          const result = await this.sqlServerService.testConnection(request);
-          this.store.set(
-            'sqlConnectionDetails',
-            this.sqlServerService.getSafeConnectionDetails(request)
-          );
-          return result;
-        } catch (error) {
-          console.error('Error testing SQL connection');
-          const errorMessage =
-            error instanceof Error ? error.message : 'Unknown SQL error';
-          throw new Error(errorMessage);
-        }
+        const result = await this.sqlServerService.testConnection(request);
+        this.store.set(
+          'sqlConnectionDetails',
+          this.sqlServerService.getSafeConnectionDetails(request)
+        );
+        return result;
       }
     );
 
     ipcMain.handle(
       IPC_CHANNELS.PREVIEW_SQL_QUERY,
       async (_, request: SqlPreviewRequest) => {
-        try {
-          const result = await this.sqlServerService.previewQuery(request);
-          this.store.set(
-            'sqlConnectionDetails',
-            this.sqlServerService.getSafeConnectionDetails(request)
-          );
-          return result;
-        } catch (error) {
-          console.error('Error previewing SQL query');
-          const errorMessage =
-            error instanceof Error ? error.message : 'Unknown SQL error';
-          throw new Error(errorMessage);
-        }
+        const result = await this.sqlServerService.previewQuery(request);
+        this.store.set(
+          'sqlConnectionDetails',
+          this.sqlServerService.getSafeConnectionDetails(request)
+        );
+        return result;
       }
     );
 
     ipcMain.handle(
       IPC_CHANNELS.LOAD_SQL_QUERY_DATA,
       async (_, request: SqlLoadRequest) => {
-        try {
-          const result = await this.sqlServerService.loadQueryData(request);
-          this.currentSpreadsheetData = result.rows;
-          this.store.set(
-            'sqlConnectionDetails',
-            this.sqlServerService.getSafeConnectionDetails(request)
-          );
-          return result;
-        } catch (error) {
-          console.error('Error loading SQL query data');
-          const errorMessage =
-            error instanceof Error ? error.message : 'Unknown SQL error';
-          throw new Error(errorMessage);
-        }
+        const result = await this.sqlServerService.loadQueryData(request);
+        this.currentSpreadsheetData = result.rows;
+        this.store.set(
+          'sqlConnectionDetails',
+          this.sqlServerService.getSafeConnectionDetails(request)
+        );
+        return result;
       }
     );
 
     ipcMain.handle(
       IPC_CHANNELS.LOAD_SAVED_SQL_PASSWORD,
       async (_, identity: SqlCredentialIdentity) => {
-        try {
-          return this.sqlCredentialService.loadSavedPassword(identity);
-        } catch (error) {
-          const errorMessage =
-            error instanceof Error ? error.message : 'Unknown credential error';
-          throw new Error(errorMessage);
-        }
-      }
-    );
-
-    ipcMain.handle(
-      IPC_CHANNELS.HAS_SAVED_SQL_PASSWORD,
-      async (_, identity: SqlCredentialIdentity) => {
-        try {
-          return this.sqlCredentialService.hasSavedPassword(identity);
-        } catch (error) {
-          const errorMessage =
-            error instanceof Error ? error.message : 'Unknown credential error';
-          throw new Error(errorMessage);
-        }
+        return this.sqlCredentialService.loadSavedPassword(identity);
       }
     );
 
     ipcMain.handle(
       IPC_CHANNELS.SAVE_SQL_PASSWORD,
       async (_, request: SqlPasswordSaveRequest) => {
-        try {
-          return this.sqlCredentialService.savePassword(request);
-        } catch (error) {
-          const errorMessage =
-            error instanceof Error ? error.message : 'Unknown credential error';
-          throw new Error(errorMessage);
-        }
+        return this.sqlCredentialService.savePassword(request);
       }
     );
 
     ipcMain.handle(
       IPC_CHANNELS.DELETE_SAVED_SQL_PASSWORD,
       async (_, request: SqlPasswordDeleteRequest) => {
-        try {
-          return this.sqlCredentialService.deleteSavedPassword(request);
-        } catch (error) {
-          const errorMessage =
-            error instanceof Error ? error.message : 'Unknown credential error';
-          throw new Error(errorMessage);
-        }
+        return this.sqlCredentialService.deleteSavedPassword(request);
       }
+    );
+
+    this.downloadService.on('progress', progress =>
+      this.mainWindow?.webContents.send(
+        IPC_CHANNELS.DOWNLOAD_PROGRESS,
+        progress
+      )
+    );
+    this.downloadService.on('complete', result =>
+      this.mainWindow?.webContents.send(IPC_CHANNELS.DOWNLOAD_COMPLETE, result)
     );
 
     // Download handlers - Advanced download engine implementation
     ipcMain.handle(
       IPC_CHANNELS.START_DOWNLOADS,
       async (_, config: DownloadConfig) => {
-        try {
-          if (!this.currentSpreadsheetData) {
-            throw new Error(
-              'No spreadsheet data loaded. Please load a file first.'
-            );
-          }
-
-          // Validate configuration
-          if (!config.partNoColumn) {
-            throw new Error('Please select a Part Number column');
-          }
-
-          if (!config.imageColumns.length && !config.pdfColumn) {
-            throw new Error(
-              'Please select at least one Image URL column or PDF column'
-            );
-          }
-
-          if (!config.imageFolder && !config.pdfFolder) {
-            throw new Error('Please select download folders');
-          }
-
-          // Set up download event listeners
-          this.downloadService.removeAllListeners();
-
-          this.downloadService.on('progress', progress => {
-            this.mainWindow?.webContents.send(
-              IPC_CHANNELS.DOWNLOAD_PROGRESS,
-              progress
-            );
-          });
-
-          this.downloadService.on('complete', result => {
-            this.mainWindow?.webContents.send(
-              IPC_CHANNELS.DOWNLOAD_COMPLETE,
-              result
-            );
-          });
-
-          this.downloadService.on('error', error => {
-            this.mainWindow?.webContents.send(IPC_CHANNELS.DOWNLOAD_COMPLETE, {
-              error: error instanceof Error ? error.message : 'Unknown error',
-            });
-          });
-
-          // Start downloads
-          await this.downloadService.startDownloads(
-            config,
-            this.currentSpreadsheetData
+        if (!this.currentSpreadsheetData) {
+          throw new Error(
+            'No spreadsheet data loaded. Please load a file first.'
           );
-
-          return { success: true, message: 'Downloads started successfully' };
-        } catch (error) {
-          console.error('Error starting downloads:', error);
-          const errorMessage =
-            error instanceof Error ? error.message : 'Unknown error';
-          throw new Error(errorMessage);
         }
+
+        const { errors } = ValidationService.validateDownloadConfig(config);
+        if (errors.length) throw new Error(errors.join(', '));
+
+        // Start downloads
+        await this.downloadService.startDownloads(
+          config,
+          this.currentSpreadsheetData
+        );
+
+        return;
       }
     );
 
-    ipcMain.handle(IPC_CHANNELS.CANCEL_DOWNLOADS, async () => {
-      try {
-        this.downloadService.cancelDownloads();
-        return { success: true, message: 'Downloads cancelled' };
-      } catch (error) {
-        console.error('Error cancelling downloads:', error);
-        const errorMessage =
-          error instanceof Error ? error.message : 'Unknown error';
-        throw new Error(errorMessage);
-      }
-    });
+    ipcMain.handle(IPC_CHANNELS.CANCEL_DOWNLOADS, () =>
+      this.downloadService.cancelDownloads()
+    );
 
-    // Window control handlers
-    ipcMain.handle(IPC_CHANNELS.MINIMIZE_WINDOW, () => {
-      this.mainWindow?.minimize();
-    });
-
-    ipcMain.handle(IPC_CHANNELS.MAXIMIZE_WINDOW, () => {
-      if (this.mainWindow?.isMaximized()) {
-        this.mainWindow.unmaximize();
-      } else {
-        this.mainWindow?.maximize();
-      }
-    });
-
-    ipcMain.handle(IPC_CHANNELS.CLOSE_WINDOW, () => {
-      this.mainWindow?.close();
-    });
-
-    // Settings handlers
-    ipcMain.handle(IPC_CHANNELS.SAVE_SETTINGS, async (_, settings) => {
-      this.store.set('userSettings', settings);
+    ipcMain.handle(IPC_CHANNELS.SAVE_SETTINGS, (_, settings: UserSettings) => {
+      const { errors } = ValidationService.validateUserSettings(settings);
+      if (errors.length)
+        throw new Error(`Invalid settings: ${errors.join(', ')}`);
+      this.store.set('userSettings', mergeUserSettings(settings));
       return { success: true };
     });
 
-    ipcMain.handle(IPC_CHANNELS.LOAD_SETTINGS, async () => {
-      return (
-        this.store.get('userSettings') || {
-          defaultPaths: {
-            lastFileDialogPath: '',
-            imageNetworkPath: '',
-            pdfNetworkPath: '',
-          },
+    ipcMain.handle(IPC_CHANNELS.LOAD_SETTINGS, () =>
+      mergeUserSettings(this.store.get('userSettings') ?? undefined)
+    );
+
+    ipcMain.handle(
+      IPC_CHANNELS.SAVE_NETWORK_PATHS,
+      (_, paths: NetworkPathDefaults) => {
+        const { imageNetworkPath, pdfNetworkPath } = paths;
+        if (
+          typeof imageNetworkPath !== 'string' ||
+          typeof pdfNetworkPath !== 'string'
+        ) {
+          throw new Error('Network paths must be text.');
         }
-      );
-    });
+        const settings = mergeUserSettings(
+          this.store.get('userSettings') ?? undefined
+        );
+        settings.defaultPaths.imageNetworkPath = imageNetworkPath;
+        settings.defaultPaths.pdfNetworkPath = pdfNetworkPath;
+        this.store.set('userSettings', settings);
+      }
+    );
   }
 
   private openFileDialog(): void {
-    this.mainWindow?.webContents.send('menu-open-file');
+    this.mainWindow?.webContents.send(IPC_CHANNELS.MENU_OPEN_FILE);
   }
 
   private saveConfiguration(): void {
-    this.mainWindow?.webContents.send('menu-save-config');
+    this.mainWindow?.webContents.send(IPC_CHANNELS.MENU_SAVE_CONFIG);
   }
 
   private openSettings(): void {
-    this.mainWindow?.webContents.send('menu-open-settings');
+    this.mainWindow?.webContents.send(IPC_CHANNELS.MENU_OPEN_SETTINGS);
   }
 
   async initialize(): Promise<void> {

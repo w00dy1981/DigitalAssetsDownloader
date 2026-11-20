@@ -1,7 +1,7 @@
 import React from 'react';
 import { DownloadConfig } from '@/shared/types';
 import { ProcessControls, ProgressDisplay, ActivityLog } from './process';
-import { useDownloadLifecycle, useDownloadValidation } from '@/renderer/hooks';
+import { useDownloadLifecycle } from '@/renderer/hooks';
 
 interface ProcessTabProps {
   config: DownloadConfig;
@@ -12,17 +12,14 @@ const ProcessTab: React.FC<ProcessTabProps> = ({
   config,
   onConfigurationChange,
 }) => {
-  const { validateDownloadConfig } = useDownloadValidation(config);
-
   const {
     isDownloading,
-    isStartPending,
     isCancelPending,
     progress,
     logs,
     handleStartDownloads,
     handleCancelDownloads,
-  } = useDownloadLifecycle({ config, validateDownloadConfig });
+  } = useDownloadLifecycle(config);
 
   return (
     <div className="tab-panel">
@@ -35,7 +32,6 @@ const ProcessTab: React.FC<ProcessTabProps> = ({
           config={config}
           onConfigurationChange={onConfigurationChange}
           isDownloading={isDownloading}
-          isStartPending={isStartPending}
           isCancelPending={isCancelPending}
           onStartDownloads={handleStartDownloads}
           onCancelDownloads={handleCancelDownloads}

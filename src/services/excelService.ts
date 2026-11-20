@@ -6,7 +6,7 @@ import { NETWORK_CONSTANTS } from '@/shared/constants';
 import { sanitizePath, validateFileAccess } from './pathSecurity';
 import { isCsvFile } from './fileUtils';
 
-interface SheetData {
+export interface SheetData {
   columns: string[];
   rows: Record<string, string>[];
 }

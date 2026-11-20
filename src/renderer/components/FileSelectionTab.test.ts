@@ -35,9 +35,12 @@ const columns = ['SKU', 'URL'];
 
 beforeEach(() => {
   jest.resetAllMocks();
-  Object.assign(window.electronAPI, api);
+  Object.defineProperty(window, 'electronAPI', {
+    configurable: true,
+    value: api,
+  });
   api.loadConfig.mockResolvedValue({ sqlConnectionDetails: identity });
-  api.loadSettings.mockResolvedValue(null);
+  api.loadSettings.mockResolvedValue({ sqlSettings: {} });
   api.loadSavedSqlPassword.mockResolvedValue(null);
 });
 

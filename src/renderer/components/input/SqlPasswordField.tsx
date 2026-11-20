@@ -1,5 +1,4 @@
 import { useEffect, useState } from 'react';
-import { ipcService } from '@/services/IPCService';
 import type { SqlCredentialIdentity } from '@/shared/types';
 
 const emptyPassword = {
@@ -25,7 +24,7 @@ export function useSqlPassword(
     let cancelled = false;
     async function loadSavedPassword() {
       try {
-        const saved = await ipcService.loadSavedSqlPassword({
+        const saved = await window.electronAPI.loadSavedSqlPassword({
           server,
           database,
           username,
@@ -77,7 +76,7 @@ export function useSqlPassword(
 
     setLoading(true);
     try {
-      await ipcService.deleteSavedSqlPassword({ identity });
+      await window.electronAPI.deleteSavedSqlPassword({ identity });
       setPassword(current => ({
         ...current,
         saved: false,
@@ -99,7 +98,10 @@ export function useSqlPassword(
   async function savePassword() {
     if (!password.remember) return;
     try {
-      await ipcService.saveSqlPassword({ identity, password: password.value });
+      await window.electronAPI.saveSqlPassword({
+        identity,
+        password: password.value,
+      });
       setPassword(current => ({
         ...current,
         saved: true,

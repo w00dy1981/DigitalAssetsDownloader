@@ -3,20 +3,13 @@ import { UserSettings } from '@/shared/types';
 
 interface ImageProcessingSectionProps {
   settings: UserSettings;
-  onSettingUpdate: (path: string, value: any) => void;
+  onSettingUpdate: (changes: Partial<UserSettings['imageProcessing']>) => void;
 }
 
 export const ImageProcessingSection: React.FC<ImageProcessingSectionProps> = ({
   settings,
   onSettingUpdate,
 }) => {
-  const handleImageProcessingSettingChange = (
-    settingKey: string,
-    value: any
-  ) => {
-    onSettingUpdate(`imageProcessing.${settingKey}`, value);
-  };
-
   return (
     <div className="config-section">
       <h3>Image Processing</h3>
@@ -27,10 +20,7 @@ export const ImageProcessingSection: React.FC<ImageProcessingSectionProps> = ({
             type="checkbox"
             checked={settings.imageProcessing.enabledByDefault}
             onChange={e =>
-              handleImageProcessingSettingChange(
-                'enabledByDefault',
-                e.target.checked
-              )
+              onSettingUpdate({ enabledByDefault: e.target.checked })
             }
           />
           Enable background processing by default
@@ -45,9 +35,7 @@ export const ImageProcessingSection: React.FC<ImageProcessingSectionProps> = ({
         <select
           id="processing-method"
           value={settings.imageProcessing.defaultMethod}
-          onChange={e =>
-            handleImageProcessingSettingChange('defaultMethod', e.target.value)
-          }
+          onChange={() => onSettingUpdate({ defaultMethod: 'smart_detect' })}
           className="form-control"
         >
           <option value="smart_detect">Smart Detection</option>
@@ -68,10 +56,7 @@ export const ImageProcessingSection: React.FC<ImageProcessingSectionProps> = ({
             max="100"
             value={settings.imageProcessing.defaultQuality}
             onChange={e =>
-              handleImageProcessingSettingChange(
-                'defaultQuality',
-                parseInt(e.target.value)
-              )
+              onSettingUpdate({ defaultQuality: parseInt(e.target.value) })
             }
             className="form-control number-input"
           />
@@ -89,10 +74,9 @@ export const ImageProcessingSection: React.FC<ImageProcessingSectionProps> = ({
             max="100"
             value={settings.imageProcessing.defaultEdgeThreshold}
             onChange={e =>
-              handleImageProcessingSettingChange(
-                'defaultEdgeThreshold',
-                parseInt(e.target.value)
-              )
+              onSettingUpdate({
+                defaultEdgeThreshold: parseInt(e.target.value),
+              })
             }
             className="form-control number-input"
           />

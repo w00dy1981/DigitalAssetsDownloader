@@ -1,5 +1,4 @@
 import { useState, type DragEvent } from 'react';
-import { ipcService } from '@/services/IPCService';
 import type { InputWorkflowProps } from '../FileSelectionTab';
 
 const fileExtensions = ['xlsx', 'xls', 'xlsm', 'csv'];
@@ -22,7 +21,7 @@ export function FileInput({
   async function selectFile(path: string) {
     setFile({ path, sheets: [], sheet: '' });
     try {
-      const sheets = await ipcService.getSheetNames(path);
+      const sheets = await window.electronAPI.getSheetNames(path);
       setFile({ path, sheets, sheet: sheets[0] ?? '' });
     } catch {
       setError('Failed to read the selected spreadsheet.');
@@ -33,7 +32,7 @@ export function FileInput({
     setLoading(true);
     setError('');
     try {
-      const result = await ipcService.openFileDialog({
+      const result = await window.electronAPI.openFileDialog({
         title: 'Select Excel or CSV File',
         properties: ['openFile'],
         filters: [
@@ -92,7 +91,10 @@ export function FileInput({
     setLoading(true);
     setError('');
     try {
-      const data = await ipcService.loadSheetData(file.path, file.sheet);
+      const data = await window.electronAPI.loadSheetData(
+        file.path,
+        file.sheet
+      );
       onDataLoaded({
         columns: data.columns,
         rows: data.rows,

@@ -1,6 +1,4 @@
 import { useEffect, useState } from 'react';
-import { ipcService } from '@/services/IPCService';
-import { configurationService } from '@/services/ConfigurationService';
 import { CONSTANTS } from '@/shared/constants';
 import type { SqlConnectionDetails, SqlQueryResult } from '@/shared/types';
 import type { InputWorkflowProps } from '../FileSelectionTab';
@@ -80,8 +78,8 @@ export function SqlInput({
   useEffect(() => {
     async function loadDefaults() {
       const [appConfig, settings] = await Promise.all([
-        ipcService.loadConfig().catch(() => null),
-        configurationService.loadUserSettings(),
+        window.electronAPI.loadConfig().catch(() => null),
+        window.electronAPI.loadSettings(),
       ]);
       const saved = appConfig?.sqlConnectionDetails;
       const defaults = settings.sqlSettings;
@@ -161,7 +159,7 @@ export function SqlInput({
     setNotice('');
     try {
       if (action === 'test') {
-        await ipcService.testSqlConnection(request);
+        await window.electronAPI.testSqlConnection(request);
         await credentials.savePassword();
         setNotice(`Connected to ${request.server} / ${request.database}`);
         return;
@@ -175,11 +173,11 @@ export function SqlInput({
       const isPreview = action === 'preview';
       if (isPreview) setPreview(null);
       const result = isPreview
-        ? await ipcService.previewSqlQuery({
+        ? await window.electronAPI.previewSqlQuery({
             ...sql,
             rowLimit: PREVIEW_ROW_LIMIT,
           })
-        : await ipcService.loadSqlQueryData({
+        : await window.electronAPI.loadSqlQueryData({
             ...sql,
             rowLimit: FULL_LOAD_ROW_LIMIT,
           });

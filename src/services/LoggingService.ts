@@ -16,7 +16,4 @@ export const logger = {
   error(message: string, error?: Error | string, context?: string) {
     console.error(prefix(message, context), error ?? '');
   },
-  validation(field: string, valid: boolean, reason?: string) {
-    if (!valid) console.warn(`Validation failed for ${field}: ${reason ?? ''}`);
-  },
 };

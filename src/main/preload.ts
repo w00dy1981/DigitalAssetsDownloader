@@ -1,175 +1,125 @@
 import { contextBridge, ipcRenderer } from 'electron';
+import type {
+  IpcRendererEvent,
+  OpenDialogOptions,
+  OpenDialogReturnValue,
+} from 'electron';
+import type { ProgressInfo, UpdateInfo } from 'electron-updater';
+import type { SheetData } from '@/services/excelService';
 import {
-  IPC_CHANNELS,
-  IpcChannelType,
-  SqlConnectionTestRequest,
-  SqlCredentialIdentity,
-  SqlLoadRequest,
-  SqlPasswordDeleteRequest,
-  SqlPasswordSaveRequest,
-  SqlPreviewRequest,
+  IPC_CHANNELS as channels,
+  type AppConfig,
+  type DownloadCompletionEvent,
+  type DownloadConfig,
+  type DownloadProgress,
+  type NetworkPathDefaults,
+  type SqlConnectionTestRequest,
+  type SqlCredentialIdentity,
+  type SqlLoadRequest,
+  type SqlPasswordDeleteRequest,
+  type SqlPasswordSaveRequest,
+  type SqlPreviewRequest,
+  type SqlQueryResult,
+  type UpdateCheckResult,
+  type UserSettings,
 } from '@/shared/types';
 
-// Expose protected methods that allow the renderer process to use
-// the ipcRenderer without exposing the entire object
-contextBridge.exposeInMainWorld('electronAPI', {
-  // File operations
-  openFileDialog: (options?: any) =>
-    ipcRenderer.invoke(IPC_CHANNELS.OPEN_FILE_DIALOG, options),
-  openFolderDialog: (options?: any) =>
-    ipcRenderer.invoke(IPC_CHANNELS.OPEN_FOLDER_DIALOG, options),
-  saveFileDialog: (options?: any) =>
-    ipcRenderer.invoke(IPC_CHANNELS.SAVE_FILE_DIALOG, options),
-
-  // Excel operations
-  loadExcelFile: (filePath: string) =>
-    ipcRenderer.invoke(IPC_CHANNELS.LOAD_EXCEL_FILE, filePath),
-  getSheetNames: (filePath: string) =>
-    ipcRenderer.invoke(IPC_CHANNELS.GET_SHEET_NAMES, filePath),
-  loadSheetData: (filePath: string, sheetName: string) =>
-    ipcRenderer.invoke(IPC_CHANNELS.LOAD_SHEET_DATA, filePath, sheetName),
-
-  // SQL Server operations
-  testSqlConnection: (request: SqlConnectionTestRequest) =>
-    ipcRenderer.invoke(IPC_CHANNELS.TEST_SQL_CONNECTION, request),
-  previewSqlQuery: (request: SqlPreviewRequest) =>
-    ipcRenderer.invoke(IPC_CHANNELS.PREVIEW_SQL_QUERY, request),
-  loadSqlQueryData: (request: SqlLoadRequest) =>
-    ipcRenderer.invoke(IPC_CHANNELS.LOAD_SQL_QUERY_DATA, request),
-  loadSavedSqlPassword: (identity: SqlCredentialIdentity) =>
-    ipcRenderer.invoke(IPC_CHANNELS.LOAD_SAVED_SQL_PASSWORD, identity),
-  hasSavedSqlPassword: (identity: SqlCredentialIdentity) =>
-    ipcRenderer.invoke(IPC_CHANNELS.HAS_SAVED_SQL_PASSWORD, identity),
-  saveSqlPassword: (request: SqlPasswordSaveRequest) =>
-    ipcRenderer.invoke(IPC_CHANNELS.SAVE_SQL_PASSWORD, request),
-  deleteSavedSqlPassword: (request: SqlPasswordDeleteRequest) =>
-    ipcRenderer.invoke(IPC_CHANNELS.DELETE_SAVED_SQL_PASSWORD, request),
-
-  // Configuration
-  saveConfig: (config: any) =>
-    ipcRenderer.invoke(IPC_CHANNELS.SAVE_CONFIG, config),
-  loadConfig: () => ipcRenderer.invoke(IPC_CHANNELS.LOAD_CONFIG),
-
-  // Settings
-  saveSettings: (settings: any) =>
-    ipcRenderer.invoke(IPC_CHANNELS.SAVE_SETTINGS, settings),
-  loadSettings: () => ipcRenderer.invoke(IPC_CHANNELS.LOAD_SETTINGS),
-
-  // Auto-updater
-  checkForUpdates: () => ipcRenderer.invoke(IPC_CHANNELS.CHECK_FOR_UPDATES),
-  installUpdate: () => ipcRenderer.invoke(IPC_CHANNELS.INSTALL_UPDATE),
-  downloadUpdate: () => ipcRenderer.invoke('download-update'),
-
-  // Window operations
-  minimizeWindow: () => ipcRenderer.invoke(IPC_CHANNELS.MINIMIZE_WINDOW),
-  maximizeWindow: () => ipcRenderer.invoke(IPC_CHANNELS.MAXIMIZE_WINDOW),
-  closeWindow: () => ipcRenderer.invoke(IPC_CHANNELS.CLOSE_WINDOW),
-
-  // Download operations
-  startDownloads: (config: any) =>
-    ipcRenderer.invoke(IPC_CHANNELS.START_DOWNLOADS, config),
-  cancelDownloads: () => ipcRenderer.invoke(IPC_CHANNELS.CANCEL_DOWNLOADS),
-
-  // Event listeners
-  onDownloadProgress: (callback: (data: any) => void) => {
-    ipcRenderer.on(IPC_CHANNELS.DOWNLOAD_PROGRESS, (_, data) => callback(data));
-  },
-  onDownloadComplete: (callback: (data: any) => void) => {
-    ipcRenderer.on(IPC_CHANNELS.DOWNLOAD_COMPLETE, (_, data) => callback(data));
-  },
-  onMenuOpenFile: (callback: () => void) => {
-    ipcRenderer.on('menu-open-file', callback);
-  },
-  onMenuSaveConfig: (callback: () => void) => {
-    ipcRenderer.on('menu-save-config', callback);
-  },
-  onMenuOpenSettings: (callback: () => void) => {
-    ipcRenderer.on('menu-open-settings', callback);
-  },
-
-  // Auto-updater event listeners
-  onUpdateChecking: (callback: () => void) => {
-    ipcRenderer.on('update-checking', callback);
-  },
-  onUpdateAvailable: (callback: (updateInfo: any) => void) => {
-    ipcRenderer.on(IPC_CHANNELS.UPDATE_AVAILABLE, (_, updateInfo) =>
-      callback(updateInfo)
-    );
-  },
-  onUpdateNotAvailable: (callback: (updateInfo: any) => void) => {
-    ipcRenderer.on(IPC_CHANNELS.UPDATE_NOT_AVAILABLE, (_, updateInfo) =>
-      callback(updateInfo)
-    );
-  },
-  onUpdateError: (callback: (error: string) => void) => {
-    ipcRenderer.on('update-error', (_, error) => callback(error));
-  },
-  onUpdateDownloaded: (callback: (updateInfo: any) => void) => {
-    ipcRenderer.on(IPC_CHANNELS.UPDATE_DOWNLOADED, (_, updateInfo) =>
-      callback(updateInfo)
-    );
-  },
-  onUpdateDownloadProgress: (callback: (progressInfo: any) => void) => {
-    ipcRenderer.on(IPC_CHANNELS.UPDATE_DOWNLOAD_PROGRESS, (_, progressInfo) =>
-      callback(progressInfo)
-    );
-  },
-
-  // Remove listeners
-  removeAllListeners: (channel: IpcChannelType) => {
-    ipcRenderer.removeAllListeners(channel);
-  },
-});
-
-// Type definition for the exposed API
-declare global {
-  interface Window {
-    electronAPI: {
-      openFileDialog: (options?: any) => Promise<any>;
-      openFolderDialog: (options?: any) => Promise<any>;
-      saveFileDialog: (options?: any) => Promise<any>;
-      loadExcelFile: (filePath: string) => Promise<any>;
-      getSheetNames: (filePath: string) => Promise<any>;
-      loadSheetData: (filePath: string, sheetName: string) => Promise<any>;
-      testSqlConnection: (request: SqlConnectionTestRequest) => Promise<any>;
-      previewSqlQuery: (request: SqlPreviewRequest) => Promise<any>;
-      loadSqlQueryData: (request: SqlLoadRequest) => Promise<any>;
-      loadSavedSqlPassword: (
-        identity: SqlCredentialIdentity
-      ) => Promise<string | null>;
-      hasSavedSqlPassword: (
-        identity: SqlCredentialIdentity
-      ) => Promise<boolean>;
-      saveSqlPassword: (
-        request: SqlPasswordSaveRequest
-      ) => Promise<{ success: true }>;
-      deleteSavedSqlPassword: (
-        request: SqlPasswordDeleteRequest
-      ) => Promise<{ success: true }>;
-      saveConfig: (config: any) => Promise<any>;
-      loadConfig: () => Promise<any>;
-      saveSettings: (settings: any) => Promise<any>;
-      loadSettings: () => Promise<any>;
-      checkForUpdates: () => Promise<any>;
-      installUpdate: () => Promise<void>;
-      downloadUpdate: () => Promise<any>;
-      minimizeWindow: () => Promise<void>;
-      maximizeWindow: () => Promise<void>;
-      closeWindow: () => Promise<void>;
-      startDownloads: (config: any) => Promise<any>;
-      cancelDownloads: () => Promise<void>;
-      onDownloadProgress: (callback: (data: any) => void) => void;
-      onDownloadComplete: (callback: (data: any) => void) => void;
-      onMenuOpenFile: (callback: () => void) => void;
-      onMenuSaveConfig: (callback: () => void) => void;
-      onMenuOpenSettings: (callback: () => void) => void;
-      onUpdateChecking: (callback: () => void) => void;
-      onUpdateAvailable: (callback: (updateInfo: any) => void) => void;
-      onUpdateNotAvailable: (callback: (updateInfo: any) => void) => void;
-      onUpdateError: (callback: (error: string) => void) => void;
-      onUpdateDownloaded: (callback: (updateInfo: any) => void) => void;
-      onUpdateDownloadProgress: (callback: (progressInfo: any) => void) => void;
-      removeAllListeners: (channel: IpcChannelType) => void;
-    };
+async function invoke<T>(channel: string, ...args: unknown[]): Promise<T> {
+  try {
+    return await ipcRenderer.invoke(channel, ...args);
+  } catch (error) {
+    if (error instanceof Error) {
+      const message = error.message.match(
+        /^Error invoking remote method '[^']+': (?:Error: )?(.+)$/s
+      );
+      if (message) throw new Error(message[1]);
+    }
+    throw error;
   }
 }
+
+function subscribe<T>(channel: string, callback: (data: T) => void) {
+  const listener = (_event: IpcRendererEvent, data: T) => callback(data);
+  ipcRenderer.on(channel, listener);
+  return () => {
+    ipcRenderer.removeListener(channel, listener);
+  };
+}
+
+type Success = { success: true };
+
+const electronAPI = {
+  openFileDialog: (options?: OpenDialogOptions) =>
+    invoke<OpenDialogReturnValue>(channels.OPEN_FILE_DIALOG, options),
+  openFolderDialog: (options?: OpenDialogOptions) =>
+    invoke<OpenDialogReturnValue>(channels.OPEN_FOLDER_DIALOG, options),
+  getSheetNames: (filePath: string) =>
+    invoke<string[]>(channels.GET_SHEET_NAMES, filePath),
+  loadSheetData: (filePath: string, sheetName: string) =>
+    invoke<SheetData>(channels.LOAD_SHEET_DATA, filePath, sheetName),
+
+  testSqlConnection: (request: SqlConnectionTestRequest) =>
+    invoke<Success>(channels.TEST_SQL_CONNECTION, request),
+  previewSqlQuery: (request: SqlPreviewRequest) =>
+    invoke<SqlQueryResult>(channels.PREVIEW_SQL_QUERY, request),
+  loadSqlQueryData: (request: SqlLoadRequest) =>
+    invoke<SqlQueryResult>(channels.LOAD_SQL_QUERY_DATA, request),
+  loadSavedSqlPassword: (identity: SqlCredentialIdentity) =>
+    invoke<string | null>(channels.LOAD_SAVED_SQL_PASSWORD, identity),
+  saveSqlPassword: (request: SqlPasswordSaveRequest) =>
+    invoke<Success>(channels.SAVE_SQL_PASSWORD, request),
+  deleteSavedSqlPassword: (request: SqlPasswordDeleteRequest) =>
+    invoke<Success>(channels.DELETE_SAVED_SQL_PASSWORD, request),
+
+  saveConfig: (config: DownloadConfig) =>
+    invoke<Success>(channels.SAVE_CONFIG, config),
+  loadConfig: () =>
+    invoke<Pick<
+      AppConfig,
+      'lastConfiguration' | 'sqlConnectionDetails'
+    > | null>(channels.LOAD_CONFIG),
+  saveSettings: (settings: UserSettings) =>
+    invoke<Success>(channels.SAVE_SETTINGS, settings),
+  loadSettings: () => invoke<UserSettings>(channels.LOAD_SETTINGS),
+  saveNetworkPaths: (paths: NetworkPathDefaults) =>
+    invoke<void>(channels.SAVE_NETWORK_PATHS, paths),
+
+  checkForUpdates: () => invoke<UpdateCheckResult>(channels.CHECK_FOR_UPDATES),
+  installUpdate: () => invoke<void>(channels.INSTALL_UPDATE),
+  downloadUpdate: () =>
+    invoke<string[] | { skipped: true }>(channels.DOWNLOAD_UPDATE),
+
+  startDownloads: (config: DownloadConfig) =>
+    invoke<void>(channels.START_DOWNLOADS, config),
+  cancelDownloads: () => invoke<void>(channels.CANCEL_DOWNLOADS),
+
+  onDownloadProgress: (callback: (data: DownloadProgress) => void) =>
+    subscribe(channels.DOWNLOAD_PROGRESS, callback),
+  onDownloadComplete: (callback: (data: DownloadCompletionEvent) => void) =>
+    subscribe(channels.DOWNLOAD_COMPLETE, callback),
+  onMenuOpenFile: (callback: () => void) =>
+    subscribe(channels.MENU_OPEN_FILE, callback),
+  onMenuSaveConfig: (callback: () => void) =>
+    subscribe(channels.MENU_SAVE_CONFIG, callback),
+  onMenuOpenSettings: (callback: () => void) =>
+    subscribe(channels.MENU_OPEN_SETTINGS, callback),
+  onUpdateChecking: (callback: () => void) =>
+    subscribe(channels.UPDATE_CHECKING, callback),
+  onUpdateAvailable: (callback: (info: UpdateInfo) => void) =>
+    subscribe(channels.UPDATE_AVAILABLE, callback),
+  onUpdateNotAvailable: (
+    callback: (
+      info: UpdateInfo | { version: string; reason: 'auto-update-disabled' }
+    ) => void
+  ) => subscribe(channels.UPDATE_NOT_AVAILABLE, callback),
+  onUpdateError: (callback: (error: string) => void) =>
+    subscribe(channels.UPDATE_ERROR, callback),
+  onUpdateDownloaded: (callback: (info: UpdateInfo) => void) =>
+    subscribe(channels.UPDATE_DOWNLOADED, callback),
+  onUpdateDownloadProgress: (callback: (progress: ProgressInfo) => void) =>
+    subscribe(channels.UPDATE_DOWNLOAD_PROGRESS, callback),
+};
+
+contextBridge.exposeInMainWorld('electronAPI', electronAPI);
+
+export type ElectronAPI = typeof electronAPI;

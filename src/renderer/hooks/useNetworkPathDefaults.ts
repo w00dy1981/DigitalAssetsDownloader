@@ -1,5 +1,4 @@
 import { useEffect } from 'react';
-import { configurationService } from '@/services/ConfigurationService';
 import { logger } from '@/services/LoggingService';
 
 interface UseNetworkPathDefaultsParams {
@@ -20,7 +19,7 @@ export const useNetworkPathDefaults = ({
 
     const loadSavedSettings = async () => {
       try {
-        const settings = await configurationService.loadUserSettings();
+        const settings = await window.electronAPI.loadSettings();
         if (!isMounted) {
           return;
         }
@@ -55,16 +54,10 @@ export const useNetworkPathDefaults = ({
 
     const timeoutId = setTimeout(async () => {
       try {
-        const currentSettings = await configurationService.loadUserSettings();
-        const updatedSettings = {
-          ...currentSettings,
-          defaultPaths: {
-            ...currentSettings.defaultPaths,
-            imageNetworkPath: imageFilePath,
-            pdfNetworkPath: pdfFilePath,
-          },
-        };
-        await configurationService.saveUserSettings(updatedSettings);
+        await window.electronAPI.saveNetworkPaths({
+          imageNetworkPath: imageFilePath,
+          pdfNetworkPath: pdfFilePath,
+        });
       } catch (error) {
         logger.error(
           'useNetworkPathDefaults: Error saving default network paths',
