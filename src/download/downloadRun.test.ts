@@ -152,7 +152,7 @@ test('failed image sources fall back and source-folder matches take priority', a
   await fs.writeFile(invalid, '<html>Image not found</html>');
 
   const { result, workbook } = await download([
-    { Code: 'LOCAL', Filename: 'custom.png', Image: invalid },
+    { Code: 'LOCAL', Filename: 'custom.png', Image: '' },
     { Code: 'FALLBACK', Image: invalid, Backup: red },
   ]);
 
@@ -170,6 +170,45 @@ test('failed image sources fall back and source-folder matches take priority', a
     'Photo File Path',
   ]);
   expect(erp.getCell('B3').text).toBe(config.imageFilePath + '\\FALLBACK.jpg');
+});
+
+test('folder images need no URL column and a missing match is logged', async () => {
+  config.sourceImageFolder = root;
+  config.imageColumns = [];
+  config.pdfColumn = '';
+  const source = await makeImage('FOUND', 0xff0000ff);
+  const { result, workbook } = await download([
+    { Code: 'FOUND' },
+    { Code: 'ABSENT' },
+  ]);
+  expect(result).toMatchObject({ successful: 1, failed: 1, total: 2 });
+  const log = workbook.getWorksheet('Download Log')!;
+  expect(log.getCell('C2').text).toBe(source);
+  expect(log.getCell('H3').text).toContain('No matching image');
+  expect(await fs.stat(log.getCell('I2').text)).toMatchObject({
+    size: expect.any(Number),
+  });
+  expect(workbook.getWorksheet('ERP Import')!.getCell('B2').text).toBe(
+    path.join(config.imageFilePath, 'FOUND.jpg')
+  );
+});
+
+test('PDF-only mapping uses the saved source folder only when selected', async () => {
+  config.sourceImageFolder = root;
+  config.imageColumns = [];
+  await makeImage('ITEM', 0xff0000ff);
+  const pdf = path.join(root, 'sheet.pdf');
+  await fs.writeFile(pdf, '%PDF-1.4');
+  const rows = [{ Code: 'ITEM', PDF: pdf }];
+  expect((await download(rows)).result).toMatchObject({
+    successful: 1,
+    total: 1,
+  });
+  config.includeFolderImagesWithPdfs = true;
+  expect((await download(rows)).result).toMatchObject({
+    successful: 2,
+    total: 2,
+  });
 });
 
 test('an unavailable source folder falls back to the mapped image for each product', async () => {

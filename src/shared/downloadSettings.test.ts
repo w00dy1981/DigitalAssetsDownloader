@@ -36,10 +36,15 @@ describe('download settings', () => {
     });
 
     it('should require at least one download type', () => {
-      const config = { ...validConfig, imageColumns: [], pdfColumn: '' };
+      const config = {
+        ...validConfig,
+        imageColumns: [],
+        pdfColumn: '',
+        sourceImageFolder: '',
+      };
       const result = downloadConfigErrors(config);
       expect(result).toContain(
-        'At least one Image URL column or PDF column is required'
+        'Choose an image column, a source image folder or a PDF column'
       );
     });
 

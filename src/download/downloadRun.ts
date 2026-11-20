@@ -33,7 +33,6 @@ export interface DownloadCompletionEvent {
 }
 
 export interface DownloadOptions extends DownloadPlanConfig {
-  sourceImageFolder: string;
   maxWorkers: number;
   backgroundProcessing: ImageOptions;
 }

@@ -1,4 +1,8 @@
-import { downloadConfigErrors, limits } from '@/shared/downloadSettings';
+import {
+  downloadConfigErrors,
+  limits,
+  usesSourceImageFolder,
+} from '@/shared/downloadSettings';
 import type { WorkflowScreenProps } from '../App';
 import { NumberInput } from './ui';
 import ActivityLog from './process/ActivityLog';
@@ -9,6 +13,8 @@ export default function ProcessTab({ data, onChange }: WorkflowScreenProps) {
   const { options } = data;
   const { phase, progress, logs, handleStartDownloads, handleCancelDownloads } =
     useDownloadLifecycle(data);
+  const searchFolder = usesSourceImageFolder(options);
+  const hasImages = options.imageColumns.length > 0 || searchFolder;
   const validationErrors = downloadConfigErrors(options);
   const isConfigValid = validationErrors.length === 0;
 
@@ -34,8 +40,14 @@ export default function ProcessTab({ data, onChange }: WorkflowScreenProps) {
                 label="PDF Column"
                 value={options.pdfColumn || 'None'}
               />
+              {searchFolder && (
+                <SummaryRow
+                  label="Source Image Folder"
+                  value={options.sourceImageFolder}
+                />
+              )}
               <SummaryRow label="Workers" value={options.maxWorkers} />
-              {options.imageColumns.length > 0 && (
+              {hasImages && (
                 <SummaryRow
                   label="Image Network Path"
                   value={options.imageFilePath || 'None'}
@@ -82,7 +94,7 @@ export default function ProcessTab({ data, onChange }: WorkflowScreenProps) {
                 </small>
               </div>
 
-              {options.imageColumns.length > 0 && (
+              {hasImages && (
                 <>
                   <div className="form-group">
                     <label className="checkbox-label">

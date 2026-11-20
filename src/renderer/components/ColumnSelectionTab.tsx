@@ -88,6 +88,20 @@ export default function ColumnSelectionTab({
             onChange={value => onChange({ pdfColumn: value })}
             columns={data.columns}
           />
+          {options.sourceImageFolder &&
+            options.pdfColumn &&
+            !options.imageColumns.length && (
+              <label className="checkbox-label">
+                <input
+                  type="checkbox"
+                  checked={Boolean(options.includeFolderImagesWithPdfs)}
+                  onChange={e =>
+                    onChange({ includeFolderImagesWithPdfs: e.target.checked })
+                  }
+                />
+                Include images from Source Image Folder with these PDFs
+              </label>
+            )}
           <ColumnField
             id="filename-column"
             label="Custom Filename Column (Optional)"

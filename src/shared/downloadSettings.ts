@@ -1,3 +1,4 @@
+import type { DownloadPlanConfig } from '@/download/downloadPlan';
 import type { DownloadOptions } from '@/download/downloadRun';
 import type { UserSettings } from '@/shared/userSettings';
 
@@ -49,18 +50,31 @@ function checkFolder(errors: string[], name: string, folder: string) {
     errors.push(`${name} contains invalid or unsafe path characters`);
 }
 
+export function usesSourceImageFolder(config: DownloadPlanConfig): boolean {
+  return Boolean(
+    config.sourceImageFolder &&
+      (config.imageColumns.length ||
+        !config.pdfColumn ||
+        config.includeFolderImagesWithPdfs)
+  );
+}
+
 export function downloadConfigErrors(config: DownloadOptions): string[] {
   const errors: string[] = [];
   if (!config.partNoColumn?.trim())
     errors.push('Part Number Column is required');
-  if (!config.imageColumns.length && !config.pdfColumn)
-    errors.push('At least one Image URL column or PDF column is required');
-  if (config.imageColumns.length)
+  const hasImages =
+    config.imageColumns.length > 0 || usesSourceImageFolder(config);
+  if (!hasImages && !config.pdfColumn)
+    errors.push(
+      'Choose an image column, a source image folder or a PDF column'
+    );
+  if (hasImages)
     checkFolder(errors, 'Image Download Folder', config.imageFolder);
   if (config.pdfColumn)
     checkFolder(errors, 'PDF Download Folder', config.pdfFolder);
   checkRange(errors, 'Max Workers', config.maxWorkers, limits.workers);
-  if (config.imageColumns.length) {
+  if (hasImages) {
     checkRange(
       errors,
       'JPEG Quality',
