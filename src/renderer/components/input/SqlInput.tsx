@@ -183,8 +183,8 @@ export function SqlInput({
               disabled={loading}
             />
             <small className="text-muted">
-              Run SQL executes the batch with this login's permissions. Leave
-              Database blank to use the login’s default database.
+              Run SQL executes the batch with the permissions of this login.
+              Leave Database blank to use the login’s default database.
             </small>
           </div>
         </div>
