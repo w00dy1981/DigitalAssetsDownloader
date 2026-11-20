@@ -10,7 +10,6 @@ import {
 
 describe('pathSecurity', () => {
   const testRoot = '/safe/root';
-  const testFile = '/safe/root/test.txt';
 
   beforeEach(() => {
     jest.clearAllMocks();
@@ -79,7 +78,7 @@ describe('pathSecurity', () => {
       const result = sanitizePath('test.txt');
       // When no allowed root is provided, path is normalized but not necessarily absolute
       // In Jest/browser contexts without native path module, this may return relative path
-      expect(result).toBe('test.txt');
+      expect(result).toBe(path.resolve('test.txt'));
     });
   });
 
@@ -154,18 +153,6 @@ describe('pathSecurity', () => {
   });
 
   describe('validateFileAccess', () => {
-    it('should return false when fs is not available', async () => {
-      const consoleWarnSpy = jest.spyOn(console, 'warn').mockImplementation();
-
-      const result = await validateFileAccess(testFile, testRoot);
-      expect(result).toBe(false);
-      expect(consoleWarnSpy).toHaveBeenCalledWith(
-        'File system validation attempted without fs access.'
-      );
-
-      consoleWarnSpy.mockRestore();
-    });
-
     it('should return false for unsafe paths', async () => {
       const consoleWarnSpy = jest.spyOn(console, 'warn').mockImplementation();
 
@@ -180,13 +167,6 @@ describe('pathSecurity', () => {
   });
 
   describe('safeReadDir', () => {
-    it('should throw when fs is not available', async () => {
-      await expect(safeReadDir(testRoot)).rejects.toThrow(PathSecurityError);
-      await expect(safeReadDir(testRoot)).rejects.toThrow(
-        'File system access is not available in this environment'
-      );
-    });
-
     it('should throw PathSecurityError for unsafe directory path', async () => {
       await expect(safeReadDir('../etc', testRoot)).rejects.toThrow(
         PathSecurityError

@@ -15,7 +15,7 @@ import {
   SqlLoadRequest,
   SqlPreviewRequest,
 } from '@/shared/types';
-import { ExcelService } from '@/services/excelService';
+import { getSheetNames, loadSheetData } from '@/services/excelService';
 import { DownloadService } from '@/services/downloadService';
 import { appConstants } from '@/services/AppConstantsService';
 import { SqlServerService } from '@/services/SqlServerService';
@@ -37,7 +37,6 @@ process.on('unhandledRejection', (reason, promise) => {
 class DigitalAssetDownloaderApp {
   private mainWindow: BrowserWindow | null = null;
   private store: Store<AppConfig>;
-  private excelService: ExcelService;
   private downloadService: DownloadService;
   private sqlServerService: SqlServerService;
   private sqlCredentialService!: SqlCredentialService;
@@ -69,7 +68,6 @@ class DigitalAssetDownloaderApp {
         recentFiles: [],
       },
     });
-    this.excelService = new ExcelService();
     this.downloadService = new DownloadService();
     this.sqlServerService = new SqlServerService();
     this.currentSpreadsheetData = null;
@@ -325,7 +323,7 @@ class DigitalAssetDownloaderApp {
       IPC_CHANNELS.GET_SHEET_NAMES,
       async (_, filePath: string) => {
         try {
-          const sheets = await this.excelService.getSheetNames(filePath);
+          const sheets = await getSheetNames(filePath);
           return sheets;
         } catch (error) {
           console.error('Error getting sheet names:', error);
@@ -340,7 +338,7 @@ class DigitalAssetDownloaderApp {
       IPC_CHANNELS.LOAD_SHEET_DATA,
       async (_, filePath: string, sheetName: string) => {
         try {
-          const data = await this.excelService.loadSheetData(
+          const data = await loadSheetData(
             filePath,
             sheetName
           );
