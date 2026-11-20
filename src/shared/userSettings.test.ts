@@ -21,3 +21,12 @@ test('fills missing fields in older settings and keeps saved preferences', () =>
     allowedCrossDatabases: [],
   });
 });
+
+test('keeps credentials out of restored SQL preferences', () => {
+  const saved = {
+    sqlSettings: { defaultUsername: 'reader', password: 'fixture' },
+  };
+  const settings = mergeUserSettings(saved);
+  expect(settings.sqlSettings.defaultUsername).toBe('reader');
+  expect(settings.sqlSettings).not.toHaveProperty('password');
+});

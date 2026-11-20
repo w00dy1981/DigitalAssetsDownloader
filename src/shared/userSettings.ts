@@ -40,49 +40,24 @@ export const defaultUserSettings = {
   },
 } satisfies UserSettings;
 
-type SavedUserSettings = {
-  [Section in keyof UserSettings]?: Partial<NonNullable<UserSettings[Section]>>;
-};
+type Settings = Required<UserSettings>;
+type SavedFields<T> = { [Section in keyof T]?: Partial<T[Section]> };
 
-export function mergeUserSettings(
-  savedSettings: SavedUserSettings = {}
-): UserSettings {
-  return {
-    ...defaultUserSettings,
-    ...savedSettings,
-    defaultPaths: {
-      ...defaultUserSettings.defaultPaths,
-      ...savedSettings.defaultPaths,
-    },
-    downloadBehavior: {
-      ...defaultUserSettings.downloadBehavior,
-      ...savedSettings.downloadBehavior,
-    },
-    imageProcessing: {
-      ...defaultUserSettings.imageProcessing,
-      ...savedSettings.imageProcessing,
-    },
-    uiPreferences: {
-      ...defaultUserSettings.uiPreferences,
-      ...savedSettings.uiPreferences,
-    },
-    updateSettings: {
-      ...defaultUserSettings.updateSettings,
-      ...savedSettings.updateSettings,
-    },
-    sqlSettings: {
-      defaultServer:
-        savedSettings.sqlSettings?.defaultServer ??
-        defaultUserSettings.sqlSettings.defaultServer,
-      defaultDatabase:
-        savedSettings.sqlSettings?.defaultDatabase ??
-        defaultUserSettings.sqlSettings.defaultDatabase,
-      defaultUsername:
-        savedSettings.sqlSettings?.defaultUsername ??
-        defaultUserSettings.sqlSettings.defaultUsername,
-      allowedCrossDatabases:
-        savedSettings.sqlSettings?.allowedCrossDatabases ??
-        defaultUserSettings.sqlSettings.allowedCrossDatabases,
-    },
-  };
+function restoreDefaults<T extends Record<keyof T, object>>(
+  defaults: T,
+  saved: SavedFields<T>
+): T {
+  const settings = { ...saved, ...defaults };
+  for (const section in defaults) {
+    const fields = { ...defaults[section] };
+    for (const field in fields) {
+      fields[field] = saved[section]?.[field] ?? fields[field];
+    }
+    settings[section] = fields;
+  }
+  return settings;
+}
+
+export function mergeUserSettings(saved: SavedFields<Settings> = {}): Settings {
+  return restoreDefaults<Settings>(defaultUserSettings, saved);
 }
