@@ -24,34 +24,16 @@ const ColumnSelectionTab: React.FC<ColumnSelectionTabProps> = ({
   initialConfig,
 }) => {
   const {
-    state,
-    columnOptions,
-    setPartNoColumn,
-    setImageColumns,
-    setPdfColumn,
-    setFilenameColumn,
-    setImageFolder,
-    setPdfFolder,
-    setSourceImageFolder,
+    config,
+    error,
+    setError,
+    update,
+    handleNext,
     setImageFilePath,
     setPdfFilePath,
-    setError,
-    error,
-    currentConfig,
-    handleNext,
   } = useColumnSelectionState({ data, initialConfig, onConfigurationComplete });
-
-  const {
-    partNoColumn,
-    imageColumns,
-    pdfColumn,
-    filenameColumn,
-    imageFolder,
-    pdfFolder,
-    sourceImageFolder,
-    imageFilePath,
-    pdfFilePath,
-  } = state;
+  const { imageFilePath, pdfFilePath } = config;
+  const columnOptions = data.columns.map(value => ({ value, label: value }));
 
   useNetworkPathDefaults({
     imageFilePath,
@@ -76,26 +58,26 @@ const ColumnSelectionTab: React.FC<ColumnSelectionTabProps> = ({
 
       <div className="configuration-sections">
         <ColumnMappingPanel
-          data={data}
-          partNoColumn={partNoColumn}
-          onPartNoColumnChange={setPartNoColumn}
-          imageColumns={imageColumns}
-          onImageColumnsChange={setImageColumns}
-          pdfColumn={pdfColumn}
-          onPdfColumnChange={setPdfColumn}
-          filenameColumn={filenameColumn}
-          onFilenameColumnChange={setFilenameColumn}
+          partNoColumn={config.partNoColumn}
+          onPartNoColumnChange={value => update('partNoColumn', value)}
+          imageColumns={config.imageColumns}
+          onImageColumnsChange={value => update('imageColumns', value)}
+          pdfColumn={config.pdfColumn}
+          onPdfColumnChange={value => update('pdfColumn', value)}
+          filenameColumn={config.filenameColumn}
+          onFilenameColumnChange={value => update('filenameColumn', value)}
           columnOptions={columnOptions}
-          onValidationError={setError}
         />
 
         <FolderConfigurationPanel
-          imageFolder={imageFolder}
-          onImageFolderChange={setImageFolder}
-          pdfFolder={pdfFolder}
-          onPdfFolderChange={setPdfFolder}
-          sourceImageFolder={sourceImageFolder}
-          onSourceImageFolderChange={setSourceImageFolder}
+          imageFolder={config.imageFolder}
+          onImageFolderChange={value => update('imageFolder', value)}
+          pdfFolder={config.pdfFolder}
+          onPdfFolderChange={value => update('pdfFolder', value)}
+          sourceImageFolder={config.sourceImageFolder}
+          onSourceImageFolderChange={value =>
+            update('sourceImageFolder', value)
+          }
           onError={setError}
         />
 
@@ -117,7 +99,7 @@ const ColumnSelectionTab: React.FC<ColumnSelectionTabProps> = ({
           className="btn btn-secondary"
           onClick={async () => {
             const result =
-              await configurationService.saveDownloadConfig(currentConfig);
+              await configurationService.saveDownloadConfig(config);
 
             if (!result.success) {
               logger.error(
