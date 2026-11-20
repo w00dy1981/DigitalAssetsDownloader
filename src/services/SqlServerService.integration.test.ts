@@ -108,4 +108,81 @@ describeIf('SqlServerService integration (requires live SQL Server)', () => {
     expect(result.sourceLabel).toBe(`${SQL_SERVER} / ${SQL_DATABASE}`);
     expect(result.rowCount).toBeGreaterThanOrEqual(0);
   }, 60000);
+
+  it.each([
+    [
+      'a CTE with DISTINCT and a nested SELECT',
+      `WITH Products AS (SELECT PartNo FROM (VALUES (1), (2), (2), (3)) p(PartNo))
+SELECT DISTINCT PartNo, (SELECT ' SELECT ' AS label) AS Label
+FROM Products ORDER BY PartNo DESC`,
+      ['3', '2'],
+      3,
+    ],
+    [
+      'a set operation',
+      'SELECT 1 AS PartNo UNION ALL SELECT 3 UNION ALL SELECT 2 ORDER BY PartNo DESC',
+      ['3', '2'],
+      3,
+    ],
+    [
+      'a query with OFFSET and FETCH',
+      `SELECT PartNo FROM (VALUES (1), (2), (3), (4), (5)) p(PartNo)
+ORDER BY PartNo OFFSET 1 ROWS FETCH NEXT 3 ROWS ONLY`,
+      ['2', '3'],
+      3,
+    ],
+    [
+      'a query with TOP WITH TIES',
+      `SELECT TOP (2) WITH TIES PartNo FROM (VALUES (1), (2), (2), (3)) p(PartNo)
+ORDER BY PartNo`,
+      ['1', '2'],
+      3,
+    ],
+  ])('limits and counts %s', async (_, query, partNumbers, total) => {
+    const result = await service.previewQuery({ ...base, query, rowLimit: 2 });
+
+    expect(result.rows.map(row => row.PartNo)).toEqual(partNumbers);
+    expect(result.rowCount).toBe(2);
+    expect(result.totalRowCount).toBe(total);
+  });
+
+  it('preserves columns for empty results', async () => {
+    const result = await service.previewQuery({
+      ...base,
+      query: 'SELECT 1 AS PartNo WHERE 1 = 0',
+      rowLimit: 2,
+    });
+
+    expect(result).toMatchObject({
+      columns: ['PartNo'],
+      rows: [],
+      rowCount: 0,
+      totalRowCount: 0,
+    });
+  });
+
+  it('keeps the preview and load limits distinct from the total count', async () => {
+    const query = `WITH Digits AS (SELECT Digit FROM (VALUES
+      (0),(1),(2),(3),(4),(5),(6),(7),(8),(9)) d(Digit))
+SELECT TOP (10002) a.Digit + 10 * b.Digit + 100 * c.Digit +
+  1000 * d.Digit + 10000 * e.Digit AS PartNo
+FROM Digits a CROSS JOIN Digits b CROSS JOIN Digits c
+CROSS JOIN Digits d CROSS JOIN Digits e ORDER BY PartNo`;
+
+    const preview = await service.previewQuery({
+      ...base,
+      query,
+      rowLimit: 50,
+    });
+    const loaded = await service.loadQueryData({
+      ...base,
+      query,
+      rowLimit: 10000,
+    });
+
+    expect(preview).toMatchObject({ rowCount: 50, totalRowCount: 10002 });
+    expect(loaded).toMatchObject({ rowCount: 10000, totalRowCount: 10002 });
+    expect(loaded.rows.slice(0, 50)).toEqual(preview.rows);
+    expect(loaded.rows[9999]).toEqual({ PartNo: '9999' });
+  });
 });

@@ -9,8 +9,6 @@ import {
 } from '@/shared/types';
 import { logger } from './LoggingService';
 import { CONSTANTS } from '@/shared/constants';
-import { stripSqlComments } from '@/shared/sqlUtils';
-export { stripSqlComments };
 
 const DANGEROUS_PATTERNS: Array<{ pattern: RegExp; label: string }> = [
   { pattern: /\binsert\b/i, label: 'INSERT' },
@@ -41,29 +39,21 @@ export interface SqlValidationResult {
   errors: string[];
 }
 
-export function redactSqlRequest<T extends Partial<SqlQueryRequest>>(
-  request: T
-): Omit<T, 'password'> & { password?: string } {
-  const rest = { ...request };
-  delete rest.password;
-  return { ...rest, password: '[REDACTED]' };
-}
-
 export function validateSqlQuery(
   query: string,
   allowedCrossDatabases: string[] = []
 ): SqlValidationResult {
+  return validateReadOnlyQuery(
+    typeof query === 'string' ? stripSqlComments(query) : '',
+    allowedCrossDatabases
+  );
+}
+
+function validateReadOnlyQuery(
+  strippedQuery: string,
+  allowedCrossDatabases: string[] = []
+): SqlValidationResult {
   const errors: string[] = [];
-  const raw = typeof query === 'string' ? query : '';
-
-  if (!raw.trim()) {
-    return { isValid: false, errors: ['SQL query is required'] };
-  }
-
-  // Strip comments before all validation so SSMS-pasted queries work safely.
-  // Dangerous SQL hidden inside comments is removed and never executed.
-  const strippedQuery = stripSqlComments(raw);
-
   if (!strippedQuery) {
     return { isValid: false, errors: ['SQL query is required'] };
   }
@@ -107,123 +97,75 @@ export function validateSqlQuery(
   };
 }
 
-export function applySqlRowLimit(query: string, rowLimit: number): string {
-  const trimmedQuery = query.trim().replace(/;+\s*$/, '');
-  const normalizedLimit = Math.max(1, Math.floor(rowLimit));
+export function stripSqlComments(query: string): string {
+  const tokens =
+    /--[^\r\n]*|\/\*|'(?:''|[^'])*'|"(?:""|[^"])*"|\[(?:\]\]|[^\]])*\]/g;
+  let cursor = 0;
+  let result = '';
+  let token: RegExpExecArray | null;
 
-  if (/\bselect\s+(distinct\s+)?top\s*[\d(]/i.test(trimmedQuery)) {
-    return trimmedQuery;
-  }
-
-  if (/^select\s+distinct\b/i.test(trimmedQuery)) {
-    return trimmedQuery.replace(
-      /^select\s+distinct\b/i,
-      `SELECT DISTINCT TOP (${normalizedLimit})`
-    );
-  }
-
-  if (/^select\b/i.test(trimmedQuery)) {
-    return trimmedQuery.replace(
-      /^select\b/i,
-      `SELECT TOP (${normalizedLimit})`
-    );
-  }
-
-  if (/^with\b/i.test(trimmedQuery)) {
-    const selectMatches = [...trimmedQuery.matchAll(/\bselect\b/gi)];
-    const finalSelect = selectMatches[selectMatches.length - 1];
-    if (finalSelect?.index !== undefined) {
-      return `${trimmedQuery.slice(0, finalSelect.index)}SELECT TOP (${normalizedLimit})${trimmedQuery.slice(finalSelect.index + 'select'.length)}`;
+  while ((token = tokens.exec(query)) !== null) {
+    if (token[0].startsWith('--')) {
+      result += query.slice(cursor, token.index);
+      cursor = tokens.lastIndex;
+    } else if (token[0] === '/*') {
+      result += query.slice(cursor, token.index) + ' ';
+      const markers = /\/\*|\*\//g;
+      markers.lastIndex = tokens.lastIndex;
+      let depth = 1;
+      let marker: RegExpExecArray | null;
+      while (depth > 0 && (marker = markers.exec(query)) !== null) {
+        depth += marker[0] === '/*' ? 1 : -1;
+      }
+      cursor = depth === 0 ? markers.lastIndex : query.length;
+      tokens.lastIndex = cursor;
     }
   }
-
-  return `SELECT TOP (${normalizedLimit}) * FROM (${trimmedQuery}) AS sql_limited_result`;
+  return (result + query.slice(cursor)).trim();
 }
 
-function isSqlIdentifierCharacter(char: string | undefined): boolean {
-  return !!char && /[a-zA-Z0-9_]/.test(char);
-}
-
-export function stripFinalOrderBy(query: string): string {
-  const trimmedQuery = query.trim().replace(/;+\s*$/, '');
+function topLevelWords(query: string): { word: string; index: number }[] {
+  const tokens =
+    /'(?:''|[^'])*'|"(?:""|[^"])*"|\[(?:\]\]|[^\]])*\]|[\p{L}\p{N}_@$#]+|[()]/gu;
+  const words: { word: string; index: number }[] = [];
   let depth = 0;
-  let inSingleQuote = false;
-  let inBracketIdentifier = false;
-  let finalOrderByIndex = -1;
+  let token: RegExpExecArray | null;
 
-  for (let i = 0; i < trimmedQuery.length; i++) {
-    const char = trimmedQuery[i];
-    const nextChar = trimmedQuery[i + 1];
-
-    if (inSingleQuote) {
-      if (char === "'" && nextChar === "'") {
-        i++;
-      } else if (char === "'") {
-        inSingleQuote = false;
-      }
-      continue;
-    }
-
-    if (inBracketIdentifier) {
-      if (char === ']') {
-        inBracketIdentifier = false;
-      }
-      continue;
-    }
-
-    if (char === "'") {
-      inSingleQuote = true;
-      continue;
-    }
-
-    if (char === '[') {
-      inBracketIdentifier = true;
-      continue;
-    }
-
-    if (char === '(') {
-      depth++;
-      continue;
-    }
-
-    if (char === ')') {
-      depth = Math.max(0, depth - 1);
-      continue;
-    }
-
-    if (
-      depth === 0 &&
-      trimmedQuery.slice(i, i + 5).toLowerCase() === 'order' &&
-      !isSqlIdentifierCharacter(trimmedQuery[i - 1]) &&
-      !isSqlIdentifierCharacter(trimmedQuery[i + 5])
-    ) {
-      const afterOrder = trimmedQuery.slice(i + 5);
-      const byMatch = afterOrder.match(/^\s+by\b/i);
-      if (byMatch) {
-        finalOrderByIndex = i;
-      }
+  while ((token = tokens.exec(query)) !== null) {
+    const value = token[0];
+    if (value === '(') depth++;
+    else if (value === ')') depth--;
+    else if (depth === 0) {
+      words.push({ word: value.toUpperCase(), index: token.index });
     }
   }
-
-  return finalOrderByIndex >= 0
-    ? trimmedQuery.slice(0, finalOrderByIndex).trim()
-    : trimmedQuery;
+  return words;
 }
 
-export function buildSqlCountQuery(query: string): string {
-  const countableQuery = stripFinalOrderBy(query);
-
-  if (/^with\b/i.test(countableQuery)) {
-    const selectMatches = [...countableQuery.matchAll(/\bselect\b/gi)];
-    const finalSelect = selectMatches[selectMatches.length - 1];
-    if (finalSelect?.index !== undefined) {
-      const ctePrefix = countableQuery.slice(0, finalSelect.index);
-      const finalSelectQuery = countableQuery.slice(finalSelect.index);
-      return `${ctePrefix}SELECT COUNT_BIG(1) AS totalRowCount FROM (${finalSelectQuery}) AS sql_count_result`;
-    }
+function buildSqlCountQuery(query: string): string {
+  const words = topLevelWords(query);
+  const select = words.find(token => token.word === 'SELECT');
+  if (!select)
+    throw new Error('SQL query rejected: Only SELECT queries are allowed');
+  if (words.some(token => token.word === 'SET')) {
+    throw new Error('SQL query rejected: SET is not allowed');
   }
 
-  return `SELECT COUNT_BIG(1) AS totalRowCount FROM (${countableQuery}) AS sql_count_result`;
+  const order = words.findIndex(
+    (token, index) => token.word === 'ORDER' && words[index + 1]?.word === 'BY'
+  );
+  // Pagination and ties depend on ORDER BY even when only counting rows.
+  const keepOrder =
+    words.slice(order + 2).some(token => token.word === 'OFFSET') ||
+    words.some(
+      (token, index) =>
+        token.word === 'WITH' && words[index + 1]?.word === 'TIES'
+    );
+  const end = order >= 0 && !keepOrder ? words[order].index : query.length;
+  const prefix = query.slice(0, select.index);
+  const body = query.slice(select.index, end).trimEnd();
+
+  return `${prefix}SELECT COUNT_BIG(1) AS totalRowCount FROM (${body}) AS sql_count_result`;
 }
 
 export class SqlServerService {
@@ -240,11 +182,11 @@ export class SqlServerService {
   }
 
   async previewQuery(request: SqlPreviewRequest): Promise<SqlQueryResult> {
-    return this.executeQuery(request);
+    return this.executeQuery(request, CONSTANTS.SQL.PREVIEW_ROW_LIMIT);
   }
 
   async loadQueryData(request: SqlLoadRequest): Promise<SqlQueryResult> {
-    return this.executeQuery(request);
+    return this.executeQuery(request, CONSTANTS.SQL.FULL_LOAD_ROW_LIMIT);
   }
 
   getSafeConnectionDetails(
@@ -258,20 +200,32 @@ export class SqlServerService {
   }
 
   private async executeQuery(
-    request: SqlQueryRequest
+    request: SqlQueryRequest,
+    maxRows: number
   ): Promise<SqlQueryResult> {
-    this.validateRequest(request);
-    const safeQuery = stripSqlComments(request.query);
-    const limitedQuery = applySqlRowLimit(
-      safeQuery,
-      request.rowLimit || CONSTANTS.SQL.PREVIEW_ROW_LIMIT
-    );
+    const safeQuery = this.validateRequest(request);
     const countQuery = buildSqlCountQuery(safeQuery);
+    const rowLimit = request.rowLimit;
+    const limit =
+      typeof rowLimit === 'number' &&
+      Number.isFinite(rowLimit) &&
+      rowLimit !== 0
+        ? Math.min(maxRows, Math.max(1, Math.floor(rowLimit)))
+        : maxRows;
 
     const pool = await this.createConnectionPool(request);
     try {
-      const result = await pool.request().query(limitedQuery);
-      const countResult = await pool.request().query(countQuery);
+      const countResult = await pool
+        .request()
+        .query<{ totalRowCount: unknown }>(countQuery);
+      const result = await pool
+        .request()
+        .input('appRowLimit', sql.Int, limit)
+        .query<Record<string, unknown>>(
+          `SET ROWCOUNT @appRowLimit;
+${safeQuery}
+SET ROWCOUNT 0;`
+        );
       const rows = (result.recordset || []).map(row => this.normalizeRow(row));
       const columns = this.extractColumns(result.recordset?.columns, rows);
       const totalRowCount = this.extractTotalRowCount(
@@ -298,16 +252,19 @@ export class SqlServerService {
     }
   }
 
-  private validateRequest(request: SqlQueryRequest): void {
+  private validateRequest(request: SqlQueryRequest): string {
     this.validateConnectionRequest(request);
 
-    const validation = validateSqlQuery(
-      request.query,
+    const safeQuery =
+      typeof request.query === 'string' ? stripSqlComments(request.query) : '';
+    const validation = validateReadOnlyQuery(
+      safeQuery,
       request.allowedCrossDatabases
     );
     if (!validation.isValid) {
       throw new Error(`SQL query rejected: ${validation.errors.join(', ')}`);
     }
+    return safeQuery;
   }
 
   private validateConnectionRequest(
@@ -394,7 +351,7 @@ export class SqlServerService {
     columnMetadata:
       | Record<string, { name?: string; index?: number }>
       | undefined,
-    rows: Record<string, any>[]
+    rows: Record<string, string>[]
   ): string[] {
     if (columnMetadata) {
       return Object.values(columnMetadata)
@@ -406,18 +363,15 @@ export class SqlServerService {
     return rows.length > 0 ? Object.keys(rows[0]) : [];
   }
 
-  private normalizeRow(row: Record<string, any>): Record<string, any> {
-    const normalized: Record<string, any> = {};
-    Object.entries(row).forEach(([key, value]) => {
-      if (value === null || value === undefined) {
-        normalized[key] = '';
-      } else if (value instanceof Date) {
-        normalized[key] = value.toISOString();
-      } else {
-        normalized[key] = String(value).trim();
-      }
-    });
-    return normalized;
+  private normalizeRow(row: Record<string, unknown>): Record<string, string> {
+    return Object.fromEntries(
+      Object.entries(row).map(([key, value]) => [
+        key,
+        value instanceof Date
+          ? value.toISOString()
+          : String(value ?? '').trim(),
+      ])
+    );
   }
 
   private safeSqlErrorMessage(error: unknown): string {

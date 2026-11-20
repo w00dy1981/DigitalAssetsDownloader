@@ -1,25 +1,20 @@
 import * as mssql from 'mssql';
 import {
-  applySqlRowLimit,
-  buildSqlCountQuery,
-  redactSqlRequest,
   SqlServerService,
   stripSqlComments,
-  stripFinalOrderBy,
   validateSqlQuery,
 } from './SqlServerService';
 
 const mockQuery = jest.fn();
+const mockInput = jest.fn(() => ({ query: mockQuery }));
 const mockClose = jest.fn();
 const mockConnect = jest.fn();
 
 jest.mock('mssql', () => ({
+  Int: Symbol('Int'),
   ConnectionPool: jest.fn().mockImplementation(() => ({
     connect: mockConnect,
     close: mockClose,
-    request: () => ({
-      query: mockQuery,
-    }),
   })),
 }));
 
@@ -84,99 +79,6 @@ describe('SqlServerService validation', () => {
   });
 });
 
-describe('SqlServerService query limiting', () => {
-  it('adds TOP to simple SELECT queries', () => {
-    expect(applySqlRowLimit('SELECT PartNo FROM Products', 50)).toBe(
-      'SELECT TOP (50) PartNo FROM Products'
-    );
-  });
-
-  it('adds TOP after SELECT DISTINCT', () => {
-    expect(applySqlRowLimit('SELECT DISTINCT PartNo FROM Products', 25)).toBe(
-      'SELECT DISTINCT TOP (25) PartNo FROM Products'
-    );
-  });
-
-  it('adds TOP to the final SELECT in a WITH query', () => {
-    expect(
-      applySqlRowLimit(
-        'WITH ProductRows AS (SELECT PartNo FROM Products) SELECT PartNo FROM ProductRows',
-        10
-      )
-    ).toBe(
-      'WITH ProductRows AS (SELECT PartNo FROM Products) SELECT TOP (10) PartNo FROM ProductRows'
-    );
-  });
-
-  it('does not alter queries that already have TOP (n)', () => {
-    expect(applySqlRowLimit('SELECT TOP (5) PartNo FROM Products', 50)).toBe(
-      'SELECT TOP (5) PartNo FROM Products'
-    );
-  });
-
-  it('does not alter queries that already have TOP n (no parens)', () => {
-    expect(applySqlRowLimit('SELECT TOP 10 * FROM Products', 50)).toBe(
-      'SELECT TOP 10 * FROM Products'
-    );
-  });
-
-  it('applies TOP correctly after stripping a line comment', () => {
-    expect(
-      applySqlRowLimit(
-        stripSqlComments('SELECT PartNo -- the part number\nFROM Products'),
-        50
-      )
-    ).toBe('SELECT TOP (50) PartNo \nFROM Products');
-  });
-});
-
-describe('SqlServerService query counting', () => {
-  it('builds a count query for a simple SELECT', () => {
-    expect(buildSqlCountQuery('SELECT PartNo FROM Products')).toBe(
-      'SELECT COUNT_BIG(1) AS totalRowCount FROM (SELECT PartNo FROM Products) AS sql_count_result'
-    );
-  });
-
-  it('strips the final ORDER BY before building a count query', () => {
-    const query = [
-      'SELECT PartNo, ProductTitle',
-      'FROM Products',
-      'ORDER BY ProductTitle',
-    ].join('\n');
-
-    expect(stripFinalOrderBy(query)).toBe(
-      ['SELECT PartNo, ProductTitle', 'FROM Products'].join('\n')
-    );
-    expect(buildSqlCountQuery(query)).toBe(
-      `SELECT COUNT_BIG(1) AS totalRowCount FROM (${['SELECT PartNo, ProductTitle', 'FROM Products'].join('\n')}) AS sql_count_result`
-    );
-  });
-
-  it('preserves ORDER BY inside a window function while stripping the final ORDER BY', () => {
-    const query = [
-      'SELECT ROW_NUMBER() OVER (ORDER BY ProductTitle) AS RowNo, ProductTitle',
-      'FROM Products',
-      'ORDER BY ProductTitle',
-    ].join('\n');
-
-    expect(stripFinalOrderBy(query)).toBe(
-      [
-        'SELECT ROW_NUMBER() OVER (ORDER BY ProductTitle) AS RowNo, ProductTitle',
-        'FROM Products',
-      ].join('\n')
-    );
-  });
-
-  it('builds a count query for a CTE SELECT', () => {
-    const query =
-      'WITH ProductRows AS (SELECT PartNo FROM Products) SELECT PartNo FROM ProductRows ORDER BY PartNo';
-
-    expect(buildSqlCountQuery(query)).toBe(
-      'WITH ProductRows AS (SELECT PartNo FROM Products) SELECT COUNT_BIG(1) AS totalRowCount FROM (SELECT PartNo FROM ProductRows) AS sql_count_result'
-    );
-  });
-});
-
 describe('stripSqlComments', () => {
   it('strips a line comment from a query', () => {
     expect(stripSqlComments('SELECT 1 -- this is a comment')).toBe('SELECT 1');
@@ -184,6 +86,14 @@ describe('stripSqlComments', () => {
 
   it('strips a block comment from a query', () => {
     expect(stripSqlComments('SELECT /* remove me */ 1')).toBe('SELECT   1');
+  });
+
+  it('preserves quoted names while removing nested comments', () => {
+    expect(
+      stripSqlComments(
+        'SELECT [--name] /* outer /* nested */ end */ FROM Products'
+      )
+    ).toBe('SELECT [--name]   FROM Products');
   });
 
   it('preserves -- inside a single-quoted string literal', () => {
@@ -325,9 +235,7 @@ describe('SqlServerService execution', () => {
     jest.clearAllMocks();
     mockConnect.mockResolvedValue({
       close: mockClose,
-      request: () => ({
-        query: mockQuery,
-      }),
+      request: () => ({ input: mockInput, query: mockQuery }),
     });
     mockClose.mockResolvedValue(undefined);
     mockQuery.mockResolvedValue({
@@ -352,13 +260,11 @@ describe('SqlServerService execution', () => {
     const service = new SqlServerService();
     const existingLoadedRows = [{ PartNo: 'Existing' }];
     mockQuery
+      .mockResolvedValueOnce({ recordset: [{ totalRowCount: '1384' }] })
       .mockResolvedValueOnce({
         recordset: [
           { PartNo: ' ABC ', ImageUrl: 'https://example.com/image.jpg' },
         ],
-      })
-      .mockResolvedValueOnce({
-        recordset: [{ totalRowCount: 1384 }],
       });
 
     const result = await service.previewQuery(request);
@@ -369,11 +275,12 @@ describe('SqlServerService execution', () => {
     expect(existingLoadedRows).toEqual([{ PartNo: 'Existing' }]);
     expect(result.rowCount).toBe(1);
     expect(result.totalRowCount).toBe(1384);
-    expect(mockQuery).toHaveBeenCalledWith(
-      'SELECT TOP (50) PartNo, ImageUrl FROM Products'
-    );
-    expect(mockQuery).toHaveBeenCalledWith(
-      'SELECT COUNT_BIG(1) AS totalRowCount FROM (SELECT PartNo, ImageUrl FROM Products) AS sql_count_result'
+    expect(mockInput).toHaveBeenCalledWith('appRowLimit', mssql.Int, 50);
+    expect(mockQuery).toHaveBeenNthCalledWith(
+      2,
+      `SET ROWCOUNT @appRowLimit;
+${request.query}
+SET ROWCOUNT 0;`
     );
   });
 
@@ -385,22 +292,34 @@ describe('SqlServerService execution', () => {
     expect(result.columns).toEqual(['PartNo', 'ImageUrl']);
     expect(result.rowCount).toBe(1);
     expect(result.sourceLabel).toBe('sql-server / Baker');
-    expect(mockQuery).toHaveBeenCalledWith(
-      'SELECT TOP (10000) PartNo, ImageUrl FROM Products'
-    );
+    expect(mockInput).toHaveBeenCalledWith('appRowLimit', mssql.Int, 10000);
   });
 
-  it('redacts password-bearing requests', () => {
-    expect(redactSqlRequest(request)).toEqual({
-      server: 'sql-server',
-      database: 'Baker',
-      username: 'DigitalAssetsDownloader',
-      query: 'SELECT PartNo, ImageUrl FROM Products',
-      rowLimit: 50,
-      queryTimeoutMs: 30000,
-      connectionTimeoutMs: 15000,
-      password: '[REDACTED]',
-    });
+  it('enforces the preview cap at the SQL service boundary', async () => {
+    await new SqlServerService().previewQuery({ ...request, rowLimit: 10000 });
+
+    expect(mockInput).toHaveBeenCalledWith('appRowLimit', mssql.Int, 50);
+  });
+
+  it.each([
+    'SELECT PartNo INTO NewProducts FROM Products',
+    'SELECT PartNo FROM Products ORDER BY PartNo\nSET NOCOUNT ON',
+  ])('rejects invalid queries before opening a connection', async query => {
+    await expect(
+      new SqlServerService().previewQuery({ ...request, query })
+    ).rejects.toThrow('SQL query rejected');
+
+    expect(mockConnect).not.toHaveBeenCalled();
+  });
+
+  it('closes the pool when counting fails', async () => {
+    mockQuery.mockRejectedValueOnce(new Error('SQL count failed'));
+
+    await expect(new SqlServerService().previewQuery(request)).rejects.toThrow(
+      'SQL count failed'
+    );
+    expect(mockQuery).toHaveBeenCalledTimes(1);
+    expect(mockClose).toHaveBeenCalledTimes(1);
   });
 
   it('propagates queryTimeoutMs to the connection config', async () => {
