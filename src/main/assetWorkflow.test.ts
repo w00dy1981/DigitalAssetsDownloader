@@ -3,12 +3,9 @@ import { mkdtemp, rm, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { DownloadService } from '@/download/downloadRun';
-import { SqlServerService } from '@/services/SqlServerService';
-import {
-  IPC_CHANNELS,
-  type DownloadConfig,
-  type SqlQueryResult,
-} from '@/shared/types';
+import * as sql from '@/sql/query';
+import type { SqlQueryResult } from '@/sql/contracts';
+import { IPC_CHANNELS, type DownloadConfig } from '@/shared/types';
 import { defaultUserSettings } from '@/shared/userSettings';
 import { registerAssetWorkflow } from './assetWorkflow';
 
@@ -51,15 +48,13 @@ test('returns summaries, preserves SQL preview rows, and starts only with the ma
     { getSettings: () => defaultUserSettings, rememberSqlConnection },
     jest.fn()
   );
+  let finishOlderLoad: (result: SqlQueryResult) => void = () => {};
   const start = jest
     .spyOn(DownloadService.prototype, 'startDownloads')
     .mockResolvedValue(undefined);
   jest
-    .spyOn(SqlServerService.prototype, 'previewQuery')
-    .mockResolvedValue(sqlResult);
-  const loadSql = jest.spyOn(SqlServerService.prototype, 'loadQueryData');
-  let finishOlderLoad: (result: SqlQueryResult) => void = () => {};
-  loadSql
+    .spyOn(sql, 'runSqlQuery')
+    .mockResolvedValueOnce(sqlResult)
     .mockResolvedValueOnce(sqlResult)
     .mockImplementationOnce(
       () =>

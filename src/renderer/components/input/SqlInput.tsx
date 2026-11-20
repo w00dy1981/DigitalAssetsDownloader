@@ -44,12 +44,7 @@ const sqlActions = {
 
 type SqlAction = keyof typeof sqlActions;
 
-const {
-  PREVIEW_ROW_LIMIT,
-  FULL_LOAD_ROW_LIMIT,
-  QUERY_TIMEOUT_MS,
-  CONNECTION_TIMEOUT_MS,
-} = SQL_CONSTANTS;
+const { PREVIEW_ROW_LIMIT, FULL_LOAD_ROW_LIMIT } = SQL_CONSTANTS;
 const credentialPart = (text: string) => text.trim().toLowerCase();
 
 export function SqlInput({
@@ -128,8 +123,6 @@ export function SqlInput({
       database: connection.database.trim(),
       username: connection.username.trim(),
       password: credentials.password.value,
-      queryTimeoutMs: QUERY_TIMEOUT_MS,
-      connectionTimeoutMs: CONNECTION_TIMEOUT_MS,
     };
     const field = connectionFields.find(({ field }) => !request[field]);
     if (field) {
@@ -171,16 +164,10 @@ export function SqlInput({
       };
       if (action === 'preview') {
         setPreview(null);
-        const result = await window.electronAPI.previewSqlQuery({
-          ...sql,
-          rowLimit: PREVIEW_ROW_LIMIT,
-        });
+        const result = await window.electronAPI.previewSqlQuery(sql);
         setPreview(result);
       } else {
-        const result = await window.electronAPI.loadSqlQueryData({
-          ...sql,
-          rowLimit: FULL_LOAD_ROW_LIMIT,
-        });
+        const result = await window.electronAPI.loadSqlQueryData(sql);
         setNotice(`Loaded ${result.rowCount.toLocaleString()} SQL rows.`);
         onDataLoaded(result);
       }

@@ -1,46 +1,18 @@
+import { parseEnv } from 'node:util';
 import * as fs from 'fs';
 import * as path from 'path';
 import { testSqlConnection } from './connection';
 import { runSqlQuery } from './query';
 
-jest.mock('@/services/LoggingService', () => ({
-  logger: {
-    error: jest.fn(),
-    info: jest.fn(),
-    warn: jest.fn(),
-    debug: jest.fn(),
-  },
-}));
+const fixture = path.resolve(process.cwd(), '.env.test.local');
+const creds = fs.existsSync(fixture)
+  ? parseEnv(fs.readFileSync(fixture, 'utf8'))
+  : {};
 
-function loadEnvFile(filePath: string): Record<string, string> {
-  try {
-    const content = fs.readFileSync(filePath, 'utf8');
-    return Object.fromEntries(
-      content
-        .split('\n')
-        .filter(line => line.trim() && !line.startsWith('#'))
-        .map(line => {
-          const eq = line.indexOf('=');
-          if (eq === -1) return null;
-          const val = line
-            .slice(eq + 1)
-            .trim()
-            .replace(/^(['"])(.*)\1$/, '$2');
-          return [line.slice(0, eq).trim(), val];
-        })
-        .filter((e): e is [string, string] => e !== null && e[0] !== '')
-    );
-  } catch {
-    return {};
-  }
-}
-
-const creds = loadEnvFile(path.resolve(process.cwd(), '.env.test.local'));
-
-const SQL_SERVER = creds.TEST_SQL_SERVER;
-const SQL_DATABASE = creds.TEST_SQL_DATABASE;
-const SQL_USERNAME = creds.TEST_SQL_USERNAME;
-const SQL_PASSWORD = creds.TEST_SQL_PASSWORD;
+const SQL_SERVER = creds.TEST_SQL_SERVER ?? '';
+const SQL_DATABASE = creds.TEST_SQL_DATABASE ?? '';
+const SQL_USERNAME = creds.TEST_SQL_USERNAME ?? '';
+const SQL_PASSWORD = creds.TEST_SQL_PASSWORD ?? '';
 const SQL_QUERY = creds.TEST_SQL_QUERY || 'SELECT TOP 1 1 AS test_col';
 
 const PLACEHOLDER = 'your-password-here';

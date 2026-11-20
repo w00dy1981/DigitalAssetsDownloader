@@ -1,6 +1,5 @@
 /** @jest-environment jsdom */
 
-import { SQL_CONSTANTS } from '@/sql/constants';
 import { createElement } from 'react';
 import '@testing-library/jest-dom';
 import {
@@ -149,7 +148,6 @@ test('requires a fresh SQL preview and confirmation before loading rows', async 
       expect.objectContaining({
         ...identity,
         query: 'SELECT SKU, URL FROM OtherAssets',
-        rowLimit: SQL_CONSTANTS.FULL_LOAD_ROW_LIMIT,
       })
     );
   } finally {

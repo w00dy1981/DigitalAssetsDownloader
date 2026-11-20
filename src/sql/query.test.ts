@@ -15,15 +15,6 @@ jest.mock('mssql', () => ({
   })),
 }));
 
-jest.mock('@/services/LoggingService', () => ({
-  logger: {
-    error: jest.fn(),
-    info: jest.fn(),
-    warn: jest.fn(),
-    debug: jest.fn(),
-  },
-}));
-
 describe('runSqlQuery', () => {
   beforeEach(() => {
     jest.clearAllMocks();

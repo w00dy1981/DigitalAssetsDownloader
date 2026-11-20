@@ -1,5 +1,4 @@
 import * as sql from 'mssql';
-import { logger } from '@/services/LoggingService';
 import { SQL_CONSTANTS } from './constants';
 import type { SqlConnectionRequest } from './contracts';
 
@@ -62,11 +61,7 @@ export async function connectSql(
     return await pool.connect();
   } catch (error) {
     const safeMessage = safeSqlErrorMessage(error);
-    logger.error(
-      'SQL connection failed',
-      new Error(safeMessage),
-      'SqlServerService'
-    );
+    console.error('SQL connection failed', safeMessage);
     throw new Error(safeMessage);
   }
 }

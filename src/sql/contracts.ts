@@ -33,10 +33,3 @@ export interface SqlQueryResult {
   totalRowCount: number;
   sourceLabel: string;
 }
-
-export interface SqlSettings {
-  defaultServer: string;
-  defaultDatabase: string;
-  defaultUsername: string;
-  allowedCrossDatabases: string[];
-}

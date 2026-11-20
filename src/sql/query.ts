@@ -1,5 +1,4 @@
 import { Int } from 'mssql';
-import { logger } from '@/services/LoggingService';
 import { SQL_CONSTANTS } from './constants';
 import {
   connectSql,
@@ -53,11 +52,7 @@ SET ROWCOUNT 0;`
     );
   } catch (error) {
     const safeMessage = safeSqlErrorMessage(error);
-    logger.error(
-      'SQL query execution failed',
-      new Error(safeMessage),
-      'SqlServerService'
-    );
+    console.error('SQL query execution failed', safeMessage);
     throw new Error(safeMessage);
   } finally {
     await pool.close();
