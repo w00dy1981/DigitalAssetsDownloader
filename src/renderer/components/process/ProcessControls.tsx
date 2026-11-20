@@ -116,7 +116,6 @@ const ProcessControls: React.FC<ProcessControlsProps> = ({
               value={config.maxWorkers}
               onChange={value => updateConfig({ maxWorkers: value })}
               {...limits.workers}
-              style={{ maxWidth: '120px' }}
             />
             <small className="form-text">
               Number of simultaneous downloads (1-20)
@@ -165,7 +164,6 @@ const ProcessControls: React.FC<ProcessControlsProps> = ({
                       })
                     }
                     className="form-control"
-                    style={{ maxWidth: '200px' }}
                   >
                     <option value="smart_detect">Smart Detection</option>
                   </select>
@@ -189,7 +187,6 @@ const ProcessControls: React.FC<ProcessControlsProps> = ({
                     }
                     {...limits.quality}
                     suffix="%"
-                    style={{ maxWidth: '120px' }}
                   />
                 </div>
               </div>

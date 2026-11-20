@@ -22,9 +22,9 @@ const ProcessTab: React.FC<ProcessTabProps> = ({
   } = useDownloadLifecycle(config);
 
   return (
-    <div className="tab-panel">
+    <div className="process-tab">
       <div className="process-header-compact">
-        <h2>Process & Download</h2>
+        <h2 className="screen-title">Process & Download</h2>
       </div>
 
       <div className="process-layout">

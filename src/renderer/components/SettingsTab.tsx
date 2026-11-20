@@ -76,9 +76,9 @@ const SettingsTab: React.FC = () => {
   }
 
   return (
-    <div className="tab-content settings-tab">
+    <div className="settings-tab">
       <div className="tab-header">
-        <h2>Settings</h2>
+        <h2 className="screen-title">Settings</h2>
         <div className="tab-actions">
           {saveStatus && (
             <span

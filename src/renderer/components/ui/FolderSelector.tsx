@@ -75,7 +75,7 @@ export const FolderSelector: React.FC<FolderSelectorProps> = ({
         type="button"
         onClick={handleBrowse}
         disabled={disabled}
-        className={editable ? 'btn btn-secondary browse-btn' : buttonClassName}
+        className={editable ? 'btn btn-primary' : buttonClassName}
       >
         {buttonText}
       </button>

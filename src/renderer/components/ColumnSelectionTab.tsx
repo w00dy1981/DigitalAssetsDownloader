@@ -26,9 +26,9 @@ const ColumnSelectionTab: React.FC<ColumnSelectionTabProps> = ({
   const columnOptions = data.columns.map(value => ({ value, label: value }));
 
   return (
-    <div className="tab-panel">
-      <h2>Column Selection & Configuration</h2>
-      <p>
+    <div className="column-selection-tab">
+      <h2 className="screen-title">Column Selection & Configuration</h2>
+      <p className="mapping-intro">
         Map your input columns to the appropriate data types and configure
         download settings.
       </p>

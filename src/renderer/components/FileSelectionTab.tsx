@@ -47,7 +47,7 @@ const FileSelectionTab: React.FC<FileSelectionTabProps> = ({
   const workflow = { onDataLoaded, loading, setLoading, setError };
 
   return (
-    <div className="tab-panel">
+    <div className="input-tab">
       {hasUpdateAvailable && updateInfo && (
         <UpdateNotificationBanner
           currentVersion={process.env.APP_VERSION || 'development'}
@@ -63,7 +63,7 @@ const FileSelectionTab: React.FC<FileSelectionTabProps> = ({
         />
       )}
 
-      <h2>Input Selection</h2>
+      <h2 className="screen-title">Input Selection</h2>
       {error && (
         <div role="alert" className="alert alert-danger mb-3">
           {error}
