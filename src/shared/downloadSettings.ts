@@ -1,4 +1,4 @@
-import type { DownloadConfig } from './types';
+import type { DownloadOptions } from '@/download/downloadRun';
 import type { UserSettings } from '@/shared/userSettings';
 
 export const limits = {
@@ -8,6 +8,28 @@ export const limits = {
   retryAttempts: { min: 1, max: 10 },
   quality: { min: 60, max: 100 },
 };
+
+export function initialDownloadOptions({
+  defaultPaths,
+  downloadBehavior,
+  imageProcessing,
+}: UserSettings): DownloadOptions {
+  return {
+    partNoColumn: '',
+    imageColumns: [],
+    pdfColumn: '',
+    filenameColumn: '',
+    imageFolder: defaultPaths.imageDownloadFolder,
+    pdfFolder: defaultPaths.pdfDownloadFolder,
+    sourceImageFolder: defaultPaths.sourceImageFolder,
+    imageFilePath: defaultPaths.imageNetworkPath,
+    maxWorkers: downloadBehavior.defaultConcurrentDownloads,
+    backgroundProcessing: {
+      enabled: imageProcessing.enabledByDefault,
+      quality: imageProcessing.defaultQuality,
+    },
+  };
+}
 
 function checkRange(
   errors: string[],
@@ -27,7 +49,7 @@ function checkFolder(errors: string[], name: string, folder: string) {
     errors.push(`${name} contains invalid or unsafe path characters`);
 }
 
-export function downloadConfigErrors(config: DownloadConfig): string[] {
+export function downloadConfigErrors(config: DownloadOptions): string[] {
   const errors: string[] = [];
   if (!config.partNoColumn?.trim())
     errors.push('Part Number Column is required');

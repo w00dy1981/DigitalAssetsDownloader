@@ -4,7 +4,6 @@ test('fills missing fields in older settings and keeps saved preferences', () =>
   const settings = mergeUserSettings({
     defaultPaths: { imageNetworkPath: '\\\\files\\images' },
     updateSettings: { enableAutoUpdates: false },
-    sqlSettings: { allowedCrossDatabases: [] },
   });
 
   expect(settings.defaultPaths).toEqual({
@@ -16,19 +15,22 @@ test('fills missing fields in older settings and keeps saved preferences', () =>
   );
   expect(settings.updateSettings.enableAutoUpdates).toBe(false);
   expect(settings.updateSettings.checkForUpdatesOnStartup).toBe(true);
-  expect(settings.sqlSettings).toEqual({
-    ...defaultUserSettings.sqlSettings,
-    allowedCrossDatabases: [],
-  });
+  expect(settings.sqlSettings).toEqual(defaultUserSettings.sqlSettings);
 });
 
-test('keeps credentials out of restored SQL preferences', () => {
+test('restores SQL preferences without old database restrictions or credentials', () => {
   const saved = {
-    sqlSettings: { defaultUsername: 'reader', password: 'fixture' },
+    sqlSettings: {
+      defaultUsername: 'reader',
+      allowedCrossDatabases: ['old'],
+      password: 'fixture',
+    },
   };
   const settings = mergeUserSettings(saved);
-  expect(settings.sqlSettings.defaultUsername).toBe('reader');
-  expect(settings.sqlSettings).not.toHaveProperty('password');
+  expect(settings.sqlSettings).toEqual({
+    ...defaultUserSettings.sqlSettings,
+    defaultUsername: 'reader',
+  });
 });
 
 test('restores active paths and image options from older settings', () => {
@@ -38,6 +40,7 @@ test('restores active paths and image options from older settings', () => {
       pdfDownloadFolder: '/downloads/pdfs',
       pdfNetworkPath: '/shared/pdfs',
     },
+    uiPreferences: { startupTab: 'file' },
     imageProcessing: {
       enabledByDefault: false,
       defaultQuality: 82,
@@ -52,6 +55,7 @@ test('restores active paths and image options from older settings', () => {
     imageNetworkPath: '/shared/images',
     pdfDownloadFolder: '/downloads/pdfs',
   });
+  expect(settings).not.toHaveProperty('uiPreferences');
   expect(settings.imageProcessing).toEqual({
     enabledByDefault: false,
     defaultQuality: 82,

@@ -1,16 +1,8 @@
 import type { SqlConnectionDetails } from '@/sql/contracts';
 import { ipcMain } from 'electron';
 import Store from 'electron-store';
-import {
-  downloadConfigErrors,
-  userSettingsErrors,
-} from '@/shared/downloadSettings';
-import {
-  IPC_CHANNELS,
-  type AppConfig,
-  type DownloadConfig,
-  type WindowState,
-} from '@/shared/types';
+import { userSettingsErrors } from '@/shared/downloadSettings';
+import { IPC_CHANNELS, type AppConfig, type WindowState } from '@/shared/types';
 import type { UserSettings } from '@/shared/userSettings';
 import { mergeUserSettings } from '@/shared/userSettings';
 
@@ -26,20 +18,18 @@ export function registerConfiguration() {
   });
   const getSettings = () => mergeUserSettings(store.get('userSettings'));
 
-  ipcMain.handle(IPC_CHANNELS.SAVE_CONFIG, (_, config: DownloadConfig) => {
-    const errors = downloadConfigErrors(config);
-    if (errors.length)
-      throw new Error(`Invalid configuration: ${errors.join(', ')}`);
-    store.set('lastConfiguration', config);
-    return { success: true };
-  });
-
-  ipcMain.handle(IPC_CHANNELS.LOAD_CONFIG, () => {
-    const lastConfiguration = store.get('lastConfiguration');
-    const sqlConnectionDetails = store.get('sqlConnectionDetails');
-    if (!lastConfiguration && !sqlConnectionDetails) return null;
-    return { lastConfiguration, sqlConnectionDetails };
-  });
+  ipcMain.handle(
+    IPC_CHANNELS.LOAD_SQL_CONNECTION_DETAILS,
+    (): SqlConnectionDetails => {
+      const saved = store.get('sqlConnectionDetails');
+      const defaults = getSettings().sqlSettings;
+      return {
+        server: saved?.server || defaults.defaultServer,
+        database: saved?.database || defaults.defaultDatabase,
+        username: saved?.username || defaults.defaultUsername,
+      };
+    }
+  );
 
   ipcMain.handle(IPC_CHANNELS.SAVE_SETTINGS, (_, settings: UserSettings) => {
     const errors = userSettingsErrors(settings);

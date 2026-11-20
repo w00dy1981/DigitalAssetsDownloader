@@ -1,7 +1,8 @@
+import { spreadsheetExtensions } from '@/shared/types';
 import { useState, type DragEvent } from 'react';
 import type { InputWorkflowProps } from '../InputSelectionTab';
 
-const fileExtensions = ['xlsx', 'xls', 'xlsm', 'csv'];
+const formatList = spreadsheetExtensions.map(ext => '.' + ext).join(', ');
 
 interface SelectedFile {
   path: string;
@@ -32,14 +33,7 @@ export function FileInput({
     setLoading(true);
     setError('');
     try {
-      const result = await window.electronAPI.openFileDialog({
-        title: 'Select Excel or CSV File',
-        properties: ['openFile'],
-        filters: [
-          { name: 'All Supported Files', extensions: fileExtensions },
-          { name: 'All Files', extensions: ['*'] },
-        ],
-      });
+      const result = await window.electronAPI.openFileDialog();
       if (!result.canceled && result.filePaths[0]) {
         await selectFile(result.filePaths[0]);
       }
@@ -71,8 +65,10 @@ export function FileInput({
       setError('Invalid file path detected.');
       return;
     }
-    if (!fileExtensions.some(ext => path.toLowerCase().endsWith(`.${ext}`))) {
-      setError('Please select a valid Excel (.xlsx, .xls, .xlsm) or CSV file.');
+    if (
+      !spreadsheetExtensions.some(ext => path.toLowerCase().endsWith(`.${ext}`))
+    ) {
+      setError(`Choose a spreadsheet in one of these formats: ${formatList}.`);
       return;
     }
 
@@ -134,9 +130,7 @@ export function FileInput({
             Browse...
           </button>
         </div>
-        <small className="text-muted">
-          Supported formats: .xlsx, .xls, .xlsm and .csv
-        </small>
+        <small className="text-muted">Supported formats: {formatList}</small>
       </div>
 
       {file && file.sheets.length > 0 && (

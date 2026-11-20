@@ -6,6 +6,7 @@ import type {
 } from 'electron';
 import type { ProgressInfo, UpdateInfo } from 'electron-updater';
 import type {
+  SqlConnectionDetails,
   SqlConnectionRequest,
   SqlCredentialIdentity,
   SqlPasswordDeleteRequest,
@@ -15,13 +16,12 @@ import type {
 } from '@/sql/contracts';
 import {
   IPC_CHANNELS as channels,
-  type AppConfig,
-  type DownloadConfig,
   type LoadedInput,
   type UpdateCheckResult,
 } from '@/shared/types';
 import type { UserSettings } from '@/shared/userSettings';
 import type {
+  DownloadOptions,
   DownloadCompletionEvent,
   DownloadProgress,
 } from '@/download/downloadRun';
@@ -51,8 +51,8 @@ function subscribe<T>(channel: string, callback: (data: T) => void) {
 type Success = { success: true };
 
 const electronAPI = {
-  openFileDialog: (options?: OpenDialogOptions) =>
-    invoke<OpenDialogReturnValue>(channels.OPEN_FILE_DIALOG, options),
+  openFileDialog: () =>
+    invoke<OpenDialogReturnValue>(channels.OPEN_FILE_DIALOG),
   openFolderDialog: (options?: OpenDialogOptions) =>
     invoke<OpenDialogReturnValue>(channels.OPEN_FOLDER_DIALOG, options),
   getSheetNames: (filePath: string) =>
@@ -73,13 +73,8 @@ const electronAPI = {
   deleteSavedSqlPassword: (request: SqlPasswordDeleteRequest) =>
     invoke<Success>(channels.DELETE_SAVED_SQL_PASSWORD, request),
 
-  saveConfig: (config: DownloadConfig) =>
-    invoke<Success>(channels.SAVE_CONFIG, config),
-  loadConfig: () =>
-    invoke<Pick<
-      AppConfig,
-      'lastConfiguration' | 'sqlConnectionDetails'
-    > | null>(channels.LOAD_CONFIG),
+  loadSqlConnectionDetails: () =>
+    invoke<SqlConnectionDetails>(channels.LOAD_SQL_CONNECTION_DETAILS),
   saveImageNetworkPath: (path: string) =>
     invoke<void>(channels.SAVE_IMAGE_NETWORK_PATH, path),
   saveSettings: (settings: UserSettings) =>
@@ -91,7 +86,7 @@ const electronAPI = {
   downloadUpdate: () =>
     invoke<string[] | { skipped: true }>(channels.DOWNLOAD_UPDATE),
 
-  startDownloads: (config: DownloadConfig, loadId: LoadedInput['loadId']) =>
+  startDownloads: (config: DownloadOptions, loadId: LoadedInput['loadId']) =>
     invoke<void>(channels.START_DOWNLOADS, config, loadId),
   cancelDownloads: () => invoke<void>(channels.CANCEL_DOWNLOADS),
 
@@ -101,8 +96,6 @@ const electronAPI = {
     subscribe(channels.DOWNLOAD_COMPLETE, callback),
   onMenuOpenFile: (callback: () => void) =>
     subscribe(channels.MENU_OPEN_FILE, callback),
-  onMenuSaveConfig: (callback: () => void) =>
-    subscribe(channels.MENU_SAVE_CONFIG, callback),
   onMenuOpenSettings: (callback: () => void) =>
     subscribe(channels.MENU_OPEN_SETTINGS, callback),
   onUpdateChecking: (callback: () => void) =>

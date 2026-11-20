@@ -25,23 +25,14 @@ const ProgressDisplay: React.FC<ProgressDisplayProps> = ({
   };
 
   const getProgressBarClass = (): string => {
-    if (progress.total === 0) return '';
+    const completed = progress.successful + progress.failed;
+    if (!completed) return '';
 
-    const successRate = progress.successful / progress.total;
+    const successRate = progress.successful / completed;
     if (successRate >= 0.9) return 'success';
     if (successRate >= 0.7) return 'warning';
     return 'danger';
   };
-
-  // Only render if there's something to show
-  if (
-    !isDownloading &&
-    progress.total === 0 &&
-    progress.successful === 0 &&
-    progress.failed === 0
-  ) {
-    return null;
-  }
 
   return (
     <div className="progress-section">
@@ -75,7 +66,14 @@ const ProgressDisplay: React.FC<ProgressDisplayProps> = ({
       </div>
 
       <div className="progress-container">
-        <div className="progress-bar">
+        <div
+          className="progress-bar"
+          role="progressbar"
+          aria-label="Download progress"
+          aria-valuemin={0}
+          aria-valuemax={100}
+          aria-valuenow={progress.percentage}
+        >
           <div
             className={`progress-fill ${getProgressBarClass()}`}
             style={{ width: `${progress.percentage}%` }}

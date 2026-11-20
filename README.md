@@ -9,9 +9,10 @@ Open [GitHub Releases](https://github.com/w00dy1981/DigitalAssetsDownloader/rele
 ## Download assets
 
 1. In **Input Selection**, choose **Excel / CSV** or **SQL Server**.
-   - For a file, use **Browse** or drag in an `.xlsx` or `.csv` file. For a workbook, choose the worksheet and review the preview. If you have an older `.xls` workbook, save it as `.xlsx` first.
-   - For SQL Server, enter the server, database, username, and password. Use **Test Connection** to check access. Enter a read-only `SELECT` query, click **Preview Query**, then click **Load SQL Data**. The app limits the number of rows it loads and shows the limits below the query box. Query text is kept for the current session.
+   - For a file, use **Browse** or drag in an `.xlsx`, `.xlsm`, or `.csv` file. Choose the worksheet and click **Load Sheet**. If you have an older `.xls` workbook, save it as `.xlsx` first.
+   - For SQL Server, enter the server, database, username, and password. Use **Test Connection** to check access. Use a login with read-only database permissions. Enter the query, click **Preview Query**, then click **Load SQL Data**. Each action runs the query on SQL Server with that login’s permissions. The app limits the number of rows it loads and shows the limits below the query box. Preview reads the full first result set to count it. Load stops once it reaches its row limit and sees another row, which can interrupt later statements in the same batch. Query text is kept for the current session.
 2. In **Column Selection**, choose the **Part Number Column** and a column for image URLs, PDF URLs, or both. Pick a download folder for each selected asset type.
+   Supplier addresses starting with `www.` use HTTPS. You can also use full HTTP or HTTPS URLs and local file paths.
 3. To reuse existing images, set **Source Image Folder**. The app searches it by part number or by the **Custom Filename Column** if you select one. To reference images on a shared drive in the workbook, choose **Image Network Path** while mapping columns or set the default in **Settings**. Downloads go to the selected download folders.
 4. In **Process & Download**, review the configuration and click **Start Downloads**. Use **Download Progress** and **Activity Log** to see how the run is going. For images, set **JPEG Quality** and choose whether transparent areas should have a white background. The app keeps WebP files in their original format.
 
@@ -31,7 +32,7 @@ In a packaged build with update support, the app can check for updates on startu
 
 ## Run from source
 
-Use npm and Node.js 20.12.2 or later to meet the requirements of the locked dependencies.
+Use Node.js 22 and npm, the versions used by the project’s checks and Windows release build.
 
 ```bash
 git clone https://github.com/w00dy1981/DigitalAssetsDownloader.git
@@ -53,7 +54,7 @@ npm run dev
 ## Troubleshooting
 
 - If a workbook won't open, check that you can open it in Excel and save a fresh `.xlsx` copy.
-- If a SQL query fails, check the connection first. Then check that the query is a read-only `SELECT` and that the account can read the tables it uses.
+- If a SQL query fails, check the connection first. Then check the SQL Server error and the permissions granted to the login.
 - If a download fails, check the URL and the destination folder. Look in **Activity Log** during the run or in the **Download Log** worksheet afterwards.
 
 If the problem persists, check [GitHub Issues](https://github.com/w00dy1981/DigitalAssetsDownloader/issues) for an existing report. Include your app version, operating system, steps to reproduce the problem, and the error message. Remove credentials and private URLs before sharing logs or screenshots.

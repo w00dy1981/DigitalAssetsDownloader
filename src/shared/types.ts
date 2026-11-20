@@ -3,21 +3,15 @@ import type { DownloadOptions } from '../download/downloadRun';
 import type { SqlConnectionDetails } from '@/sql/contracts';
 import type { UpdateInfo } from 'electron-updater';
 
+export const spreadsheetExtensions = ['xlsx', 'xlsm', 'csv'];
+
 export interface LoadedInput {
   loadId: number;
   columns: string[];
   rowCount: number;
   sheetName: string;
-  filePath: string;
-  sourceType: 'file' | 'sql';
+  options: DownloadOptions;
   sourceLabel: string;
-}
-
-export interface DownloadConfig extends DownloadOptions {
-  excelFile: string;
-  sheetName: string;
-  sourceType?: 'file' | 'sql';
-  sourceLabel?: string;
 }
 
 export interface WindowState {
@@ -35,7 +29,6 @@ export type UpdateCheckResult =
 
 export interface AppConfig {
   windowState: WindowState;
-  lastConfiguration?: DownloadConfig;
   userSettings?: UserSettings;
   sqlConnectionDetails?: SqlConnectionDetails;
 }
@@ -59,11 +52,9 @@ export const IPC_CHANNELS = {
   DELETE_SAVED_SQL_PASSWORD: 'delete-saved-sql-password',
 
   // Configuration
-  SAVE_CONFIG: 'save-config',
-  LOAD_CONFIG: 'load-config',
+  LOAD_SQL_CONNECTION_DETAILS: 'load-sql-connection-details',
 
   MENU_OPEN_FILE: 'menu-open-file',
-  MENU_SAVE_CONFIG: 'menu-save-config',
   MENU_OPEN_SETTINGS: 'menu-open-settings',
 
   // Download operations

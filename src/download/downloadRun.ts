@@ -6,12 +6,8 @@ import {
   type PlannedAsset,
 } from './downloadPlan';
 import { writeDownloadWorkbook } from './downloadWorkbook';
-import {
-  listSourceImages,
-  saveAsset,
-  type AssetResult,
-  type HttpSettings,
-} from './saveAsset';
+import { createSourceSelector, type HttpSettings } from './assetSource';
+import { saveAsset, type AssetResult } from './saveAsset';
 import type { ImageOptions } from './processImage';
 import { joinFilename } from '../files/pathSecurity';
 
@@ -102,6 +98,7 @@ export class DownloadService extends EventEmitter<{
       };
 
       publishProgress();
+      const selectSources = createSourceSelector(config.sourceImageFolder);
       const options = {
         processing: config.backgroundProcessing,
         http,
@@ -109,22 +106,13 @@ export class DownloadService extends EventEmitter<{
       };
 
       let next = 0;
-      let sourceImages: ReturnType<typeof listSourceImages> | undefined;
       const worker = async () => {
         while (!run.signal.aborted && next < assets.length) {
           const asset = assets[next++];
           currentFile = `${path.basename(asset.fileStem)}.${asset.kind === 'image' ? 'jpg' : 'pdf'}`;
           publishProgress();
 
-          const result = await saveAsset(asset, {
-            ...options,
-            sourceImages:
-              asset.kind === 'image' && config.sourceImageFolder
-                ? await (sourceImages ??= listSourceImages(
-                    config.sourceImageFolder
-                  ))
-                : [],
-          });
+          const result = await saveAsset(asset, selectSources(asset), options);
           if (!result) continue;
           results.set(asset, result);
           if (result.success) {

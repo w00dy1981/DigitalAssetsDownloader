@@ -1,28 +1,29 @@
 import React, { useState, useEffect } from 'react';
-import type { LoadedInput, DownloadConfig } from '@/shared/types';
+import type { DownloadOptions } from '@/download/downloadRun';
+import type { LoadedInput } from '@/shared/types';
 import InputSelectionTab from './components/InputSelectionTab';
 import ColumnSelectionTab from './components/ColumnSelectionTab';
 import ProcessTab from './components/ProcessTab';
 import SettingsTab from './components/SettingsTab';
-import { useStatusMessage } from './hooks/useStatusMessage';
 import { UpdateNotificationBanner } from './components/updater/UpdateNotificationBanner';
 import { useUpdateNotification } from './components/updater/useUpdateNotification';
-import './App.css';
 
 // Version injected by webpack at build time (KISS - single source of truth)
 const APP_VERSION = process.env.APP_VERSION || 'development';
+
+export interface WorkflowScreenProps {
+  data: LoadedInput;
+  onChange: (changes: Partial<DownloadOptions>) => void;
+}
 
 const App: React.FC = () => {
   const [activeTab, setActiveTab] = useState<
     'input' | 'columns' | 'process' | 'settings'
   >('input');
-  const [workflow, setWorkflow] = useState<{
-    data: LoadedInput;
-    config: DownloadConfig | null;
-  } | null>(null);
-  const downloadConfig = workflow?.config;
+  const [workflow, setWorkflow] = useState<
+    (LoadedInput & { processEnabled: boolean }) | null
+  >(null);
   const update = useUpdateNotification();
-  const [statusMessage, showStatusMessage] = useStatusMessage();
 
   useEffect(() => {
     const api = window.electronAPI;
@@ -36,33 +37,20 @@ const App: React.FC = () => {
     };
   }, []);
 
-  useEffect(() => {
-    if (!downloadConfig) return;
-
-    return window.electronAPI?.onMenuSaveConfig(async () => {
-      try {
-        await window.electronAPI.saveConfig(downloadConfig);
-        showStatusMessage('Configuration saved successfully', 3000);
-      } catch (error) {
-        const message = error instanceof Error ? error.message : String(error);
-        showStatusMessage(`Error saving configuration: ${message}`, 3000);
-        console.error('App: Error saving configuration', new Error(message));
-      }
-    });
-  }, [downloadConfig, showStatusMessage]);
-
   function loadInput(data: LoadedInput) {
     setWorkflow(current =>
-      current && current.data.loadId >= data.loadId
+      current && current.loadId >= data.loadId
         ? current
-        : { data, config: null }
+        : { ...data, processEnabled: false }
     );
     setActiveTab('columns');
   }
 
-  function updateConfig(loadId: LoadedInput['loadId'], config: DownloadConfig) {
+  function updateOptions(changes: Partial<DownloadOptions>) {
     setWorkflow(current =>
-      current?.data.loadId === loadId ? { ...current, config } : current
+      current && current.loadId === workflow?.loadId
+        ? { ...current, options: { ...current.options, ...changes } }
+        : current
     );
   }
 
@@ -77,19 +65,6 @@ const App: React.FC = () => {
           )}
         </div>
       </header>
-
-      {statusMessage && (
-        <div
-          className={`app-status ${
-            statusMessage.toLowerCase().includes('error') ||
-            statusMessage.toLowerCase().includes('fail')
-              ? 'error'
-              : 'info'
-          }`}
-        >
-          {statusMessage}
-        </div>
-      )}
 
       <nav className="tab-navigation">
         <button
@@ -108,7 +83,7 @@ const App: React.FC = () => {
         <button
           className={`tab-button ${activeTab === 'process' ? 'active' : ''}`}
           onClick={() => setActiveTab('process')}
-          disabled={!downloadConfig}
+          disabled={!workflow?.processEnabled}
         >
           3. Process & Download
         </button>
@@ -131,31 +106,25 @@ const App: React.FC = () => {
               onDismiss={update.dismiss}
             />
           )}
-          <InputSelectionTab
-            onDataLoaded={loadInput}
-            currentData={workflow?.data ?? null}
-          />
+          <InputSelectionTab onDataLoaded={loadInput} currentData={workflow} />
         </div>
         {activeTab === 'columns' && workflow && (
           <ColumnSelectionTab
-            key={workflow.data.loadId}
-            data={workflow.data}
-            initialConfig={workflow.config}
-            onConfigurationComplete={config => {
-              updateConfig(workflow.data.loadId, config);
+            key={workflow.loadId}
+            data={workflow}
+            onChange={updateOptions}
+            onNext={() => {
+              setWorkflow({ ...workflow, processEnabled: true });
               setActiveTab('process');
             }}
           />
         )}
-        {workflow && downloadConfig && (
+        {workflow?.processEnabled && (
           <div hidden={activeTab !== 'process'}>
             <ProcessTab
-              key={workflow.data.loadId}
-              config={downloadConfig}
-              loadId={workflow.data.loadId}
-              onConfigurationChange={config =>
-                updateConfig(workflow.data.loadId, config)
-              }
+              key={workflow.loadId}
+              data={workflow}
+              onChange={updateOptions}
             />
           </div>
         )}

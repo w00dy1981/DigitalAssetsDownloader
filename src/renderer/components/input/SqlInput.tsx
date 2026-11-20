@@ -72,26 +72,16 @@ export function SqlInput({
   );
 
   useEffect(() => {
-    async function loadDefaults() {
-      const [appConfig, settings] = await Promise.all([
-        window.electronAPI.loadConfig().catch(() => null),
-        window.electronAPI.loadSettings().catch(() => null),
-      ]);
-      const saved = appConfig?.sqlConnectionDetails;
-      const defaults = settings?.sqlSettings;
-      setConnection({
-        server: saved?.server || defaults?.defaultServer || '',
-        database:
-          saved?.database ||
-          defaults?.defaultDatabase ||
-          defaultUserSettings.sqlSettings.defaultDatabase,
-        username:
-          saved?.username ||
-          defaults?.defaultUsername ||
-          defaultUserSettings.sqlSettings.defaultUsername,
+    void window.electronAPI
+      .loadSqlConnectionDetails()
+      .then(setConnection, () => {
+        const defaults = defaultUserSettings.sqlSettings;
+        setConnection({
+          server: defaults.defaultServer,
+          database: defaults.defaultDatabase,
+          username: defaults.defaultUsername,
+        });
       });
-    }
-    void loadDefaults();
   }, []);
 
   useEffect(() => {
@@ -134,12 +124,12 @@ export function SqlInput({
       return;
     }
     if (action !== 'test' && !query.trim()) {
-      setError('Please enter a SQL SELECT query.');
+      setError('Please enter a SQL query.');
       return;
     }
     if (action === 'load') {
       if (!preview) return;
-      const rowCount = preview.totalRowCount ?? preview.rowCount;
+      const rowCount = preview.totalRowCount;
       const message =
         rowCount > FULL_LOAD_ROW_LIMIT
           ? `This query has ${rowCount.toLocaleString()} rows. This will load the first ${FULL_LOAD_ROW_LIMIT.toLocaleString()} rows from SQL Server. Continue?`
@@ -160,7 +150,7 @@ export function SqlInput({
 
       const sql = {
         ...request,
-        query: query.trim(),
+        query,
       };
       if (action === 'preview') {
         setPreview(null);
@@ -251,6 +241,7 @@ export function SqlInput({
               disabled={loading}
             />
             <small className="text-muted">
+              Use a read-only SQL login. Preview and load each run the query.
               Query text is only kept for this session. Preview shows up to{' '}
               {PREVIEW_ROW_LIMIT} rows. Load SQL Data can load up to{' '}
               {FULL_LOAD_ROW_LIMIT.toLocaleString()} rows.

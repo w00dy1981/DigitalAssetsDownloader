@@ -9,12 +9,14 @@ import {
   screen,
   waitFor,
 } from '@testing-library/react';
+import { initialDownloadOptions } from '@/shared/downloadSettings';
+import { defaultUserSettings } from '@/shared/userSettings';
 import type { LoadedInput } from '@/shared/types';
+import App from '../App';
 import InputSelectionTab from './InputSelectionTab';
 
 const api = {
-  loadConfig: jest.fn(),
-  loadSettings: jest.fn(),
+  loadSqlConnectionDetails: jest.fn(),
   openFileDialog: jest.fn(),
   getSheetNames: jest.fn(),
   loadSheetData: jest.fn(),
@@ -39,8 +41,7 @@ beforeEach(() => {
     configurable: true,
     value: api,
   });
-  api.loadConfig.mockResolvedValue({ sqlConnectionDetails: identity });
-  api.loadSettings.mockResolvedValue({ sqlSettings: {} });
+  api.loadSqlConnectionDetails.mockResolvedValue(identity);
   api.loadSavedSqlPassword.mockResolvedValue(null);
 });
 
@@ -61,8 +62,7 @@ test.each([
     columns,
     rowCount: 1,
     sheetName,
-    filePath,
-    sourceType: 'file',
+    options: initialDownloadOptions(defaultUserSettings),
     sourceLabel: filePath,
   };
   api.loadSheetData.mockResolvedValue(summary);
@@ -89,9 +89,7 @@ test('requires a fresh SQL preview and confirmation before loading rows', async 
   const result = {
     columns,
     rows,
-    rowCount: 1,
     totalRowCount: 250,
-    sourceLabel: 'Assets query',
   };
   api.loadSavedSqlPassword.mockResolvedValue('fixture-password');
   api.previewSqlQuery.mockResolvedValue(result);
@@ -100,9 +98,8 @@ test('requires a fresh SQL preview and confirmation before loading rows', async 
     columns,
     rowCount: 1,
     sheetName: 'SQL Query',
-    filePath: result.sourceLabel,
-    sourceType: 'sql',
-    sourceLabel: result.sourceLabel,
+    options: initialDownloadOptions(defaultUserSettings),
+    sourceLabel: 'Assets query',
   };
   api.loadSqlQueryData.mockResolvedValue(summary);
   api.saveSqlPassword.mockResolvedValue({ success: true });
@@ -258,4 +255,78 @@ test('forgets the saved password and clears the session password when switching 
       name: 'Remember SQL password on this device',
     })
   ).not.toBeChecked();
+});
+
+test('keeps unfinished mapping edits across tabs and resets them for a new input', async () => {
+  const subscribe = () => () => {};
+  Object.defineProperty(window, 'electronAPI', {
+    configurable: true,
+    value: {
+      ...api,
+      onMenuOpenFile: subscribe,
+      onMenuOpenSettings: subscribe,
+      onUpdateChecking: subscribe,
+      onUpdateAvailable: subscribe,
+      onUpdateNotAvailable: subscribe,
+      onUpdateDownloadProgress: subscribe,
+      onUpdateDownloaded: subscribe,
+      onUpdateError: subscribe,
+      onDownloadComplete: subscribe,
+      onDownloadProgress: subscribe,
+    },
+  });
+  const sourceLabel = '/tmp/products.xlsx';
+  api.openFileDialog.mockResolvedValue({
+    canceled: false,
+    filePaths: [sourceLabel],
+  });
+  api.getSheetNames.mockResolvedValue(['First', 'Second']);
+  api.loadSheetData.mockImplementation(
+    (_path: string, sheetName: string): LoadedInput => ({
+      sourceLabel,
+      sheetName,
+      columns: ['Part', 'PDF'],
+      rowCount: 1,
+      loadId: sheetName === 'First' ? 1 : 2,
+      options: {
+        ...initialDownloadOptions(defaultUserSettings),
+        pdfFolder: '/tmp/pdfs',
+      },
+    })
+  );
+
+  render(createElement(App));
+  const button = (name: string | RegExp) =>
+    screen.getByRole('button', { name });
+  fireEvent.click(button('Browse...'));
+  fireEvent.click(await screen.findByRole('button', { name: 'Load Sheet' }));
+  fireEvent.change(await screen.findByLabelText(/Part Number Column/), {
+    target: { value: 'Part' },
+  });
+  fireEvent.click(button('1. Input Selection'));
+  fireEvent.click(button('2. Column Selection'));
+  expect(screen.getByLabelText(/Part Number Column/)).toHaveValue('Part');
+  expect(button('3. Process & Download')).toBeDisabled();
+  fireEvent.change(screen.getByLabelText('PDF URL Column'), {
+    target: { value: 'PDF' },
+  });
+  fireEvent.click(button(/Next: Process/));
+  fireEvent.change(screen.getByLabelText('Concurrent Downloads'), {
+    target: { value: '7' },
+  });
+  fireEvent.click(button('2. Column Selection'));
+  fireEvent.change(screen.getByLabelText('PDF URL Column'), {
+    target: { value: '' },
+  });
+  fireEvent.click(button('3. Process & Download'));
+  expect(button('Start Downloads')).toBeDisabled();
+  expect(screen.getByLabelText('Concurrent Downloads')).toHaveValue(7);
+
+  fireEvent.click(button('1. Input Selection'));
+  fireEvent.change(screen.getByLabelText('Select Sheet'), {
+    target: { value: 'Second' },
+  });
+  fireEvent.click(button('Load Sheet'));
+  expect(await screen.findByLabelText(/Part Number Column/)).toHaveValue('');
+  expect(button('3. Process & Download')).toBeDisabled();
 });

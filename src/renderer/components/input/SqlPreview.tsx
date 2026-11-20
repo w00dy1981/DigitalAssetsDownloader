@@ -4,9 +4,8 @@ export function SqlPreview({ preview }: { preview: SqlQueryResult }) {
   return (
     <div className="data-summary mt-4">
       <h3>
-        Preview of {preview.rowCount} rows, {preview.columns.length} columns
-        {preview.totalRowCount !== undefined &&
-          ` (${preview.totalRowCount.toLocaleString()} total rows)`}
+        Preview of {preview.rows.length} rows, {preview.columns.length} columns
+        ({preview.totalRowCount.toLocaleString()} total rows)
       </h3>
       <div className="sql-preview-table-container">
         <table>
@@ -21,8 +20,8 @@ export function SqlPreview({ preview }: { preview: SqlQueryResult }) {
             {preview.rows.map((row, i) => (
               <tr key={i}>
                 {preview.columns.map(col => (
-                  <td key={col} title={String(row[col] ?? '')}>
-                    {String(row[col] ?? '')}
+                  <td key={col} title={row[col]}>
+                    {row[col]}
                   </td>
                 ))}
               </tr>

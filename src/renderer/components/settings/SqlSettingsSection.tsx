@@ -16,14 +16,6 @@ export const SqlSettingsSection: React.FC<SqlSettingsSectionProps> = ({
 }) => {
   const sql = settings ?? defaultUserSettings.sqlSettings;
 
-  const handleCrossDatabaseChange = (value: string) => {
-    const parsed = value
-      .split(',')
-      .map(s => s.trim())
-      .filter(Boolean);
-    onSettingUpdate({ allowedCrossDatabases: parsed });
-  };
-
   return (
     <div className="config-section">
       <h3>SQL Server Defaults</h3>
@@ -61,29 +53,12 @@ export const SqlSettingsSection: React.FC<SqlSettingsSectionProps> = ({
         />
       </FormGroup>
 
-      <FormGroup
-        label="Allowed Cross-Database Names"
-        htmlFor="sql-cross-databases"
-        helpText="Comma-separated list of databases allowed in three-part names (e.g. WebScrapes.dbo.TableName). Leave empty to allow all."
-      >
-        <input
-          id="sql-cross-databases"
-          type="text"
-          className="form-control"
-          value={sql.allowedCrossDatabases.join(', ')}
-          onChange={e => handleCrossDatabaseChange(e.target.value)}
-          placeholder="WebScrapes"
-        />
-      </FormGroup>
-
       <p
         className="help-text"
         style={{ marginTop: '0.5rem', fontSize: '0.85em', color: '#888' }}
       >
-        Passwords are stored securely in the OS credential store, not here. For
-        Baker → WebScrapes joins, keep <code>WebScrapes</code> in the list above
-        and reference tables as <code>WebScrapes.dbo.TableName</code> in your
-        query.
+        SQL Server controls which databases this login can read. Use a login
+        with read-only permissions.
       </p>
     </div>
   );
