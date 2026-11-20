@@ -52,9 +52,9 @@ test('returns summaries, preserves SQL preview rows, and starts only with the ma
   const start = jest
     .spyOn(DownloadService.prototype, 'startDownloads')
     .mockResolvedValue(undefined);
+  jest.spyOn(sql, 'previewSqlQuery').mockResolvedValueOnce(sqlResult);
   jest
-    .spyOn(sql, 'runSqlQuery')
-    .mockResolvedValueOnce(sqlResult)
+    .spyOn(sql, 'loadSqlRows')
     .mockResolvedValueOnce(sqlResult)
     .mockImplementationOnce(
       () =>

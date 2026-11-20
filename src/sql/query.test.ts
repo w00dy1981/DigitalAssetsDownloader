@@ -1,119 +1,102 @@
+import { EventEmitter } from 'node:events';
 import * as mssql from 'mssql';
 import { testSqlConnection } from './connection';
-import { runSqlQuery } from './query';
+import { loadSqlRows, previewSqlQuery } from './query';
 
-const mockQuery = jest.fn();
-const mockInput = jest.fn(() => ({ query: mockQuery }));
-const mockClose = jest.fn();
 const mockConnect = jest.fn();
-
+const mockClose = jest.fn();
 jest.mock('mssql', () => ({
-  Int: Symbol('Int'),
-  ConnectionPool: jest.fn().mockImplementation(() => ({
-    connect: mockConnect,
-    close: mockClose,
-  })),
+  ConnectionPool: jest
+    .fn()
+    .mockImplementation(() => ({ connect: mockConnect })),
 }));
 
-describe('runSqlQuery', () => {
-  beforeEach(() => {
-    jest.clearAllMocks();
-    mockConnect.mockResolvedValue({
-      close: mockClose,
-      request: () => ({ input: mockInput, query: mockQuery }),
-    });
-    mockClose.mockResolvedValue(undefined);
-    mockQuery.mockResolvedValue({
-      recordset: [
-        { PartNo: ' ABC ', ImageUrl: 'https://example.com/image.jpg' },
-      ],
-    });
+const request = {
+  server: 'sql-server',
+  database: 'Assets',
+  username: 'reader',
+  password: 'secret',
+  query: "SELECT ' update; -- ' AS Note;",
+};
+
+beforeEach(() => {
+  jest.clearAllMocks();
+});
+
+test('preview runs the original query once and counts only its first result set', async () => {
+  const sql = Object.assign(new EventEmitter(), {
+    query: jest.fn(async () => {
+      sql.emit('recordset', { Note: { name: 'Note', index: 0 } });
+      for (let i = 0; i < 52; ++i) sql.emit('row', { Note: ' update; -- ' });
+      sql.emit('recordset', { Other: { name: 'Other', index: 0 } });
+      sql.emit('row', { Other: 1 });
+    }),
   });
+  mockConnect.mockResolvedValue({ request: () => sql, close: mockClose });
 
-  const request = {
-    server: 'sql-server',
-    database: 'Baker',
-    username: 'DigitalAssetsDownloader',
-    password: 'secret',
-    query: 'SELECT PartNo, ImageUrl FROM Products',
-    rowLimit: 50,
-    queryTimeoutMs: 30000,
-    connectionTimeoutMs: 15000,
-  };
+  const result = await previewSqlQuery({ ...request, rowLimit: 10000 });
 
-  it('normalizes preview rows without mutating external loaded data', async () => {
-    const existingLoadedRows = [{ PartNo: 'Existing' }];
-    mockQuery
-      .mockResolvedValueOnce({ recordset: [{ totalRowCount: '1384' }] })
-      .mockResolvedValueOnce({
-        recordset: [
-          { PartNo: ' ABC ', ImageUrl: 'https://example.com/image.jpg' },
-        ],
-      });
+  expect(sql.query).toHaveBeenCalledTimes(1);
+  expect(sql.query).toHaveBeenCalledWith(request.query);
+  expect(result).toMatchObject({
+    rowCount: 50,
+    totalRowCount: 52,
+    columns: ['Note'],
+  });
+  expect(result.rows[0]).toEqual({ Note: 'update; --' });
+});
 
-    const result = await runSqlQuery(request, 'preview');
+test('load returns server errors even if some rows arrived', async () => {
+  const sql = Object.assign(new EventEmitter(), {
+    query: jest.fn(async () => {
+      sql.emit('recordset', { Note: { name: 'Note', index: 0 } });
+      sql.emit('row', { Note: 'first' });
+      sql.emit('error', new Error('Permission denied'));
+    }),
+  });
+  mockConnect.mockResolvedValue({ request: () => sql, close: mockClose });
+  await expect(loadSqlRows(request)).rejects.toThrow('Permission denied');
+  expect(sql.query).toHaveBeenCalledTimes(1);
+  expect(mockClose).toHaveBeenCalledTimes(1);
+});
 
-    expect(result.rows).toEqual([
-      { PartNo: 'ABC', ImageUrl: 'https://example.com/image.jpg' },
-    ]);
-    expect(existingLoadedRows).toEqual([{ PartNo: 'Existing' }]);
-    expect(result.rowCount).toBe(1);
-    expect(result.totalRowCount).toBe(1384);
-    expect(mockInput).toHaveBeenCalledWith('appRowLimit', mssql.Int, 50);
-    expect(mockQuery).toHaveBeenNthCalledWith(
-      2,
-      `SET ROWCOUNT @appRowLimit;
-${request.query}
-SET ROWCOUNT 0;`
+test('rejects a blank query before connecting', async () => {
+  await expect(previewSqlQuery({ ...request, query: ' ' })).rejects.toThrow(
+    'SQL query is required'
+  );
+  expect(mockConnect).not.toHaveBeenCalled();
+});
+
+test('passes connection and query timeouts to the driver', async () => {
+  mockConnect.mockResolvedValue({
+    request: () => ({ query: jest.fn() }),
+    close: mockClose,
+  });
+  await testSqlConnection({
+    ...request,
+    queryTimeoutMs: 5000,
+    connectionTimeoutMs: 1234,
+  });
+  expect(jest.mocked(mssql.ConnectionPool).mock.calls[0][0]).toMatchObject({
+    requestTimeout: 5000,
+    connectionTimeout: 1234,
+  });
+});
+
+test('redacts a password from a connection failure without attempting a live login', async () => {
+  const log = jest.spyOn(console, 'error').mockImplementation(() => {});
+  mockConnect.mockRejectedValueOnce(
+    new Error('Login failed; password=sample-secret;')
+  );
+  try {
+    await expect(testSqlConnection(request)).rejects.toThrow(
+      'password=[REDACTED]'
     );
-  });
-
-  it('normalizes full-load rows and returns row count', async () => {
-    const result = await runSqlQuery({ ...request, rowLimit: 10000 }, 'load');
-
-    expect(result.columns).toEqual(['PartNo', 'ImageUrl']);
-    expect(result.rowCount).toBe(1);
-    expect(result.sourceLabel).toBe('sql-server / Baker');
-    expect(mockInput).toHaveBeenCalledWith('appRowLimit', mssql.Int, 10000);
-  });
-
-  it('enforces the preview cap at the SQL service boundary', async () => {
-    await runSqlQuery({ ...request, rowLimit: 10000 }, 'preview');
-
-    expect(mockInput).toHaveBeenCalledWith('appRowLimit', mssql.Int, 50);
-  });
-
-  it.each([
-    'SELECT PartNo INTO NewProducts FROM Products',
-    'SELECT PartNo FROM Products ORDER BY PartNo\nSET NOCOUNT ON',
-  ])('rejects invalid queries before opening a connection', async query => {
-    await expect(runSqlQuery({ ...request, query }, 'preview')).rejects.toThrow(
-      'SQL query rejected'
+    expect(log).toHaveBeenCalledWith(
+      'SQL connection failed',
+      'Login failed; password=[REDACTED];'
     );
-
-    expect(mockConnect).not.toHaveBeenCalled();
-  });
-
-  it('closes the pool when counting fails', async () => {
-    mockQuery.mockRejectedValueOnce(new Error('SQL count failed'));
-
-    await expect(runSqlQuery(request, 'preview')).rejects.toThrow(
-      'SQL count failed'
-    );
-    expect(mockQuery).toHaveBeenCalledTimes(1);
-    expect(mockClose).toHaveBeenCalledTimes(1);
-  });
-
-  it('propagates queryTimeoutMs to the connection config', async () => {
-    await testSqlConnection({
-      server: 'test-server',
-      database: 'TestDB',
-      username: 'user',
-      password: 'pass',
-      queryTimeoutMs: 5000,
-      connectionTimeoutMs: 15000,
-    });
-    const config = jest.mocked(mssql.ConnectionPool).mock.calls[0][0];
-    expect(config).toMatchObject({ requestTimeout: 5000 });
-  });
+  } finally {
+    log.mockRestore();
+  }
 });

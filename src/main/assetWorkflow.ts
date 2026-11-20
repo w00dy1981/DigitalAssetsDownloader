@@ -3,7 +3,7 @@ import { DownloadService } from '@/download/downloadRun';
 import { getSheetNames, loadSheetData } from '@/input/spreadsheet';
 import { testSqlConnection } from '@/sql/connection';
 import type { SqlConnectionRequest, SqlQueryRequest } from '@/sql/contracts';
-import { runSqlQuery } from '@/sql/query';
+import { loadSqlRows, previewSqlQuery } from '@/sql/query';
 import { downloadConfigErrors } from '@/shared/downloadSettings';
 import {
   IPC_CHANNELS,
@@ -93,25 +93,17 @@ export function registerAssetWorkflow(
       withSavedConnection(request, () => testSqlConnection(request))
   );
 
-  function query(request: SqlQueryRequest, mode: 'preview' | 'load') {
-    return runSqlQuery(
-      request,
-      mode,
-      configuration.getSettings().sqlSettings.allowedCrossDatabases
-    );
-  }
-
   ipcMain.handle(
     IPC_CHANNELS.PREVIEW_SQL_QUERY,
     (_, request: SqlQueryRequest) =>
-      withSavedConnection(request, () => query(request, 'preview'))
+      withSavedConnection(request, () => previewSqlQuery(request))
   );
   ipcMain.handle(
     IPC_CHANNELS.LOAD_SQL_QUERY_DATA,
     (_, request: SqlQueryRequest) =>
       loadInput(
         async () => {
-          const { columns, rows, sourceLabel } = await query(request, 'load');
+          const { columns, rows, sourceLabel } = await loadSqlRows(request);
           if (!columns.length) {
             throw new Error('The SQL query returned no columns.');
           }

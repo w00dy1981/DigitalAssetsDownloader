@@ -2,7 +2,7 @@ import { parseEnv } from 'node:util';
 import * as fs from 'fs';
 import * as path from 'path';
 import { testSqlConnection } from './connection';
-import { runSqlQuery } from './query';
+import { loadSqlRows, previewSqlQuery } from './query';
 
 const fixture = path.resolve(process.cwd(), '.env.test.local');
 const creds = fs.existsSync(fixture)
@@ -40,49 +40,40 @@ describeIf('SQL Server integration (requires live SQL Server)', () => {
     expect(result).toEqual({ success: true });
   }, 30000);
 
-  it('testConnection gives clean error on wrong password', async () => {
-    const badCreds = { ...base, password: 'wrong-password-intentional-test' };
-    await expect(testSqlConnection(badCreds)).rejects.toThrow();
-
-    try {
-      await testSqlConnection(badCreds);
-    } catch (err) {
-      const message = err instanceof Error ? err.message : String(err);
-      expect(message).not.toContain('wrong-password-intentional-test');
-      expect(message).not.toContain(SQL_PASSWORD);
-    }
-  }, 30000);
-
   it('previewQuery returns columns and rows', async () => {
-    const result = await runSqlQuery(
-      {
-        ...base,
-        query: SQL_QUERY,
-        rowLimit: 50,
-      },
-      'preview'
-    );
+    const result = await previewSqlQuery({
+      ...base,
+      query: SQL_QUERY,
+      rowLimit: 50,
+    });
     expect(result.columns.length).toBeGreaterThan(0);
-    expect(Array.isArray(result.rows)).toBe(true);
-    expect(result.rowCount).toBeGreaterThanOrEqual(0);
+    expect(result.rowCount).toBe(result.rows.length);
+    expect(result.totalRowCount).toBeGreaterThanOrEqual(result.rowCount);
     expect(result.sourceLabel).toContain(SQL_SERVER);
   }, 30000);
 
-  it('loadQueryData returns sourceLabel and row count', async () => {
-    const result = await runSqlQuery(
-      {
-        ...base,
-        query: SQL_QUERY,
-        rowLimit: 10000,
-      },
-      'load'
-    );
+  it('loads rows from the configured query', async () => {
+    const result = await loadSqlRows({
+      ...base,
+      query: SQL_QUERY,
+      rowLimit: 10000,
+    });
     expect(result.columns.length).toBeGreaterThan(0);
     expect(result.sourceLabel).toBe(`${SQL_SERVER} / ${SQL_DATABASE}`);
-    expect(result.rowCount).toBeGreaterThanOrEqual(0);
+    expect(result.rows.length).toBeLessThanOrEqual(10000);
   }, 60000);
 
   it.each([
+    [
+      'a batch with quoted identifiers, strings, comments and a terminating semicolon',
+      `DECLARE @items TABLE (id int);
+INSERT INTO @items VALUES (1), (2), (3);
+-- SELECT 'this is a comment;'
+SELECT id AS PartNo, 'update; -- /*still text*/' AS [drop]
+FROM @items /* delete */ ORDER BY id DESC; SELECT 99 AS Ignored;`,
+      ['3', '2'],
+      3,
+    ],
     [
       'a CTE with DISTINCT and a nested SELECT',
       `WITH Products AS (SELECT PartNo FROM (VALUES (1), (2), (2), (3)) p(PartNo))
@@ -112,25 +103,40 @@ ORDER BY PartNo`,
       3,
     ],
   ])('limits and counts %s', async (_, query, partNumbers, total) => {
-    const result = await runSqlQuery(
-      { ...base, query, rowLimit: 2 },
-      'preview'
-    );
+    const result = await previewSqlQuery({ ...base, query, rowLimit: 2 });
 
     expect(result.rows.map(row => row.PartNo)).toEqual(partNumbers);
     expect(result.rowCount).toBe(2);
     expect(result.totalRowCount).toBe(total);
+    const loaded = await loadSqlRows({ ...base, query, rowLimit: 2 });
+    expect(loaded.rows).toEqual(result.rows);
+  });
+
+  it('reports SQL Server errors after an initial result', async () => {
+    const query = "SELECT 1 AS PartNo; THROW 51000, 'Fixture query failed', 1;";
+    for (const run of [previewSqlQuery, loadSqlRows]) {
+      await expect(run({ ...base, query })).rejects.toThrow(
+        'Fixture query failed'
+      );
+    }
+  });
+
+  it('honours the query timeout', async () => {
+    await expect(
+      previewSqlQuery({
+        ...base,
+        query: "WAITFOR DELAY '00:00:02'; SELECT 1 AS PartNo;",
+        queryTimeoutMs: 250,
+      })
+    ).rejects.toThrow(/timeout/i);
   });
 
   it('preserves columns for empty results', async () => {
-    const result = await runSqlQuery(
-      {
-        ...base,
-        query: 'SELECT 1 AS PartNo WHERE 1 = 0',
-        rowLimit: 2,
-      },
-      'preview'
-    );
+    const result = await previewSqlQuery({
+      ...base,
+      query: 'SELECT 1 AS PartNo WHERE 1 = 0',
+      rowLimit: 2,
+    });
 
     expect(result).toMatchObject({
       columns: ['PartNo'],
@@ -148,25 +154,19 @@ SELECT TOP (10002) a.Digit + 10 * b.Digit + 100 * c.Digit +
 FROM Digits a CROSS JOIN Digits b CROSS JOIN Digits c
 CROSS JOIN Digits d CROSS JOIN Digits e ORDER BY PartNo`;
 
-    const preview = await runSqlQuery(
-      {
-        ...base,
-        query,
-        rowLimit: 50,
-      },
-      'preview'
-    );
-    const loaded = await runSqlQuery(
-      {
-        ...base,
-        query,
-        rowLimit: 10000,
-      },
-      'load'
-    );
+    const preview = await previewSqlQuery({
+      ...base,
+      query,
+      rowLimit: 50,
+    });
+    const loaded = await loadSqlRows({
+      ...base,
+      query,
+      rowLimit: 20000,
+    });
 
     expect(preview).toMatchObject({ rowCount: 50, totalRowCount: 10002 });
-    expect(loaded).toMatchObject({ rowCount: 10000, totalRowCount: 10002 });
+    expect(loaded.rows).toHaveLength(10000);
     expect(loaded.rows.slice(0, 50)).toEqual(preview.rows);
     expect(loaded.rows[9999]).toEqual({ PartNo: '9999' });
   });

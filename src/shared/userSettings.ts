@@ -23,7 +23,6 @@ export const defaultUserSettings = {
     defaultServer: '',
     defaultDatabase: 'Baker',
     defaultUsername: 'DigitalAssetsDownloader',
-    allowedCrossDatabases: ['WebScrapes'],
   },
 };
 
