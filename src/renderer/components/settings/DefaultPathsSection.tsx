@@ -55,37 +55,18 @@ export const DefaultPathsSection: React.FC<DefaultPathsSectionProps> = ({
       </div>
 
       <div className="form-group">
-        <label htmlFor="image-network-path">
-          Image Network Path (for CSV logging)
-        </label>
+        <label htmlFor="image-network-path">Image Network Path</label>
         <FolderSelector
           id="image-network-path"
           value={settings.imageNetworkPath}
           onChange={path => onSettingUpdate({ imageNetworkPath: path })}
-          placeholder="Network path for image file logging..."
+          placeholder="\\server\share\images"
           dialogTitle="Select Image Network Path"
           editable={true}
         />
         <small className="text-muted">
-          Network path used for CSV logging (separate from download location)
-        </small>
-      </div>
-
-      <div className="form-group">
-        <label htmlFor="pdf-network-path">
-          PDF Network Path (for CSV logging)
-        </label>
-        <FolderSelector
-          id="pdf-network-path"
-          value={settings.pdfNetworkPath}
-          onChange={path => onSettingUpdate({ pdfNetworkPath: path })}
-          placeholder="Network path for PDF file logging..."
-          dialogTitle="Select PDF Network Path"
-          editable={true}
-        />
-        <small className="text-muted">
-          Network path used for PDF CSV logging (separate from download
-          location)
+          Optional. The Excel workbook uses this path to reference images for
+          ABM.
         </small>
       </div>
     </div>

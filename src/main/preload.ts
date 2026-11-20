@@ -20,7 +20,7 @@ import {
   type LoadedInput,
   type UpdateCheckResult,
 } from '@/shared/types';
-import type { NetworkPathDefaults, UserSettings } from '@/shared/userSettings';
+import type { UserSettings } from '@/shared/userSettings';
 import type {
   DownloadCompletionEvent,
   DownloadProgress,
@@ -83,8 +83,6 @@ const electronAPI = {
   saveSettings: (settings: UserSettings) =>
     invoke<Success>(channels.SAVE_SETTINGS, settings),
   loadSettings: () => invoke<UserSettings>(channels.LOAD_SETTINGS),
-  saveNetworkPaths: (paths: NetworkPathDefaults) =>
-    invoke<void>(channels.SAVE_NETWORK_PATHS, paths),
 
   checkForUpdates: () => invoke<UpdateCheckResult>(channels.CHECK_FOR_UPDATES),
   installUpdate: () => invoke<void>(channels.INSTALL_UPDATE),

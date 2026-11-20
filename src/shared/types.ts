@@ -18,11 +18,6 @@ export interface DownloadConfig extends DownloadOptions {
   sheetName: string;
   sourceType?: 'file' | 'sql';
   sourceLabel?: string;
-  pdfFilePath: string; // Network path for CSV logging (user-configurable in Settings)
-  backgroundProcessing: DownloadOptions['backgroundProcessing'] & {
-    method: 'smart_detect';
-    edgeThreshold: number;
-  };
 }
 
 export interface WindowState {
@@ -79,7 +74,6 @@ export const IPC_CHANNELS = {
 
   // Settings operations
   SAVE_SETTINGS: 'save-settings',
-  SAVE_NETWORK_PATHS: 'save-network-paths',
   LOAD_SETTINGS: 'load-settings',
 
   // Auto-updater operations

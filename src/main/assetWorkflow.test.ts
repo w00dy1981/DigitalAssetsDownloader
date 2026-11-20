@@ -79,13 +79,10 @@ test('returns summaries, preserves SQL preview rows, and starts only with the ma
       pdfFolder: '',
       sourceImageFolder: '',
       imageFilePath: '',
-      pdfFilePath: '',
       maxWorkers: 1,
       backgroundProcessing: {
         enabled: false,
-        method: 'smart_detect',
         quality: 90,
-        edgeThreshold: 20,
       },
     };
     expect(await invoke(IPC_CHANNELS.PREVIEW_SQL_QUERY, sqlRequest)).toEqual(

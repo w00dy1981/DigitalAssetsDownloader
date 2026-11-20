@@ -194,9 +194,10 @@ export async function saveAsset(
       }
 
       const filePath = `${asset.fileStem}.${extension}`;
-      const networkPath = asset.networkStem
-        ? `${asset.networkStem}.${extension}`
-        : '';
+      const networkPath =
+        asset.kind === 'image' && asset.networkStem
+          ? `${asset.networkStem}.${extension}`
+          : '';
       const folder = path.dirname(filePath);
       await fs.mkdir(folder, { recursive: true });
       const temporaryFile = path.join(folder, `.${randomUUID()}.tmp`);

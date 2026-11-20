@@ -7,7 +7,6 @@ export const limits = {
   readTimeout: { min: 10, max: 300 },
   retryAttempts: { min: 1, max: 10 },
   quality: { min: 60, max: 100 },
-  edgeThreshold: { min: 10, max: 100 },
 };
 
 function checkRange(
@@ -39,18 +38,12 @@ export function downloadConfigErrors(config: DownloadConfig): string[] {
   if (config.pdfColumn)
     checkFolder(errors, 'PDF Download Folder', config.pdfFolder);
   checkRange(errors, 'Max Workers', config.maxWorkers, limits.workers);
-  if (config.backgroundProcessing.enabled) {
+  if (config.imageColumns.length) {
     checkRange(
       errors,
       'JPEG Quality',
       config.backgroundProcessing.quality,
       limits.quality
-    );
-    checkRange(
-      errors,
-      'Edge Threshold',
-      config.backgroundProcessing.edgeThreshold,
-      limits.edgeThreshold
     );
   }
   return errors;
@@ -90,12 +83,6 @@ export function userSettingsErrors({
     'Default JPEG Quality',
     imageProcessing.defaultQuality,
     limits.quality
-  );
-  checkRange(
-    errors,
-    'Default Edge Threshold',
-    imageProcessing.defaultEdgeThreshold,
-    limits.edgeThreshold
   );
   return errors;
 }

@@ -63,12 +63,14 @@ const ProcessControls: React.FC<ProcessControlsProps> = ({
             <span className="summary-label">Workers:</span>
             <span className="summary-value">{config.maxWorkers}</span>
           </div>
-          <div className="summary-row">
-            <span className="summary-label">Background Processing:</span>
-            <span className="summary-value">
-              {config.backgroundProcessing.enabled ? 'Enabled' : 'Disabled'}
-            </span>
-          </div>
+          {config.imageColumns.length > 0 && (
+            <div className="summary-row">
+              <span className="summary-label">Image Network Path:</span>
+              <span className="summary-value">
+                {config.imageFilePath || 'None'}
+              </span>
+            </div>
+          )}
         </div>
       </div>
 
@@ -110,64 +112,50 @@ const ProcessControls: React.FC<ProcessControlsProps> = ({
               {...limits.workers}
             />
             <small className="form-text">
-              Number of simultaneous downloads (1-20)
+              Number of simultaneous downloads
             </small>
           </div>
 
-          {/* Background Processing */}
-          <div className="form-group">
-            <label className="checkbox-label">
-              <input
-                type="checkbox"
-                checked={config.backgroundProcessing.enabled}
-                onChange={e =>
-                  updateConfig({
-                    backgroundProcessing: {
-                      ...config.backgroundProcessing,
-                      enabled: e.target.checked,
-                    },
-                  })
-                }
-              />
-              <span className="checkbox-text">
-                Enable Background Processing
-              </span>
-            </label>
-            <small className="text-muted">
-              Process downloaded images to remove backgrounds and convert to
-              JPEG
-            </small>
-          </div>
-
-          {config.backgroundProcessing.enabled && (
-            <div className="bg-processing-options">
-              <div className="form-group-inline">
-                <div className="form-group">
-                  <small className="text-muted method-explanation">
-                    Detects PNG images with transparency and converts them to
-                    JPG with white background
-                  </small>
-                </div>
-
-                <div className="form-group">
-                  <label htmlFor="quality">JPEG Quality (%)</label>
-                  <NumberInput
-                    id="quality"
-                    value={config.backgroundProcessing.quality}
-                    onChange={value =>
+          {config.imageColumns.length > 0 && (
+            <>
+              <div className="form-group">
+                <label className="checkbox-label">
+                  <input
+                    type="checkbox"
+                    checked={config.backgroundProcessing.enabled}
+                    onChange={e =>
                       updateConfig({
                         backgroundProcessing: {
                           ...config.backgroundProcessing,
-                          quality: value,
+                          enabled: e.target.checked,
                         },
                       })
                     }
-                    {...limits.quality}
-                    suffix="%"
                   />
-                </div>
+                  <span className="checkbox-text">
+                    Give transparent images a white background
+                  </span>
+                </label>
               </div>
-            </div>
+
+              <div className="form-group">
+                <label htmlFor="quality">JPEG Quality</label>
+                <NumberInput
+                  id="quality"
+                  value={config.backgroundProcessing.quality}
+                  onChange={value =>
+                    updateConfig({
+                      backgroundProcessing: {
+                        ...config.backgroundProcessing,
+                        quality: value,
+                      },
+                    })
+                  }
+                  {...limits.quality}
+                  suffix="%"
+                />
+              </div>
+            </>
           )}
         </div>
       </div>

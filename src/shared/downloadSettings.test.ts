@@ -18,13 +18,10 @@ describe('download settings', () => {
         pdfFolder: '/path/to/pdfs',
         sourceImageFolder: '/path/to/source',
         imageFilePath: '/network/images',
-        pdfFilePath: '/network/pdfs',
         maxWorkers: 5,
         backgroundProcessing: {
           enabled: true,
-          method: 'smart_detect',
           quality: 95,
-          edgeThreshold: 30,
         },
       };
     });
@@ -54,16 +51,25 @@ describe('download settings', () => {
       expect(result).toContain('Max Workers must be no more than 20');
     });
 
-    it('should validate background processing settings', () => {
+    it('validates JPEG quality even when white backgrounds are disabled', () => {
       const config = {
         ...validConfig,
         backgroundProcessing: {
-          ...validConfig.backgroundProcessing,
+          enabled: false,
           quality: 50,
         },
       };
       const result = downloadConfigErrors(config);
       expect(result).toContain('JPEG Quality must be at least 60');
+    });
+
+    it('ignores JPEG quality for PDF-only downloads', () => {
+      const config = {
+        ...validConfig,
+        imageColumns: [],
+        backgroundProcessing: { enabled: true, quality: 50 },
+      };
+      expect(downloadConfigErrors(config)).toEqual([]);
     });
   });
 

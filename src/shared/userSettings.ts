@@ -5,7 +5,6 @@ export const defaultUserSettings = {
     pdfDownloadFolder: '',
     sourceImageFolder: '',
     imageNetworkPath: '',
-    pdfNetworkPath: '',
   },
   downloadBehavior: {
     defaultConcurrentDownloads: 5,
@@ -15,9 +14,7 @@ export const defaultUserSettings = {
   },
   imageProcessing: {
     enabledByDefault: true,
-    defaultMethod: 'smart_detect' as const,
     defaultQuality: 95,
-    defaultEdgeThreshold: 30,
   },
   uiPreferences: {
     rememberFileDialogPath: true,
@@ -38,11 +35,6 @@ export const defaultUserSettings = {
 };
 
 export type UserSettings = typeof defaultUserSettings;
-export type NetworkPathDefaults = Pick<
-  UserSettings['defaultPaths'],
-  'imageNetworkPath' | 'pdfNetworkPath'
->;
-
 type SavedFields<T> = { [Section in keyof T]?: Partial<T[Section]> };
 
 function restoreDefaults<T extends Record<keyof T, object>>(

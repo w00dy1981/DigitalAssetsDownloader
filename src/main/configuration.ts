@@ -11,7 +11,7 @@ import {
   type DownloadConfig,
   type WindowState,
 } from '@/shared/types';
-import type { NetworkPathDefaults, UserSettings } from '@/shared/userSettings';
+import type { UserSettings } from '@/shared/userSettings';
 import { mergeUserSettings } from '@/shared/userSettings';
 
 export function registerConfiguration() {
@@ -50,24 +50,6 @@ export function registerConfiguration() {
   });
 
   ipcMain.handle(IPC_CHANNELS.LOAD_SETTINGS, getSettings);
-
-  ipcMain.handle(
-    IPC_CHANNELS.SAVE_NETWORK_PATHS,
-    (_, paths: NetworkPathDefaults) => {
-      const { imageNetworkPath, pdfNetworkPath } = paths;
-      if (
-        typeof imageNetworkPath !== 'string' ||
-        typeof pdfNetworkPath !== 'string'
-      ) {
-        throw new Error('Network paths must be text.');
-      }
-
-      const settings = getSettings();
-      settings.defaultPaths.imageNetworkPath = imageNetworkPath;
-      settings.defaultPaths.pdfNetworkPath = pdfNetworkPath;
-      store.set('userSettings', settings);
-    }
-  );
 
   return {
     getSettings,

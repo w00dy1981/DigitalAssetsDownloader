@@ -33,14 +33,11 @@ export function useColumnSelectionState({
         pdfFolder: paths.pdfDownloadFolder,
         sourceImageFolder: paths.sourceImageFolder,
         imageFilePath: paths.imageNetworkPath,
-        pdfFilePath: paths.pdfNetworkPath,
         maxWorkers: settings.downloadBehavior.defaultConcurrentDownloads,
         ...initialConfig,
         backgroundProcessing: {
           enabled: settings.imageProcessing.enabledByDefault,
-          method: settings.imageProcessing.defaultMethod,
           quality: settings.imageProcessing.defaultQuality,
-          edgeThreshold: settings.imageProcessing.defaultEdgeThreshold,
           ...initialConfig?.backgroundProcessing,
         },
         excelFile: data.filePath,
@@ -61,21 +58,6 @@ export function useColumnSelectionState({
   ) {
     setConfig(previous => previous && { ...previous, [key]: value });
   }
-  function changeNetworkPath(
-    key: 'imageFilePath' | 'pdfFilePath',
-    value: string
-  ) {
-    if (!config) return;
-    update(key, value);
-    void window.electronAPI
-      .saveNetworkPaths({
-        imageNetworkPath:
-          key === 'imageFilePath' ? value : config.imageFilePath,
-        pdfNetworkPath: key === 'pdfFilePath' ? value : config.pdfFilePath,
-      })
-      .catch(error => setError(String(error)));
-  }
-
   function handleNext() {
     if (!config) return;
     const errors = downloadConfigErrors(config);
@@ -88,6 +70,5 @@ export function useColumnSelectionState({
     error,
     update,
     handleNext,
-    changeNetworkPath,
   };
 }

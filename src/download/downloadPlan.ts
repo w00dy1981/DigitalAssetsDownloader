@@ -2,21 +2,16 @@ import * as path from 'path';
 import { createHash } from 'node:crypto';
 import { joinFilename, sanitizePath } from '../files/pathSecurity';
 
-interface Destination {
-  fileStem: string;
-  networkStem: string;
-}
-
-export type PlannedAsset = Destination &
-  (
-    | {
-        kind: 'image';
-        urls: string[];
-        productCode: string;
-        sourceFilename?: string;
-      }
-    | { kind: 'pdf'; urls: [string] }
-  );
+export type PlannedAsset = { fileStem: string } & (
+  | {
+      kind: 'image';
+      networkStem: string;
+      urls: string[];
+      productCode: string;
+      sourceFilename?: string;
+    }
+  | { kind: 'pdf'; urls: [string] }
+);
 
 export interface PlannedRow {
   rowNumber: number;
@@ -24,19 +19,14 @@ export interface PlannedRow {
   assets: PlannedAsset[];
 }
 
-function destination(
-  folder: string,
-  referenceFolder: string,
-  stem: string
-): Destination {
+function imageNetworkStem(referenceFolder: string, stem: string): string {
   const reference = referenceFolder?.trim();
-  const fileStem = joinFilename(folder, stem);
-  if (!reference) return { fileStem, networkStem: '' };
+  if (!reference) return '';
   if (path.win32.isAbsolute(reference) && !path.posix.isAbsolute(reference)) {
     sanitizePath(reference);
-    return { fileStem, networkStem: path.win32.join(reference, stem) };
+    return path.win32.join(reference, stem);
   }
-  return { fileStem, networkStem: joinFilename(reference, stem) };
+  return joinFilename(reference, stem);
 }
 
 export interface DownloadPlanConfig {
@@ -89,14 +79,15 @@ export function planDownloads(
         urls,
         productCode,
         sourceFilename: filename ? String(filename) : undefined,
-        ...destination(config.imageFolder, config.imageFilePath, stem),
+        fileStem: joinFilename(config.imageFolder, stem),
+        networkStem: imageNetworkStem(config.imageFilePath, stem),
       });
     }
     if (pdfUrl) {
       assets.push({
         kind: 'pdf',
         urls: [String(pdfUrl)],
-        ...destination(config.pdfFolder, '', stem),
+        fileStem: joinFilename(config.pdfFolder, stem),
       });
     }
     rows.push({ rowNumber: index + 1, productCode, assets });

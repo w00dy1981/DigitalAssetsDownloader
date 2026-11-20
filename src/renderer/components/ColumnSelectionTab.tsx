@@ -4,7 +4,6 @@ import { useColumnSelectionState } from './column-selection/useColumnSelectionSt
 import {
   ColumnMappingPanel,
   FolderConfigurationPanel,
-  NetworkPathsPanel,
 } from './column-selection';
 
 interface ColumnSelectionTabProps {
@@ -18,10 +17,9 @@ const ColumnSelectionTab: React.FC<ColumnSelectionTabProps> = ({
   onConfigurationComplete,
   initialConfig,
 }) => {
-  const { config, error, setError, update, handleNext, changeNetworkPath } =
+  const { config, error, setError, update, handleNext } =
     useColumnSelectionState({ data, initialConfig, onConfigurationComplete });
   if (!config) return <p>Loading column settings...</p>;
-  const { imageFilePath, pdfFilePath } = config;
 
   return (
     <div className="column-selection-tab">
@@ -59,16 +57,6 @@ const ColumnSelectionTab: React.FC<ColumnSelectionTabProps> = ({
           onSourceImageFolderChange={value =>
             update('sourceImageFolder', value)
           }
-          onError={setError}
-        />
-
-        <NetworkPathsPanel
-          imageFilePath={imageFilePath}
-          onImageFilePathChange={value =>
-            changeNetworkPath('imageFilePath', value)
-          }
-          pdfFilePath={pdfFilePath}
-          onPdfFilePathChange={value => changeNetworkPath('pdfFilePath', value)}
           onError={setError}
         />
       </div>
