@@ -6,7 +6,6 @@
 
 import { Jimp } from 'jimp';
 import { logger } from './LoggingService';
-import { errorHandler } from './ErrorHandlingService';
 import { CONSTANTS } from '@/shared/constants';
 
 export interface ImageProcessingOptions {
@@ -77,11 +76,7 @@ export class ImageProcessingService {
         channels: hasAlpha ? 4 : 3,
       };
     } catch (error) {
-      const processedError = errorHandler.handleError(
-        error,
-        'ImageProcessingService',
-        { throwOnError: false }
-      );
+      const processedError = error instanceof Error ? error : new Error(String(error));
       logger.warn('Error getting image metadata', 'ImageProcessingService', {
         error: processedError.message,
       });
@@ -172,11 +167,7 @@ export class ImageProcessingService {
 
       return false;
     } catch (error) {
-      const processedError = errorHandler.handleError(
-        error,
-        'ImageProcessingService',
-        { throwOnError: false }
-      );
+      const processedError = error instanceof Error ? error : new Error(String(error));
       logger.warn(
         'Error checking image for background processing needs',
         'ImageProcessingService',
@@ -282,11 +273,7 @@ export class ImageProcessingService {
         };
       }
 
-      const processedError = errorHandler.handleError(
-        error,
-        'ImageProcessingService',
-        { throwOnError: false }
-      );
+      const processedError = error instanceof Error ? error : new Error(String(error));
       logger.error(
         'Jimp image processing failed',
         processedError,

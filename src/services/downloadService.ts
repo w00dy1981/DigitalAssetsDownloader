@@ -18,10 +18,8 @@ import {
 } from './pathSecurity';
 import { isImageFile } from './fileUtils';
 import { logger } from './LoggingService';
-import { errorHandler } from './ErrorHandlingService';
-// import { withErrorHandling } from '@/utils/withErrorHandling'; // Available for future use
 import { imageProcessor } from './ImageProcessingService';
-import { appConstants } from './AppConstantsService';
+import { CONSTANTS } from '@/shared/constants';
 
 interface DownloadJobItem extends DownloadItem {
   imageFilePaths: string[];
@@ -123,7 +121,7 @@ export class DownloadService extends EventEmitter {
    */
   private async convertToJpg(
     imageBuffer: Buffer,
-    quality = appConstants.getDefaultQuality(),
+    quality = CONSTANTS.IMAGE.DEFAULT_QUALITY,
     config?: DownloadConfig
   ): Promise<{ buffer: Buffer; backgroundProcessed: boolean; format?: string }> {
     // Check for cancellation before processing
@@ -143,19 +141,7 @@ export class DownloadService extends EventEmitter {
         format: result.format,
       };
     } catch (error) {
-      // Using withErrorHandling utility would simplify this pattern:
-      // const result = await withErrorHandling(
-      //   () => imageProcessor.processImage(imageBuffer, config),
-      //   'ImageProcessing',
-      //   { returnNullOnError: true }
-      // );
-      // if (!result) return { buffer: imageBuffer, backgroundProcessed: false };
-
-      const processedError = errorHandler.handleError(
-        error,
-        'DownloadService',
-        { throwOnError: false }
-      );
+      const processedError = error instanceof Error ? error : new Error(String(error));
       logger.error(
         'Image processing failed',
         processedError,
@@ -181,21 +167,11 @@ export class DownloadService extends EventEmitter {
       throw new Error('File write cancelled');
     }
 
-    // Example of withErrorHandling utility usage:
-    // await withErrorHandling(async () => {
-    //   await fs.mkdir(path.dirname(filepath), { recursive: true });
-    //   await fs.writeFile(filepath, content);
-    // }, 'FileWrite');
-
     try {
       await fs.mkdir(path.dirname(filepath), { recursive: true });
       await fs.writeFile(filepath, content);
     } catch (error) {
-      const processedError = errorHandler.handleError(
-        error,
-        'DownloadService',
-        { throwOnError: false }
-      );
+      const processedError = error instanceof Error ? error : new Error(String(error));
       throw processedError;
     }
   }
@@ -260,11 +236,7 @@ export class DownloadService extends EventEmitter {
         );
         return null;
       }
-      const processedError = errorHandler.handleError(
-        error,
-        'DownloadService',
-        { throwOnError: false }
-      );
+      const processedError = error instanceof Error ? error : new Error(String(error));
       logger.error(
         'Error searching source folder',
         processedError,
@@ -300,11 +272,7 @@ export class DownloadService extends EventEmitter {
       const content = await fs.readFile(sourceFile);
       return { filePath: sourceFile, content };
     } catch (error) {
-      const processedError = errorHandler.handleError(
-        error,
-        'DownloadService',
-        { throwOnError: false }
-      );
+      const processedError = error instanceof Error ? error : new Error(String(error));
       logger.error(
         'Error accessing source folder',
         processedError,
@@ -344,7 +312,7 @@ export class DownloadService extends EventEmitter {
           try {
             const result = await this.convertToJpg(
               content,
-              appConstants.getDefaultQuality(),
+              CONSTANTS.IMAGE.DEFAULT_QUALITY,
               config
             );
             processedContent = result.buffer;
@@ -384,7 +352,7 @@ export class DownloadService extends EventEmitter {
           try {
             const result = await this.convertToJpg(
               content,
-              appConstants.getDefaultQuality(),
+              CONSTANTS.IMAGE.DEFAULT_QUALITY,
               config
             );
             processedContent = result.buffer;
@@ -470,7 +438,7 @@ export class DownloadService extends EventEmitter {
           try {
             const result = await this.convertToJpg(
               content,
-              appConstants.getDefaultQuality(),
+              CONSTANTS.IMAGE.DEFAULT_QUALITY,
               config
             );
             processedContent = result.buffer;
@@ -670,7 +638,7 @@ export class DownloadService extends EventEmitter {
           try {
             const result = await this.convertToJpg(
               sourceResult.content,
-              appConstants.getDefaultQuality(),
+              CONSTANTS.IMAGE.DEFAULT_QUALITY,
               config
             );
             processedContent = result.buffer;

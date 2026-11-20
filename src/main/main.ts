@@ -17,7 +17,7 @@ import {
 } from '@/shared/types';
 import { getSheetNames, loadSheetData } from '@/services/excelService';
 import { DownloadService } from '@/services/downloadService';
-import { appConstants } from '@/services/AppConstantsService';
+import { CONSTANTS } from '@/shared/constants';
 import { SqlServerService } from '@/services/SqlServerService';
 import { SqlCredentialService } from '@/services/SqlCredentialService';
 
@@ -61,8 +61,8 @@ class DigitalAssetDownloaderApp {
     this.store = new Store<AppConfig>({
       defaults: {
         windowState: {
-          width: appConstants.getUIConfiguration().defaultWindowWidth,
-          height: appConstants.getUIConfiguration().defaultWindowHeight,
+          width: CONSTANTS.UI.DEFAULT_WINDOW_WIDTH,
+          height: CONSTANTS.UI.DEFAULT_WINDOW_HEIGHT,
           isMaximized: false,
         },
         recentFiles: [],
@@ -620,7 +620,7 @@ class DigitalAssetDownloaderApp {
   private setupAutoUpdater(): void {
     // Configure auto-updater logging
     log.transports.file.maxSize =
-      appConstants.getPathConfiguration().logFileMaxSize;
+      CONSTANTS.PATH.LOG_FILE_MAX_SIZE;
     autoUpdater.logger = log;
     console.log('🔧 Auto-updater initialized', {
       version: app.getVersion(),
@@ -778,7 +778,7 @@ class DigitalAssetDownloaderApp {
           if (!resolved) {
             handleCleanup();
             const timeout =
-              appConstants.getNetworkTimeouts().updateCheckTimeout;
+              CONSTANTS.NETWORK.UPDATE_CHECK_TIMEOUT;
             console.error(
               `❌ Update check timed out after ${timeout / 1000} seconds - this indicates a silent failure`
             );
@@ -791,7 +791,7 @@ class DigitalAssetDownloaderApp {
               )
             );
           }
-        }, appConstants.getNetworkTimeouts().updateCheckTimeout);
+        }, CONSTANTS.NETWORK.UPDATE_CHECK_TIMEOUT);
 
         // Clear timeout when resolved
         const originalResolve = resolve;

@@ -7,7 +7,6 @@ import {
 } from '@/shared/types';
 import { ipcService } from '@/services/IPCService';
 import { logger } from '@/services/LoggingService';
-import { errorHandler } from '@/services/ErrorHandlingService';
 
 interface UseDownloadLifecycleParams {
   config: DownloadConfig;
@@ -160,15 +159,7 @@ export const useDownloadLifecycle = ({
   }, [config]);
 
   const handleDownloadError = useCallback((error: unknown) => {
-    const handledError = errorHandler.handleError(
-      error,
-      'ProcessTab.handleStartDownloads'
-    );
-
-    const normalizedError =
-      handledError instanceof Error
-        ? handledError
-        : new Error(String(handledError));
+    const normalizedError = error instanceof Error ? error : new Error(String(error));
 
     logger.error(
       'useDownloadLifecycle: Error starting downloads',
@@ -264,14 +255,7 @@ export const useDownloadLifecycle = ({
         );
         setLogs(prev => [...prev, 'Downloads cancellation requested']);
       } catch (error) {
-        const handledError = errorHandler.handleError(
-          error,
-          'ProcessTab.handleCancelDownloads'
-        );
-        const normalizedError =
-          handledError instanceof Error
-            ? handledError
-            : new Error(String(handledError));
+        const normalizedError = error instanceof Error ? error : new Error(String(error));
         setLogs(prev => [
           ...prev,
           `Error cancelling downloads: ${normalizedError.message}`,

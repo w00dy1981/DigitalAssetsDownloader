@@ -19,11 +19,6 @@ jest.mock('./LoggingService', () => ({
   },
 }));
 
-jest.mock('./ErrorHandlingService', () => ({
-  errorHandler: {
-    handleError: jest.fn(error => error),
-  },
-}));
 
 // Mock Jimp for reliable testing
 const mockJimpImage = {
