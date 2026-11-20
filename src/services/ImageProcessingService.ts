@@ -1,5 +1,9 @@
 import { Jimp } from 'jimp';
-import { CONSTANTS } from '../shared/constants';
+
+export interface ImageOptions {
+  quality: number;
+  enabled: boolean;
+}
 
 export interface ProcessedImage {
   buffer: Buffer;
@@ -9,8 +13,7 @@ export interface ProcessedImage {
 
 export async function processImage(
   buffer: Buffer,
-  quality: number = CONSTANTS.IMAGE.DEFAULT_QUALITY,
-  whiteBackground = true
+  { quality, enabled }: ImageOptions
 ): Promise<ProcessedImage> {
   if (
     buffer.subarray(0, 4).toString('ascii') === 'RIFF' &&
@@ -21,7 +24,7 @@ export async function processImage(
   }
 
   const image = await Jimp.fromBuffer(buffer);
-  const backgroundProcessed = whiteBackground && image.hasAlpha();
+  const backgroundProcessed = enabled && image.hasAlpha();
   const output = backgroundProcessed
     ? new Jimp({
         width: image.width,

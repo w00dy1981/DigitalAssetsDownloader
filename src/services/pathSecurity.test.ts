@@ -1,7 +1,7 @@
 import * as path from 'path';
 import {
   sanitizePath,
-  safeJoin,
+  joinFilename,
   validateFileAccess,
   PathSecurityError,
 } from './pathSecurity';
@@ -20,13 +20,9 @@ describe('pathSecurity', () => {
     });
 
     it('should throw on null or invalid input', () => {
-      expect(() => sanitizePath(null as any, testRoot)).toThrow(
-        PathSecurityError
-      );
+      expect(() => sanitizePath(null, testRoot)).toThrow(PathSecurityError);
       expect(() => sanitizePath('', testRoot)).toThrow(PathSecurityError);
-      expect(() => sanitizePath(123 as any, testRoot)).toThrow(
-        PathSecurityError
-      );
+      expect(() => sanitizePath(123, testRoot)).toThrow(PathSecurityError);
     });
 
     it('should detect and prevent path traversal with ..', () => {
@@ -65,43 +61,54 @@ describe('pathSecurity', () => {
     });
   });
 
-  describe('safeJoin', () => {
-    it('should safely join path components', () => {
-      const result = safeJoin(testRoot, 'folder', 'file.txt');
-      expect(result).toBe(path.resolve(testRoot, 'folder', 'file.txt'));
+  describe('joinFilename', () => {
+    it('should join a filename to its folder', () => {
+      const result = joinFilename(testRoot, 'file.txt');
+      expect(result).toBe(path.resolve(testRoot, 'file.txt'));
+    });
+
+    it('only accepts filenames directly in the folder', () => {
+      expect(() => joinFilename(testRoot, '.')).toThrow(PathSecurityError);
+      expect(() => joinFilename(testRoot, 'folder/file.txt')).toThrow(
+        PathSecurityError
+      );
     });
 
     it('should throw on invalid base path', () => {
-      expect(() => safeJoin('', 'test')).toThrow(PathSecurityError);
-      expect(() => safeJoin(null as any, 'test')).toThrow(PathSecurityError);
+      expect(() => joinFilename('', 'test')).toThrow(PathSecurityError);
+      expect(() => joinFilename(null, 'test')).toThrow(PathSecurityError);
     });
 
-    it('should throw on invalid components', () => {
-      expect(() => safeJoin(testRoot, null as any)).toThrow(PathSecurityError);
-      expect(() => safeJoin(testRoot, '')).toThrow(PathSecurityError);
-      expect(() => safeJoin(testRoot, 123 as any)).toThrow(PathSecurityError);
+    it('should throw on invalid filenames', () => {
+      expect(() => joinFilename(testRoot, null)).toThrow(PathSecurityError);
+      expect(() => joinFilename(testRoot, '')).toThrow(PathSecurityError);
+      expect(() => joinFilename(testRoot, 123)).toThrow(PathSecurityError);
     });
 
-    it('should prevent traversal in components', () => {
-      expect(() => safeJoin(testRoot, '../etc')).toThrow(PathSecurityError);
-      expect(() => safeJoin(testRoot, 'test', '../../etc')).toThrow(
+    it('should prevent traversal in filenames', () => {
+      expect(() => joinFilename(testRoot, '../etc')).toThrow(PathSecurityError);
+      expect(() => joinFilename(testRoot, 'test/../../etc')).toThrow(
         PathSecurityError
       );
-      expect(() => safeJoin(testRoot, 'test\0.txt')).toThrow(PathSecurityError);
+      expect(() => joinFilename(testRoot, 'test\0.txt')).toThrow(
+        PathSecurityError
+      );
     });
 
-    it('should prevent absolute paths in components', () => {
-      expect(() => safeJoin(testRoot, '/etc/passwd')).toThrow(
+    it('should prevent absolute filenames', () => {
+      expect(() => joinFilename(testRoot, '/etc/passwd')).toThrow(
         PathSecurityError
       );
       // On Windows, this would be an absolute path: C:\Windows\System32
       // On Unix, test with another absolute path
       if (process.platform === 'win32') {
-        expect(() => safeJoin(testRoot, 'C:\\Windows\\System32')).toThrow(
+        expect(() => joinFilename(testRoot, 'C:\\Windows\\System32')).toThrow(
           PathSecurityError
         );
       } else {
-        expect(() => safeJoin(testRoot, '/usr/bin')).toThrow(PathSecurityError);
+        expect(() => joinFilename(testRoot, '/usr/bin')).toThrow(
+          PathSecurityError
+        );
       }
     });
   });

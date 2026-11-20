@@ -1,11 +1,10 @@
 import * as path from 'path';
 import { createHash } from 'node:crypto';
-import type { DownloadConfig } from '../shared/types';
-import { safeJoin, sanitizePath } from './pathSecurity';
+import { joinFilename, sanitizePath } from './pathSecurity';
 
 interface Destination {
-  filePath: string;
-  networkPath: string;
+  fileStem: string;
+  networkStem: string;
 }
 
 export type PlannedAsset = Destination &
@@ -28,31 +27,27 @@ export interface PlannedRow {
 function destination(
   folder: string,
   referenceFolder: string,
-  filename: string
+  stem: string
 ): Destination {
   const reference = referenceFolder?.trim();
-  let networkPath = '';
-  if (reference) {
-    if (path.win32.isAbsolute(reference) && !path.posix.isAbsolute(reference)) {
-      sanitizePath(reference);
-      networkPath = path.win32.join(reference, filename);
-    } else {
-      networkPath = safeJoin(reference, filename);
-    }
+  const fileStem = joinFilename(folder, stem);
+  if (!reference) return { fileStem, networkStem: '' };
+  if (path.win32.isAbsolute(reference) && !path.posix.isAbsolute(reference)) {
+    sanitizePath(reference);
+    return { fileStem, networkStem: path.win32.join(reference, stem) };
   }
-  return { filePath: safeJoin(folder, filename), networkPath };
+  return { fileStem, networkStem: joinFilename(reference, stem) };
 }
 
-export type DownloadPlanConfig = Pick<
-  DownloadConfig,
-  | 'partNoColumn'
-  | 'imageColumns'
-  | 'pdfColumn'
-  | 'filenameColumn'
-  | 'imageFolder'
-  | 'pdfFolder'
-  | 'imageFilePath'
->;
+export interface DownloadPlanConfig {
+  partNoColumn: string;
+  imageColumns: readonly string[];
+  pdfColumn: string;
+  filenameColumn: string;
+  imageFolder: string;
+  pdfFolder: string;
+  imageFilePath: string;
+}
 
 export function planDownloads(
   config: DownloadPlanConfig,
@@ -94,14 +89,14 @@ export function planDownloads(
         urls,
         productCode,
         sourceFilename: filename ? String(filename) : undefined,
-        ...destination(config.imageFolder, config.imageFilePath, `${stem}.jpg`),
+        ...destination(config.imageFolder, config.imageFilePath, stem),
       });
     }
     if (pdfUrl) {
       assets.push({
         kind: 'pdf',
         urls: [String(pdfUrl)],
-        ...destination(config.pdfFolder, '', `${stem}.pdf`),
+        ...destination(config.pdfFolder, '', stem),
       });
     }
     rows.push({ rowNumber: index + 1, productCode, assets });

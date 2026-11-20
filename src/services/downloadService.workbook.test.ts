@@ -4,18 +4,18 @@ import * as path from 'path';
 import { createServer } from 'http';
 import ExcelJS from 'exceljs';
 import { Jimp } from 'jimp';
-import { DownloadService } from './downloadService';
-import { DownloadCompletionEvent, DownloadConfig } from '@/shared/types';
+import { DownloadService, type DownloadOptions } from './downloadService';
+import type { DownloadCompletionEvent } from '@/shared/types';
+
+const http = { retryAttempts: 3, connectionTimeout: 5, readTimeout: 30 };
 
 describe('saved downloads and workbook', () => {
   let root: string;
-  let config: DownloadConfig;
+  let config: DownloadOptions;
 
   beforeEach(async () => {
     root = await fs.mkdtemp(path.join(os.tmpdir(), 'dad-download-'));
     config = {
-      excelFile: 'input.xlsx',
-      sheetName: 'Sheet1',
       partNoColumn: 'Code',
       imageColumns: ['Image', 'Backup'],
       pdfColumn: 'PDF',
@@ -24,13 +24,10 @@ describe('saved downloads and workbook', () => {
       pdfFolder: path.join(root, 'pdfs'),
       sourceImageFolder: '',
       imageFilePath: path.join(root, 'server-images'),
-      pdfFilePath: path.join(root, 'server-pdfs'),
       maxWorkers: 3,
       backgroundProcessing: {
         enabled: false,
-        method: 'smart_detect',
         quality: 85,
-        edgeThreshold: 30,
       },
     };
   });
@@ -44,7 +41,7 @@ describe('saved downloads and workbook', () => {
     const complete = new Promise<DownloadCompletionEvent>(resolve => {
       service.once('complete', resolve);
     });
-    await service.startDownloads(config, rows);
+    await service.startDownloads(config, rows, http);
     const result = await complete;
     const workbook = new ExcelJS.Workbook();
     await workbook.xlsx.readFile(result.logFile!);
@@ -178,6 +175,25 @@ describe('saved downloads and workbook', () => {
     );
   });
 
+  test('an unavailable source folder falls back to the mapped image for each product', async () => {
+    config.sourceImageFolder = path.join(root, 'missing');
+    const red = await makeImage('red', 0xff0000ff);
+    const warn = jest.spyOn(console, 'warn').mockImplementation(() => {});
+    try {
+      const { result, workbook } = await download([
+        { Code: 'ONE', Image: red },
+        { Code: 'TWO', Image: red },
+      ]);
+      expect(result).toMatchObject({ successful: 2, failed: 0 });
+      expect(warn).toHaveBeenCalledTimes(1);
+      const log = workbook.getWorksheet('Download Log')!;
+      expect(log.getCell('C2').text).toBe(red);
+      expect(log.getCell('C3').text).toBe(red);
+    } finally {
+      warn.mockRestore();
+    }
+  });
+
   test('cancellation drains the active run and keeps saved results in a readable workbook', async () => {
     const red = await makeImage('red', 0xff0000ff);
     let requestStarted: () => void = () => {};
@@ -193,18 +209,22 @@ describe('saved downloads and workbook', () => {
       const service = new DownloadService();
       const completions: DownloadCompletionEvent[] = [];
       service.on('complete', result => completions.push(result));
-      const run = service.startDownloads({ ...config, maxWorkers: 1 }, [
-        { Code: 'DONE', Image: red },
-        {
-          Code: 'ACTIVE',
-          Image: `http://127.0.0.1:${address.port}/slow`,
-          Backup: red,
-        },
-        { Code: 'WAITING', Image: red },
-      ]);
+      const run = service.startDownloads(
+        { ...config, maxWorkers: 1 },
+        [
+          { Code: 'DONE', Image: red },
+          {
+            Code: 'ACTIVE',
+            Image: `http://127.0.0.1:${address.port}/slow`,
+            Backup: red,
+          },
+          { Code: 'WAITING', Image: red },
+        ],
+        http
+      );
       await started;
       service.cancelDownloads();
-      await expect(service.startDownloads(config, [])).rejects.toThrow(
+      await expect(service.startDownloads(config, [], http)).rejects.toThrow(
         'already in progress'
       );
       await run;
@@ -224,7 +244,11 @@ describe('saved downloads and workbook', () => {
       const workbook = new ExcelJS.Workbook();
       await workbook.xlsx.readFile(completions[0].logFile!);
       expect(workbook.getWorksheet('Download Log')!.rowCount).toBe(2);
-      await service.startDownloads(config, [{ Code: 'AFTER', Image: red }]);
+      await service.startDownloads(
+        config,
+        [{ Code: 'AFTER', Image: red }],
+        http
+      );
       expect(completions[1]).toMatchObject({ successful: 1, cancelled: false });
     } finally {
       server.closeAllConnections();

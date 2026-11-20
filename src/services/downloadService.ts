@@ -2,7 +2,6 @@ import * as path from 'path';
 import { EventEmitter } from 'events';
 import type {
   DownloadCompletionEvent,
-  DownloadConfig,
   DownloadProgress,
 } from '../shared/types';
 import {
@@ -11,23 +10,31 @@ import {
   type PlannedAsset,
 } from './downloadPlan';
 import { writeDownloadWorkbook } from './downloadWorkbook';
-import { saveAsset, type AssetResult, type HttpSettings } from './saveAsset';
-import { defaultUserSettings } from '../shared/userSettings';
-import { safeJoin } from './pathSecurity';
+import {
+  listSourceImages,
+  saveAsset,
+  type AssetResult,
+  type HttpSettings,
+} from './saveAsset';
+import type { ImageOptions } from './ImageProcessingService';
+import { joinFilename } from './pathSecurity';
 
-export type DownloadOptions = DownloadPlanConfig &
-  Pick<
-    DownloadConfig,
-    'sourceImageFolder' | 'maxWorkers' | 'backgroundProcessing'
-  >;
+export interface DownloadOptions extends DownloadPlanConfig {
+  sourceImageFolder: string;
+  maxWorkers: number;
+  backgroundProcessing: ImageOptions;
+}
 
-export class DownloadService extends EventEmitter {
+export class DownloadService extends EventEmitter<{
+  progress: [DownloadProgress];
+  complete: [DownloadCompletionEvent];
+}> {
   private activeRun?: AbortController;
 
   async startDownloads(
     config: DownloadOptions,
     data: readonly Record<string, unknown>[],
-    http: HttpSettings = defaultUserSettings.downloadBehavior
+    http: HttpSettings
   ): Promise<void> {
     if (this.activeRun) throw new Error('Downloads already in progress');
     if (!Number.isInteger(config.maxWorkers) || config.maxWorkers < 1) {
@@ -75,20 +82,28 @@ export class DownloadService extends EventEmitter {
 
       publishProgress();
       const options = {
-        sourceFolder: config.sourceImageFolder,
         processing: config.backgroundProcessing,
         http,
         signal: run.signal,
       };
 
       let next = 0;
+      let sourceImages: ReturnType<typeof listSourceImages> | undefined;
       const worker = async () => {
         while (!run.signal.aborted && next < assets.length) {
           const asset = assets[next++];
-          currentFile = path.basename(asset.filePath);
+          currentFile = `${path.basename(asset.fileStem)}.${asset.kind === 'image' ? 'jpg' : 'pdf'}`;
           publishProgress();
 
-          const result = await saveAsset(asset, options);
+          const result = await saveAsset(asset, {
+            ...options,
+            sourceImages:
+              asset.kind === 'image' && config.sourceImageFolder
+                ? await (sourceImages ??= listSourceImages(
+                    config.sourceImageFolder
+                  ))
+                : [],
+          });
           if (!result) continue;
           results.set(asset, result);
           if (result.success) {
@@ -113,7 +128,7 @@ export class DownloadService extends EventEmitter {
         .toISOString()
         .replace(/[:.]/g, '-')
         .slice(0, 23);
-      const logFile = safeJoin(
+      const logFile = joinFilename(
         config.imageFolder || config.pdfFolder,
         `DownloadLog_${timestamp}.xlsx`
       );

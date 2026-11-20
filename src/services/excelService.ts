@@ -4,12 +4,14 @@ import { createReadStream } from 'node:fs';
 import { pipeline } from 'node:stream/promises';
 import { NETWORK_CONSTANTS } from '@/shared/constants';
 import { sanitizePath, validateFileAccess } from './pathSecurity';
-import { isCsvFile } from './fileUtils';
 
 export interface SheetData {
   columns: string[];
   rows: Record<string, string>[];
 }
+
+const isCsvFile = (filename: string): boolean =>
+  filename.toLowerCase().endsWith('.csv');
 
 async function within<T>(operation: Promise<T>, ms: number): Promise<T> {
   let timer: ReturnType<typeof setTimeout> | undefined;

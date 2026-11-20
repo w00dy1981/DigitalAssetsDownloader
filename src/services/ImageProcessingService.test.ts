@@ -3,7 +3,10 @@ import { processImage } from './ImageProcessingService';
 
 test('a transparent PNG becomes an opaque white JPEG', async () => {
   const source = new Jimp({ width: 8, height: 8, color: 0x00000000 });
-  const result = await processImage(await source.getBuffer('image/png'));
+  const result = await processImage(await source.getBuffer('image/png'), {
+    quality: 85,
+    enabled: true,
+  });
   const jpeg = await Jimp.fromBuffer(result.buffer);
 
   expect(result).toMatchObject({ extension: 'jpg', backgroundProcessed: true });

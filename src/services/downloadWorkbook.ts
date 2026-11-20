@@ -45,16 +45,20 @@ export async function writeDownloadWorkbook(
   const importRows: { productCode: string; photo: string; pdfName: string }[] =
     [];
   for (const row of rows) {
-    const image = row.assets.find(asset => asset.kind === 'image');
-    const pdf = row.assets.find(asset => asset.kind === 'pdf');
-    const imageResult = image && results.get(image);
-    const pdfResult = pdf && results.get(pdf);
-    const photo = imageResult?.success ? imageResult.networkPath : '';
-    // ABM expects a filename for PDFs and a configured network path for images.
-    const pdfName = pdfResult?.success ? path.basename(pdfResult.filePath) : '';
+    let photo = '';
+    let pdfName = '';
     for (const asset of row.assets) {
       const result = results.get(asset);
       if (!result) continue;
+      const photoPath =
+        result.success && asset.kind === 'image' ? result.networkPath : '';
+      // ABM expects a filename for PDFs and a configured network path for images.
+      const pdfFilename =
+        result.success && asset.kind === 'pdf'
+          ? path.basename(result.filePath)
+          : '';
+      if (photoPath) photo = photoPath;
+      if (pdfFilename) pdfName = pdfFilename;
       log.addRow([
         row.rowNumber,
         row.productCode,
@@ -65,8 +69,8 @@ export async function writeDownloadWorkbook(
         result.success ? result.fileSize : 0,
         result.success ? 'Success' : result.error,
         result.success ? result.filePath : '',
-        asset.kind === 'image' ? photo : '',
-        asset.kind === 'pdf' ? pdfName : '',
+        photoPath,
+        pdfFilename,
         result.success && result.backgroundProcessed ? 'Yes' : 'No',
       ]);
     }

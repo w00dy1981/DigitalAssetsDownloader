@@ -4,13 +4,9 @@ import { randomUUID } from 'crypto';
 import { setTimeout } from 'timers/promises';
 import axios from 'axios';
 import type { Readable } from 'node:stream';
-import type { UserSettings } from '../shared/types';
-import type { DownloadConfig } from '../shared/types';
 import type { PlannedAsset } from './downloadPlan';
-import { isImageFile } from './fileUtils';
-import { logger } from './LoggingService';
-import { processImage } from './ImageProcessingService';
-import { safeJoin, sanitizePath } from './pathSecurity';
+import { processImage, type ImageOptions } from './ImageProcessingService';
+import { joinFilename, sanitizePath } from './pathSecurity';
 
 interface SourceDetails {
   url: string;
@@ -35,22 +31,43 @@ async function listImageNames(folder: string): Promise<string[]> {
   return entries
     .filter(
       entry =>
-        entry.isFile() && !entry.name.includes('..') && isImageFile(entry.name)
+        entry.isFile() &&
+        !entry.name.includes('..') &&
+        /\.(?:jpe?g|png|gif|bmp|webp|tiff?)$/i.test(entry.name)
     )
     .map(entry => entry.name);
 }
 
-async function findSourceImage(
+interface SourceImage {
+  name: string;
+  filePath: string;
+}
+
+export async function listSourceImages(folder: string): Promise<SourceImage[]> {
+  try {
+    const root = sanitizePath(folder);
+    return (await listImageNames(root)).map(filename => ({
+      name: filename.toLowerCase(),
+      filePath: joinFilename(root, filename),
+    }));
+  } catch (error) {
+    console.warn(
+      'Could not search the source image folder',
+      describeError(error)
+    );
+    return [];
+  }
+}
+
+function findSourceImage(
   asset: Extract<PlannedAsset, { kind: 'image' }>,
-  folder: string
-): Promise<string | undefined> {
-  const root = sanitizePath(folder);
-  const files = await listImageNames(root);
+  files: readonly SourceImage[]
+): string | undefined {
   for (const name of [asset.sourceFilename, asset.productCode.trim()]) {
     if (!name) continue;
     const query = name.toLowerCase();
-    const match = files.find(file => file.toLowerCase().includes(query));
-    if (match) return safeJoin(root, match);
+    const match = files.find(file => file.name.includes(query));
+    if (match) return match.filePath;
   }
 }
 
@@ -63,15 +80,16 @@ async function readLocalSource(
   if (kind === 'image' && (await fs.stat(file)).isDirectory()) {
     const [candidate] = await listImageNames(file);
     if (!candidate) throw new Error('No image files found in directory');
-    return fs.readFile(safeJoin(file, candidate), { signal });
+    return fs.readFile(joinFilename(file, candidate), { signal });
   }
   return fs.readFile(file, { signal });
 }
 
-export type HttpSettings = Pick<
-  UserSettings['downloadBehavior'],
-  'connectionTimeout' | 'readTimeout' | 'retryAttempts'
->;
+export interface HttpSettings {
+  connectionTimeout: number;
+  readTimeout: number;
+  retryAttempts: number;
+}
 
 async function fetchSource(
   url: string,
@@ -134,30 +152,16 @@ function describeError(error: unknown): string {
 export async function saveAsset(
   asset: PlannedAsset,
   options: {
-    sourceFolder: string;
+    sourceImages: readonly SourceImage[];
     http: HttpSettings;
     signal: AbortSignal;
-    processing: DownloadConfig['backgroundProcessing'];
+    processing: ImageOptions;
   }
 ): Promise<AssetResult | undefined> {
   const { signal } = options;
-  const sources = [...asset.urls];
-  if (asset.kind === 'image' && options.sourceFolder) {
-    try {
-      const local = await findSourceImage(asset, options.sourceFolder);
-      if (local) sources.unshift(local);
-    } catch (error) {
-      if (!signal.aborted) {
-        logger.warn(
-          'Could not search the source image folder',
-          'DownloadService',
-          {
-            error: describeError(error),
-          }
-        );
-      }
-    }
-  }
+  const local =
+    asset.kind === 'image' && findSourceImage(asset, options.sourceImages);
+  const sources = local ? [local, ...asset.urls] : asset.urls;
 
   let failure: AssetResult | undefined;
   for (const url of sources) {
@@ -178,25 +182,21 @@ export async function saveAsset(
       }
 
       signal.throwIfAborted();
-      let filePath = asset.filePath;
-      let networkPath = asset.networkPath;
+      let extension: 'jpg' | 'webp' | 'pdf' = 'pdf';
       let backgroundProcessed = false;
       if (asset.kind === 'image') {
-        const image = await processImage(
-          buffer,
-          options.processing.quality,
-          options.processing.enabled
-        );
+        const image = await processImage(buffer, options.processing);
         buffer = image.buffer;
         backgroundProcessed = image.backgroundProcessed;
-        if (image.extension === 'webp') {
-          filePath = filePath.replace(/\.jpg$/, '.webp');
-          networkPath = networkPath.replace(/\.jpg$/, '.webp');
-        }
+        extension = image.extension;
       } else if (!buffer.subarray(0, 1024).includes('%PDF-')) {
         throw new Error('Source does not contain a PDF');
       }
 
+      const filePath = `${asset.fileStem}.${extension}`;
+      const networkPath = asset.networkStem
+        ? `${asset.networkStem}.${extension}`
+        : '';
       const folder = path.dirname(filePath);
       await fs.mkdir(folder, { recursive: true });
       const temporaryFile = path.join(folder, `.${randomUUID()}.tmp`);

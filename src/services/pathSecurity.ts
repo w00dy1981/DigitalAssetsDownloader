@@ -4,14 +4,14 @@ import { stat } from 'node:fs/promises';
 export class PathSecurityError extends Error {
   constructor(
     message: string,
-    public readonly attemptedPath: string
+    public readonly attemptedPath: unknown
   ) {
     super(message);
     this.name = 'PathSecurityError';
   }
 }
 
-export function sanitizePath(inputPath: string, allowedRoot?: string): string {
+export function sanitizePath(inputPath: unknown, allowedRoot?: string): string {
   if (!inputPath || typeof inputPath !== 'string') {
     throw new PathSecurityError('Invalid path provided', inputPath);
   }
@@ -27,32 +27,16 @@ export function sanitizePath(inputPath: string, allowedRoot?: string): string {
   return resolved;
 }
 
-/**
- * Safely joins path components, preventing traversal attacks
- * @param basePath Base directory path
- * @param components Path components to join
- * @returns Sanitized joined path
- */
-export function safeJoin(basePath: string, ...components: string[]): string {
-  if (!basePath || typeof basePath !== 'string') {
-    throw new PathSecurityError('Invalid base path provided', basePath);
+export function joinFilename(folder: unknown, filename: unknown): string {
+  if (
+    typeof filename !== 'string' ||
+    !filename ||
+    filename === '.' ||
+    pathModule.basename(filename) !== filename
+  ) {
+    throw new PathSecurityError('Invalid filename', filename);
   }
-
-  for (const component of components) {
-    if (!component || typeof component !== 'string') {
-      throw new PathSecurityError('Invalid path component', component);
-    }
-
-    if (
-      component.includes('..') ||
-      component.includes('\0') ||
-      pathModule.isAbsolute(component)
-    ) {
-      throw new PathSecurityError('Unsafe path component detected', component);
-    }
-  }
-
-  return sanitizePath(pathModule.join(...components), sanitizePath(basePath));
+  return sanitizePath(filename, sanitizePath(folder));
 }
 
 /**
