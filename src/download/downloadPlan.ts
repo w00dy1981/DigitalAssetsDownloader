@@ -1,6 +1,7 @@
 import * as path from 'path';
+import { usesSourceImageFolder } from '../shared/downloadSettings';
 import { createHash } from 'node:crypto';
-import { joinFilename, sanitizePath } from '../files/pathSecurity';
+import { joinFilename } from '../files/pathSecurity';
 
 export type PlannedAsset = { fileStem: string } & (
   | {
@@ -19,11 +20,9 @@ export interface PlannedRow {
   assets: PlannedAsset[];
 }
 
-function imageNetworkStem(referenceFolder: string, stem: string): string {
-  const reference = referenceFolder?.trim();
+function imageNetworkStem(reference: string, stem: string): string {
   if (!reference) return '';
   if (path.win32.isAbsolute(reference) && !path.posix.isAbsolute(reference)) {
-    sanitizePath(reference);
     return path.win32.join(reference, stem);
   }
   return joinFilename(reference, stem);
@@ -34,6 +33,8 @@ export interface DownloadPlanConfig {
   imageColumns: readonly string[];
   pdfColumn: string;
   filenameColumn: string;
+  sourceImageFolder: string;
+  includeFolderImagesWithPdfs?: boolean;
   imageFolder: string;
   pdfFolder: string;
   imageFilePath: string;
@@ -46,6 +47,7 @@ export function planDownloads(
   const occurrences = new Map<string, number>();
   const rows: PlannedRow[] = [];
 
+  const searchFolder = usesSourceImageFolder(config);
   for (const [index, row] of data.entries()) {
     const rawCode = row[config.partNoColumn];
     if (rawCode == null || String(rawCode).trim() === '') continue;
@@ -55,7 +57,8 @@ export function planDownloads(
       .filter(Boolean)
       .map(String);
     const pdfUrl = config.pdfColumn && row[config.pdfColumn];
-    if (urls.length === 0 && !pdfUrl) continue;
+    const hasImage = urls.length > 0 || searchFolder;
+    if (!hasImage && !pdfUrl) continue;
 
     const productCode = String(rawCode);
     // ABM references survive later runs containing a different subset of products.
@@ -72,7 +75,7 @@ export function planDownloads(
     const stem = occurrence === 1 ? base : `${base}~${occurrence}`;
 
     const assets: PlannedAsset[] = [];
-    if (urls.length > 0) {
+    if (hasImage) {
       const filename = config.filenameColumn && row[config.filenameColumn];
       assets.push({
         kind: 'image',

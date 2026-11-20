@@ -1,48 +1,14 @@
-import * as pathModule from 'node:path';
+import * as path from 'node:path';
 
-export class PathSecurityError extends Error {
-  constructor(
-    message: string,
-    public readonly attemptedPath: unknown
-  ) {
-    super(message);
-    this.name = 'PathSecurityError';
-  }
-}
-
-export function sanitizePath(inputPath: unknown, allowedRoot?: string): string {
-  if (!inputPath || typeof inputPath !== 'string') {
-    throw new PathSecurityError('Invalid path provided', inputPath);
-  }
-
-  if (inputPath.includes('..') || inputPath.includes('\0')) {
-    throw new PathSecurityError('Path traversal attempt detected', inputPath);
-  }
-
-  const resolved = pathModule.resolve(allowedRoot || '.', inputPath);
-  if (allowedRoot && !isWithinRoot(resolved, allowedRoot)) {
-    throw new PathSecurityError('Path outside allowed directory', inputPath);
-  }
-  return resolved;
-}
-
-export function joinFilename(folder: unknown, filename: unknown): string {
+export function joinFilename(folder: string, filename: string): string {
+  if (!folder) throw new Error('Select an output folder');
   if (
-    typeof filename !== 'string' ||
     !filename ||
     filename === '.' ||
-    pathModule.basename(filename) !== filename
+    filename === '..' ||
+    path.basename(filename) !== filename
   ) {
-    throw new PathSecurityError('Invalid filename', filename);
+    throw new Error('Expected a filename within the selected output folder');
   }
-  return sanitizePath(filename, sanitizePath(folder));
-}
-
-function isWithinRoot(candidate: string, root: string): boolean {
-  const relative = pathModule.relative(root, candidate);
-  return (
-    relative !== '..' &&
-    !relative.startsWith('..' + pathModule.sep) &&
-    !pathModule.isAbsolute(relative)
-  );
+  return path.join(path.resolve(folder), filename);
 }

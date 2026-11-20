@@ -3,7 +3,7 @@ import { setTimeout } from 'timers/promises';
 import axios from 'axios';
 import type { Readable } from 'node:stream';
 import type { PlannedAsset } from './downloadPlan';
-import { joinFilename, sanitizePath } from '../files/pathSecurity';
+import * as path from 'node:path';
 
 export interface SourceDetails {
   url: string;
@@ -11,63 +11,23 @@ export interface SourceDetails {
   contentType: string;
 }
 
-async function listImageNames(folder: string): Promise<string[]> {
+async function listFiles(folder: string): Promise<string[]> {
   const entries = await fs.readdir(folder, { withFileTypes: true });
   return entries
-    .filter(
-      entry =>
-        entry.isFile() &&
-        !entry.name.includes('..') &&
-        /\.(?:jpe?g|png|gif|bmp|webp|tiff?)$/i.test(entry.name)
-    )
-    .map(entry => entry.name);
+    .filter(entry => entry.isFile() || entry.isSymbolicLink())
+    .map(entry => path.join(folder, entry.name));
 }
 
-interface SourceImage {
-  name: string;
-  filePath: string;
-}
-
-async function listSourceImages(folder: string): Promise<SourceImage[]> {
+async function listSourceImages(folder: string) {
   try {
-    const root = sanitizePath(folder);
-    return (await listImageNames(root)).map(filename => ({
-      name: filename.toLowerCase(),
-      filePath: joinFilename(root, filename),
-    }));
+    return await listFiles(path.resolve(folder));
   } catch (error) {
     console.warn(
       'Could not search the source image folder',
       describeError(error)
     );
-    return [];
+    throw error;
   }
-}
-
-function findSourceImage(
-  asset: Extract<PlannedAsset, { kind: 'image' }>,
-  files: readonly SourceImage[]
-): string | undefined {
-  for (const name of [asset.sourceFilename, asset.productCode.trim()]) {
-    if (!name) continue;
-    const query = name.toLowerCase();
-    const match = files.find(file => file.name.includes(query));
-    if (match) return match.filePath;
-  }
-}
-
-async function readLocalSource(
-  location: string,
-  kind: PlannedAsset['kind'],
-  signal: AbortSignal
-): Promise<Buffer> {
-  let file = sanitizePath(location);
-  if (kind === 'image' && (await fs.stat(file)).isDirectory()) {
-    const [candidate] = await listImageNames(file);
-    if (!candidate) throw new Error('No image files found in directory');
-    file = joinFilename(file, candidate);
-  }
-  return fs.readFile(file, { signal });
 }
 
 export interface HttpSettings {
@@ -89,20 +49,23 @@ async function fetchSource(
             'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
           Accept: 'image/*,application/pdf,*/*;q=0.8',
         },
-        timeout: settings.connectionTimeout * 1000,
+        timeout: Math.ceil(settings.connectionTimeout * 1000),
         responseType: 'stream',
         signal,
       });
       // Axios' Node timeout covers the wait for headers. Bound the time between body chunks separately.
       response.request.setTimeout(0);
-      const timeout = globalThis.setTimeout(
-        () => response.data.destroy(new Error('Read timeout')),
-        settings.readTimeout * 1000
-      );
+      const timeout =
+        settings.readTimeout > 0
+          ? globalThis.setTimeout(
+              () => response.data.destroy(new Error('Read timeout')),
+              Math.ceil(settings.readTimeout * 1000)
+            )
+          : undefined;
       try {
         const chunks: Buffer[] = [];
         for await (const chunk of response.data) {
-          timeout.refresh();
+          timeout?.refresh();
           chunks.push(chunk);
         }
         return {
@@ -115,28 +78,20 @@ async function fetchSource(
       }
     } catch (error) {
       if (axios.isAxiosError<Readable>(error)) error.response?.data.destroy();
-      if (
-        attempt >= settings.retryAttempts ||
-        signal.aborted ||
-        (axios.isAxiosError(error) && error.response?.status === 404)
-      )
-        throw error;
+      if (attempt >= settings.retryAttempts || signal.aborted) throw error;
       await setTimeout(Math.min(1000 * attempt, 5000), undefined, { signal });
     }
   }
 }
 
 function describeError(error: unknown): string {
-  if (axios.isAxiosError(error)) {
-    if (error.response?.status === 404) return 'File not found (404)';
-    if (error.code === 'ECONNABORTED') return 'Timeout error';
-  }
   return error instanceof Error ? error.message : String(error);
 }
 
 export interface AssetSource {
   location: string;
   kind: 'http' | 'file';
+  error?: unknown;
 }
 
 async function mappedSource(value: string): Promise<AssetSource> {
@@ -162,38 +117,67 @@ async function mappedSource(value: string): Promise<AssetSource> {
   return { kind: 'file', location: value };
 }
 
+async function* mappedSources(value: string, kind: PlannedAsset['kind']) {
+  const source = await mappedSource(value);
+  if (source.kind === 'file' && kind === 'image') {
+    try {
+      if ((await fs.stat(source.location)).isDirectory()) {
+        const files = await listFiles(source.location);
+        if (!files.length) throw new Error('No files found in directory');
+        for (const location of files) yield { kind: 'file', location } as const;
+        return;
+      }
+    } catch (error) {
+      yield { ...source, error };
+      return;
+    }
+  }
+  yield source;
+}
+
 export function createSourceSelector(folder: string) {
-  let folderImages: Promise<SourceImage[]> | undefined;
+  let folderImages: Promise<string[]> | undefined;
   return async function* selectSources(asset: PlannedAsset) {
     const seen = new Set<string>();
     if (asset.kind === 'image' && folder) {
-      const local = findSourceImage(
-        asset,
-        await (folderImages ??= listSourceImages(folder))
-      );
-      if (local) {
-        seen.add(local);
-        yield { kind: 'file', location: local } satisfies AssetSource;
+      try {
+        const files = await (folderImages ??= listSourceImages(folder));
+        for (const name of [asset.sourceFilename, asset.productCode.trim()]) {
+          if (!name) continue;
+          const query = name.toLowerCase();
+          for (const location of files) {
+            if (
+              !path.basename(location).toLowerCase().includes(query) ||
+              seen.has(location)
+            )
+              continue;
+            seen.add(location);
+            yield { kind: 'file', location } satisfies AssetSource;
+          }
+        }
+      } catch (error) {
+        yield { kind: 'file', location: folder, error } satisfies AssetSource;
       }
     }
     for (const value of asset.urls) {
-      const source = await mappedSource(value);
-      if (seen.has(source.location)) continue;
-      seen.add(source.location);
-      yield source;
+      for await (const source of mappedSources(value, asset.kind)) {
+        if (seen.has(source.location)) continue;
+        seen.add(source.location);
+        yield source;
+      }
     }
   };
 }
 
 export async function readSource(
   source: AssetSource,
-  kind: PlannedAsset['kind'],
   signal: AbortSignal,
   http: HttpSettings
 ) {
+  if ('error' in source) throw source.error;
   if (source.kind === 'http') return fetchSource(source.location, signal, http);
   return {
-    buffer: await readLocalSource(source.location, kind, signal),
+    buffer: await fs.readFile(source.location, { signal }),
     httpStatus: 200,
     contentType: 'local_file_processed',
   };

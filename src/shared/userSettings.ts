@@ -20,6 +20,8 @@ export const defaultUserSettings = {
     checkForUpdatesOnStartup: true,
   },
   sqlSettings: {
+    previewRows: 50,
+    queryTimeoutMs: 30000,
     defaultServer: '',
     defaultDatabase: 'Baker',
     defaultUsername: 'DigitalAssetsDownloader',

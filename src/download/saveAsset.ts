@@ -67,7 +67,6 @@ export async function saveAsset(
     try {
       const { buffer, httpStatus, contentType } = await readSource(
         source,
-        asset.kind,
         signal,
         options.http
       );
@@ -95,5 +94,14 @@ export async function saveAsset(
       failure ??= sourceFailure(details, error);
     }
   }
-  return failure;
+  if (signal.aborted) return undefined;
+  return (
+    failure ?? {
+      success: false,
+      url: '',
+      httpStatus: 0,
+      contentType: '',
+      error: 'No matching image in Source Image Folder',
+    }
+  );
 }

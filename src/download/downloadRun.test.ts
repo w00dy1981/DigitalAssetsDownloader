@@ -77,6 +77,36 @@ test('sanitised and case-insensitive filename collisions keep each saved asset',
   expect(images[0].getPixelColor(0, 0)).not.toBe(images[1].getPixelColor(0, 0));
 });
 
+test('a later HTTP attempt can finish with both timeouts disabled', async () => {
+  let attempts = 0;
+  const server = createServer((_, response) => {
+    if (++attempts === 1) {
+      response.writeHead(404).end();
+      return;
+    }
+    response.write('%PDF-');
+    setTimeout(() => response.end('1.4 example'), 25);
+  });
+  await new Promise<void>(resolve => server.listen(0, '127.0.0.1', resolve));
+  try {
+    const address = server.address();
+    if (!address || typeof address === 'string')
+      throw new Error('No HTTP port');
+    await new DownloadService().startDownloads(
+      { ...config, maxWorkers: 30 },
+      [{ Code: 'LATE', PDF: `http://127.0.0.1:${address.port}/pdf` }],
+      { retryAttempts: 12, connectionTimeout: 0, readTimeout: 0 }
+    );
+    expect(attempts).toBe(2);
+    expect(
+      await fs.readFile(path.join(config.pdfFolder, 'LATE.pdf'), 'utf8')
+    ).toBe('%PDF-1.4 example');
+  } finally {
+    server.closeAllConnections();
+    await new Promise<void>(resolve => server.close(() => resolve()));
+  }
+});
+
 test('the configured attempt limit stops retries and records the HTTP failure', async () => {
   let requests = 0;
   const server = createServer((_, response) => {
@@ -152,7 +182,7 @@ test('failed image sources fall back and source-folder matches take priority', a
   await fs.writeFile(invalid, '<html>Image not found</html>');
 
   const { result, workbook } = await download([
-    { Code: 'LOCAL', Filename: 'custom.png', Image: invalid },
+    { Code: 'LOCAL', Filename: 'custom.png', Image: '' },
     { Code: 'FALLBACK', Image: invalid, Backup: red },
   ]);
 
@@ -170,6 +200,78 @@ test('failed image sources fall back and source-folder matches take priority', a
     'Photo File Path',
   ]);
   expect(erp.getCell('B3').text).toBe(config.imageFilePath + '\\FALLBACK.jpg');
+});
+
+test('folder images need no URL column and a missing match is logged', async () => {
+  config.sourceImageFolder = root;
+  config.imageColumns = [];
+  config.pdfColumn = '';
+  const source = await makeImage('FOUND', 0xff0000ff);
+  const { result, workbook } = await download([
+    { Code: 'FOUND' },
+    { Code: 'ABSENT' },
+  ]);
+  expect(result).toMatchObject({ successful: 1, failed: 1, total: 2 });
+  const log = workbook.getWorksheet('Download Log')!;
+  expect(log.getCell('C2').text).toBe(source);
+  expect(log.getCell('H3').text).toContain('No matching image');
+  expect(await fs.stat(log.getCell('I2').text)).toMatchObject({
+    size: expect.any(Number),
+  });
+  expect(workbook.getWorksheet('ERP Import')!.getCell('B2').text).toBe(
+    path.join(config.imageFilePath, 'FOUND.jpg')
+  );
+});
+
+test('PDF-only mapping uses the saved source folder only when selected', async () => {
+  config.sourceImageFolder = root;
+  config.imageColumns = [];
+  await makeImage('ITEM', 0xff0000ff);
+  const pdf = path.join(root, 'sheet.pdf');
+  await fs.writeFile(pdf, '%PDF-1.4');
+  const rows = [{ Code: 'ITEM', PDF: pdf }];
+  expect((await download(rows)).result).toMatchObject({
+    successful: 1,
+    total: 1,
+  });
+  config.includeFolderImagesWithPdfs = true;
+  expect((await download(rows)).result).toMatchObject({
+    successful: 2,
+    total: 2,
+  });
+});
+
+test('direct and discovered JPEGs use their content across double-dot paths', async () => {
+  config.sourceImageFolder = path.join(root, 'Acme..2026');
+  config.imageFolder = path.join(root, 'output..images');
+  await fs.mkdir(config.sourceImageFolder);
+  const image = new Jimp({ width: 3, height: 2, color: 0xff0000ff });
+  const bytes = await image.getBuffer('image/jpeg');
+  const direct = path.join(root, 'photo..jpg');
+  await fs.writeFile(direct, bytes);
+  await fs.writeFile(
+    path.join(config.sourceImageFolder, 'A1..000.txt'),
+    'notes'
+  );
+  for (const name of ['A1..photo.jfif', 'B2..photo.jpe']) {
+    await fs.writeFile(path.join(config.sourceImageFolder, name), bytes);
+  }
+  const { result, workbook } = await download([
+    { Code: 'A1', Image: 'missing' },
+    { Code: 'B2', Image: 'missing' },
+    { Code: 'DIRECT', Image: direct },
+  ]);
+  expect(result).toMatchObject({ successful: 3, failed: 0 });
+  for (const [i, code] of ['A1', 'B2', 'DIRECT'].entries()) {
+    const saved = workbook
+      .getWorksheet('Download Log')!
+      .getCell('I' + (i + 2)).text;
+    expect(saved).toBe(path.join(config.imageFolder, code + '.jpg'));
+    expect((await Jimp.read(saved)).width).toBe(3);
+    expect(
+      workbook.getWorksheet('ERP Import')!.getCell('B' + (i + 2)).text
+    ).toBe(path.join(config.imageFilePath, code + '.jpg'));
+  }
 });
 
 test('an unavailable source folder falls back to the mapped image for each product', async () => {
@@ -420,7 +522,7 @@ test('an existing relative folder or file beginning with www. stays local', asyn
     ]);
     expect(result).toMatchObject({ successful: 2, failed: 0 });
     const log = workbook.getWorksheet('Download Log')!;
-    expect(log.getCell('C2').text).toBe(folder);
+    expect(log.getCell('C2').text).toBe(path.join(folder, 'photo.png'));
     expect(log.getCell('C3').text).toBe(pdf);
     expect(await fs.readFile(log.getCell('I3').text)).toEqual(bytes);
   } finally {

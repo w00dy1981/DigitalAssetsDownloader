@@ -24,8 +24,8 @@ const api = {
   deleteSavedSqlPassword: jest.fn(),
   saveSqlPassword: jest.fn(),
   testSqlConnection: jest.fn(),
-  previewSqlQuery: jest.fn(),
-  loadSqlQueryData: jest.fn(),
+  executeSqlQuery: jest.fn(),
+  selectSqlResult: jest.fn(),
 };
 const identity = {
   server: 'sql.example',
@@ -85,71 +85,51 @@ test.each([
   expect(screen.getByText('1 data rows')).toBeInTheDocument();
 });
 
-test('requires a fresh SQL preview and confirmation before loading rows', async () => {
-  const result = {
-    columns,
-    rows,
-    totalRowCount: 250,
-  };
-  api.loadSavedSqlPassword.mockResolvedValue('fixture-password');
-  api.previewSqlQuery.mockResolvedValue(result);
-  const summary: LoadedInput = {
-    loadId: 1,
-    columns,
-    rowCount: 1,
-    sheetName: 'SQL Query',
-    options: initialDownloadOptions(defaultUserSettings),
-    sourceLabel: 'Assets query',
-  };
-  api.loadSqlQueryData.mockResolvedValue(summary);
-  api.saveSqlPassword.mockResolvedValue({ success: true });
-  const confirm = jest.spyOn(window, 'confirm').mockReturnValue(false);
+test('selects the second returned table and opens mapping without rerunning SQL', async () => {
+  api.executeSqlQuery.mockResolvedValue({
+    executionId: 12,
+    results: [
+      { columns: ['Status'], rows: [{ Status: 'Ready' }], totalRowCount: 1 },
+      { columns, rows, totalRowCount: 250 },
+    ],
+  });
+  const summary = { columns, rowCount: 250, loadId: 14 };
+  api.selectSqlResult.mockResolvedValue(summary);
   const onDataLoaded = jest.fn();
+  render(createElement(InputSelectionTab, { currentData: null, onDataLoaded }));
+  fireEvent.click(screen.getByRole('button', { name: 'SQL Server' }));
+  fireEvent.change(await screen.findByLabelText('SQL Query'), {
+    target: { value: 'EXEC Assets' },
+  });
+  fireEvent.click(screen.getByRole('button', { name: 'Run SQL' }));
+  await screen.findByRole('cell', { name: 'Ready' });
+  fireEvent.click(screen.getByRole('button', { name: 'Excel / CSV' }));
+  fireEvent.click(screen.getByRole('button', { name: 'SQL Server' }));
+  fireEvent.change(screen.getByLabelText('Result set'), {
+    target: { value: '1' },
+  });
+  expect(screen.getByRole('cell', { name: 'ABC' })).toBeInTheDocument();
+  expect(screen.getByText(/250 total rows/)).toBeInTheDocument();
+  fireEvent.click(screen.getByRole('button', { name: 'Use Result' }));
+  await waitFor(() => expect(onDataLoaded).toHaveBeenCalledWith(summary));
+  expect(api.executeSqlQuery).toHaveBeenCalledTimes(1);
+  expect(api.selectSqlResult).toHaveBeenCalledWith(12, 1);
+});
 
-  try {
-    render(
-      createElement(InputSelectionTab, { currentData: null, onDataLoaded })
-    );
-    fireEvent.click(screen.getByRole('button', { name: 'SQL Server' }));
-    await waitFor(() =>
-      expect(screen.getByLabelText('Password', { exact: true })).toHaveValue(
-        'fixture-password'
-      )
-    );
-
-    const query = screen.getByLabelText('SQL Query');
-    const load = screen.getByRole('button', { name: 'Load SQL Data' });
-    const preview = screen.getByRole('button', { name: 'Preview Query' });
-    fireEvent.change(query, {
-      target: { value: 'SELECT SKU, URL FROM Assets' },
-    });
-    expect(load).toBeDisabled();
-    fireEvent.click(preview);
-    expect(
-      await screen.findByRole('cell', { name: 'ABC' })
-    ).toBeInTheDocument();
-    fireEvent.click(load);
-    expect(confirm).toHaveBeenCalledWith(expect.stringContaining('250 rows'));
-    expect(api.loadSqlQueryData).not.toHaveBeenCalled();
-
-    fireEvent.change(query, {
-      target: { value: 'SELECT SKU, URL FROM OtherAssets' },
-    });
-    expect(load).toBeDisabled();
-    fireEvent.click(preview);
-    await screen.findByRole('cell', { name: 'ABC' });
-    confirm.mockReturnValue(true);
-    fireEvent.click(load);
-    await waitFor(() => expect(onDataLoaded).toHaveBeenCalledWith(summary));
-    expect(api.loadSqlQueryData).toHaveBeenCalledWith(
-      expect.objectContaining({
-        ...identity,
-        query: 'SELECT SKU, URL FROM OtherAssets',
-      })
-    );
-  } finally {
-    confirm.mockRestore();
-  }
+test('drops a workbook with double dots and lets the workbook reader open it', async () => {
+  api.getSheetNames.mockResolvedValue(['Assets']);
+  render(
+    createElement(InputSelectionTab, {
+      currentData: null,
+      onDataLoaded: jest.fn(),
+    })
+  );
+  const path = '/tmp/Acme..2026/Supplier..November.workbook';
+  fireEvent.drop(screen.getByLabelText('Excel or CSV File'), {
+    dataTransfer: { files: [{ name: 'Supplier..November.workbook', path }] },
+  });
+  expect(await screen.findByLabelText('Select Sheet')).toHaveValue('Assets');
+  expect(api.getSheetNames).toHaveBeenCalledWith(path);
 });
 
 test('clears the previous sheet when a replacement file cannot be read', async () => {
@@ -175,7 +155,7 @@ test('clears the previous sheet when a replacement file cannot be read', async (
   fireEvent.click(browse);
 
   expect(await screen.findByRole('alert')).toHaveTextContent(
-    'Failed to read the selected spreadsheet.'
+    'Unreadable spreadsheet'
   );
   expect(screen.getByLabelText('Excel or CSV File')).toHaveValue(
     '/tmp/broken.xlsx'

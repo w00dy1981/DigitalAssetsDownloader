@@ -36,17 +36,22 @@ describe('download settings', () => {
     });
 
     it('should require at least one download type', () => {
-      const config = { ...validConfig, imageColumns: [], pdfColumn: '' };
+      const config = {
+        ...validConfig,
+        imageColumns: [],
+        pdfColumn: '',
+        sourceImageFolder: '',
+      };
       const result = downloadConfigErrors(config);
       expect(result).toContain(
-        'At least one Image URL column or PDF column is required'
+        'Choose an image column, a source image folder or a PDF column'
       );
     });
 
-    it('should validate worker count range', () => {
-      const config = { ...validConfig, maxWorkers: 25 };
+    it('requires a whole worker count', () => {
+      const config = { ...validConfig, maxWorkers: 2.5 };
       const result = downloadConfigErrors(config);
-      expect(result).toContain('Max Workers must be no more than 20');
+      expect(result).toContain('Max Workers must be a whole number');
     });
 
     it('validates JPEG quality even when white backgrounds are disabled', () => {
@@ -54,18 +59,18 @@ describe('download settings', () => {
         ...validConfig,
         backgroundProcessing: {
           enabled: false,
-          quality: 50,
+          quality: 101,
         },
       };
       const result = downloadConfigErrors(config);
-      expect(result).toContain('JPEG Quality must be at least 60');
+      expect(result).toContain('JPEG Quality must be no more than 100');
     });
 
     it('ignores JPEG quality for PDF-only downloads', () => {
       const config = {
         ...validConfig,
         imageColumns: [],
-        backgroundProcessing: { enabled: true, quality: 50 },
+        backgroundProcessing: { enabled: true, quality: 101 },
       };
       expect(downloadConfigErrors(config)).toEqual([]);
     });
@@ -79,16 +84,23 @@ describe('download settings', () => {
       expect(result).toEqual([]);
     });
 
-    it('should validate concurrent downloads range', () => {
+    it('accepts supported download and encoder settings', () => {
       const settings = {
         ...validSettings,
         downloadBehavior: {
           ...validSettings.downloadBehavior,
           defaultConcurrentDownloads: 25,
+          retryAttempts: 12,
+          connectionTimeout: 60.5,
+          readTimeout: 0,
+        },
+        imageProcessing: {
+          ...validSettings.imageProcessing,
+          defaultQuality: 50,
         },
       };
       const result = userSettingsErrors(settings);
-      expect(result).toContain('Concurrent Downloads must be no more than 20');
+      expect(result).toEqual([]);
     });
 
     it('should validate timeout values', () => {
@@ -96,11 +108,11 @@ describe('download settings', () => {
         ...validSettings,
         downloadBehavior: {
           ...validSettings.downloadBehavior,
-          connectionTimeout: 0,
+          connectionTimeout: -1,
         },
       };
       const result = userSettingsErrors(settings);
-      expect(result).toContain('Connection Timeout must be at least 1');
+      expect(result).toContain('Connection Timeout must be at least 0');
     });
   });
 });

@@ -93,9 +93,6 @@ export class SqlCredentialService {
     if (!identity.server?.trim()) {
       throw new Error('SQL Server name is required.');
     }
-    if (!identity.database?.trim()) {
-      throw new Error('SQL database is required.');
-    }
     if (!identity.username?.trim()) {
       throw new Error('SQL username is required.');
     }

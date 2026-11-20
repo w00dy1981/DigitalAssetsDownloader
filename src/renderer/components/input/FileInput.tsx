@@ -24,8 +24,8 @@ export function FileInput({
     try {
       const sheets = await window.electronAPI.getSheetNames(path);
       setFile({ path, sheets, sheet: sheets[0] ?? '' });
-    } catch {
-      setError('Failed to read the selected spreadsheet.');
+    } catch (error) {
+      setError(error instanceof Error ? error.message : String(error));
     }
   }
 
@@ -57,21 +57,10 @@ export function FileInput({
 
     const path =
       'path' in dropped && dropped.path ? dropped.path : dropped.name;
-    if (typeof path !== 'string' || !path.trim()) {
+    if (typeof path !== 'string' || !path) {
       setError('Unable to get valid file path.');
       return;
     }
-    if (path.includes('..') || path.includes('\0')) {
-      setError('Invalid file path detected.');
-      return;
-    }
-    if (
-      !spreadsheetExtensions.some(ext => path.toLowerCase().endsWith(`.${ext}`))
-    ) {
-      setError(`Choose a spreadsheet in one of these formats: ${formatList}.`);
-      return;
-    }
-
     setLoading(true);
     setError('');
     try {
@@ -130,7 +119,9 @@ export function FileInput({
             Browse...
           </button>
         </div>
-        <small className="text-muted">Supported formats: {formatList}</small>
+        <small className="text-muted">
+          Common file extensions: {formatList}
+        </small>
       </div>
 
       {file && file.sheets.length > 0 && (

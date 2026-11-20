@@ -45,25 +45,12 @@ export function registerUpdates(
         });
         return { type: 'auto-update-disabled' };
       }
-      let timeout: ReturnType<typeof setTimeout> | undefined;
-      try {
-        const result = await Promise.race([
-          autoUpdater.checkForUpdates(),
-          new Promise<never>((_, reject) => {
-            timeout = setTimeout(
-              () => reject(new Error('Update check timed out')),
-              30_000
-            );
-          }),
-        ]);
-        if (!result) throw new Error('Update check returned no result');
-        return {
-          type: result.isUpdateAvailable ? 'available' : 'not-available',
-          data: result.updateInfo,
-        };
-      } finally {
-        clearTimeout(timeout);
-      }
+      const result = await autoUpdater.checkForUpdates();
+      if (!result) throw new Error('Update check returned no result');
+      return {
+        type: result.isUpdateAvailable ? 'available' : 'not-available',
+        data: result.updateInfo,
+      };
     }
   );
   ipcMain.handle(IPC_CHANNELS.INSTALL_UPDATE, () => {

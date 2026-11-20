@@ -1,7 +1,6 @@
-import { EventEmitter } from 'node:events';
 import * as mssql from 'mssql';
 import { testSqlConnection } from './connection';
-import { loadSqlRows, previewSqlQuery } from './query';
+import { executeSqlQuery } from './query';
 
 const mockConnect = jest.fn();
 const mockClose = jest.fn();
@@ -23,48 +22,16 @@ beforeEach(() => {
   jest.clearAllMocks();
 });
 
-test('preview runs the original query once and counts only its first result set', async () => {
-  const sql = Object.assign(new EventEmitter(), {
-    query: jest.fn(async () => {
-      sql.emit('recordset', { Note: { name: 'Note', index: 0 } });
-      for (let i = 0; i < 52; ++i) sql.emit('row', { Note: ' update; -- ' });
-      sql.emit('recordset', { Other: { name: 'Other', index: 0 } });
-      sql.emit('row', { Other: 1 });
-    }),
+test('initial rows do not mask an error later in the batch', async () => {
+  const query = jest.fn().mockRejectedValue(new Error('Permission denied'));
+  mockConnect.mockResolvedValue({
+    request: () => ({ query }),
+    close: mockClose,
   });
-  mockConnect.mockResolvedValue({ request: () => sql, close: mockClose });
-
-  const result = await previewSqlQuery(request);
-
-  expect(sql.query).toHaveBeenCalledTimes(1);
-  expect(sql.query).toHaveBeenCalledWith(request.query);
-  expect(result).toMatchObject({
-    totalRowCount: 52,
-    columns: ['Note'],
-  });
-  expect(result.rows).toHaveLength(50);
-  expect(result.rows[0]).toEqual({ Note: 'update; --' });
-});
-
-test('load returns server errors even if some rows arrived', async () => {
-  const sql = Object.assign(new EventEmitter(), {
-    query: jest.fn(async () => {
-      sql.emit('recordset', { Note: { name: 'Note', index: 0 } });
-      sql.emit('row', { Note: 'first' });
-      sql.emit('error', new Error('Permission denied'));
-    }),
-  });
-  mockConnect.mockResolvedValue({ request: () => sql, close: mockClose });
-  await expect(loadSqlRows(request)).rejects.toThrow('Permission denied');
-  expect(sql.query).toHaveBeenCalledTimes(1);
+  await expect(executeSqlQuery(request)).rejects.toThrow('Permission denied');
+  expect(query).toHaveBeenCalledTimes(1);
+  expect(query).toHaveBeenCalledWith(request.query);
   expect(mockClose).toHaveBeenCalledTimes(1);
-});
-
-test('rejects a blank query before connecting', async () => {
-  await expect(previewSqlQuery({ ...request, query: ' ' })).rejects.toThrow(
-    'SQL query is required'
-  );
-  expect(mockConnect).not.toHaveBeenCalled();
 });
 
 test('passes connection and query timeouts to the driver', async () => {
@@ -74,11 +41,15 @@ test('passes connection and query timeouts to the driver', async () => {
   });
   await testSqlConnection({
     ...request,
-    queryTimeoutMs: 5000,
+    database: '',
+    password: '',
+    queryTimeoutMs: 0,
     connectionTimeoutMs: 1234,
   });
   expect(jest.mocked(mssql.ConnectionPool).mock.calls[0][0]).toMatchObject({
-    requestTimeout: 5000,
+    database: undefined,
+    password: '',
+    requestTimeout: 0,
     connectionTimeout: 1234,
   });
 });

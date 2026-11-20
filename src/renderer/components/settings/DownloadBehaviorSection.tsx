@@ -18,7 +18,7 @@ export const DownloadBehaviorSection: React.FC<
       <FormGroup
         label="Concurrent Downloads"
         htmlFor="concurrent-downloads"
-        helpText="Number of simultaneous downloads (1-20)"
+        helpText="Number of simultaneous downloads"
       >
         <NumberInput
           id="concurrent-downloads"
@@ -26,37 +26,45 @@ export const DownloadBehaviorSection: React.FC<
           onChange={value =>
             onSettingUpdate({ defaultConcurrentDownloads: value })
           }
-          {...limits.workers}
+          {...limits.count}
           suffix="workers"
         />
       </FormGroup>
 
-      <FormGroup label="Connection Timeout" htmlFor="connection-timeout">
+      <FormGroup
+        label="Connection Timeout"
+        htmlFor="connection-timeout"
+        helpText="Seconds to wait for response headers. Set to 0 to disable."
+      >
         <NumberInput
           id="connection-timeout"
           value={settings.connectionTimeout}
           onChange={value => onSettingUpdate({ connectionTimeout: value })}
-          {...limits.connectionTimeout}
+          {...limits.httpTimeout}
           suffix="seconds"
         />
       </FormGroup>
 
-      <FormGroup label="Read Timeout" htmlFor="read-timeout">
+      <FormGroup
+        label="Read Timeout"
+        htmlFor="read-timeout"
+        helpText="Seconds to wait between response chunks. Set to 0 to disable."
+      >
         <NumberInput
           id="read-timeout"
           value={settings.readTimeout}
           onChange={value => onSettingUpdate({ readTimeout: value })}
-          {...limits.readTimeout}
+          {...limits.httpTimeout}
           suffix="seconds"
         />
       </FormGroup>
 
-      <FormGroup label="Retry Attempts" htmlFor="retry-attempts">
+      <FormGroup label="Maximum Download Attempts" htmlFor="retry-attempts">
         <NumberInput
           id="retry-attempts"
           value={settings.retryAttempts}
           onChange={value => onSettingUpdate({ retryAttempts: value })}
-          {...limits.retryAttempts}
+          {...limits.count}
           suffix="attempts"
         />
       </FormGroup>

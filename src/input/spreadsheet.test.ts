@@ -11,9 +11,9 @@ it('reads the same mapped values across blank Excel columns and padded CSV heade
     const sheet = workbook.addWorksheet('Products');
     sheet.addRow([' Code ', null, 'URL']);
     sheet.addRow([{ formula: '1-1', result: 0 }, 'ignore', ' asset ']);
-    const xlsx = join(dir, 'products.xlsx');
+    const xlsx = join(dir, 'Supplier..November.workbook');
     await workbook.xlsx.writeFile(xlsx);
-    const csv = join(dir, 'products.csv');
+    const csv = join(dir, 'Supplier..November.csv');
     await writeFile(csv, ' Code ,, URL \n0,ignore, asset \n');
     for (const [file, name] of [
       [xlsx, 'Products'],

@@ -2,7 +2,7 @@ import { parseEnv } from 'node:util';
 import * as fs from 'fs';
 import * as path from 'path';
 import { testSqlConnection } from './connection';
-import { loadSqlRows, previewSqlQuery } from './query';
+import { executeSqlQuery } from './query';
 
 const fixture = path.resolve(process.cwd(), '.env.test.local');
 const creds = fs.existsSync(fixture)
@@ -40,23 +40,10 @@ describeIf('SQL Server integration (requires live SQL Server)', () => {
     expect(result).toEqual({ success: true });
   }, 30000);
 
-  it('previewQuery returns columns and rows', async () => {
-    const result = await previewSqlQuery({
-      ...base,
-      query: SQL_QUERY,
-    });
-    expect(result.columns.length).toBeGreaterThan(0);
-    expect(result.totalRowCount).toBeGreaterThanOrEqual(result.rows.length);
-  }, 30000);
-
-  it('loads rows from the configured query', async () => {
-    const result = await loadSqlRows({
-      ...base,
-      query: SQL_QUERY,
-    });
-    expect(result.columns.length).toBeGreaterThan(0);
-    expect(result.rows.length).toBeLessThanOrEqual(10000);
-  }, 60000);
+  it('loads the configured query', async () => {
+    const [table] = await executeSqlQuery({ ...base, query: SQL_QUERY });
+    expect(table.columns.length).toBeGreaterThan(0);
+  });
 
   it.each([
     [
@@ -92,27 +79,21 @@ ORDER BY PartNo OFFSET 1 ROWS FETCH NEXT 3 ROWS ONLY`,
 ORDER BY PartNo`,
       ['1', '2', '2'],
     ],
-  ])('reads and counts %s', async (_, query, partNumbers) => {
-    const result = await previewSqlQuery({ ...base, query });
-
+  ])('reads %s', async (_, query, partNumbers) => {
+    const [result] = await executeSqlQuery({ ...base, query });
     expect(result.rows.map(row => row.PartNo)).toEqual(partNumbers);
-    expect(result.totalRowCount).toBe(partNumbers.length);
-    const loaded = await loadSqlRows({ ...base, query });
-    expect(loaded.rows).toEqual(result.rows);
   });
 
   it('reports SQL Server errors after an initial result', async () => {
     const query = "SELECT 1 AS PartNo; THROW 51000, 'Fixture query failed', 1;";
-    for (const run of [previewSqlQuery, loadSqlRows]) {
-      await expect(run({ ...base, query })).rejects.toThrow(
-        'Fixture query failed'
-      );
-    }
+    await expect(executeSqlQuery({ ...base, query })).rejects.toThrow(
+      'Fixture query failed'
+    );
   });
 
   it('honours the query timeout', async () => {
     await expect(
-      previewSqlQuery({
+      executeSqlQuery({
         ...base,
         query: "WAITFOR DELAY '00:00:02'; SELECT 1 AS PartNo;",
         queryTimeoutMs: 250,
@@ -121,7 +102,7 @@ ORDER BY PartNo`,
   });
 
   it('preserves columns for empty results', async () => {
-    const result = await previewSqlQuery({
+    const [result] = await executeSqlQuery({
       ...base,
       query: 'SELECT 1 AS PartNo WHERE 1 = 0',
     });
@@ -129,11 +110,10 @@ ORDER BY PartNo`,
     expect(result).toMatchObject({
       columns: ['PartNo'],
       rows: [],
-      totalRowCount: 0,
     });
   });
 
-  it('keeps the preview and load limits distinct from the total count', async () => {
+  it('returns every row and the result after it', async () => {
     const query = `WITH Digits AS (SELECT Digit FROM (VALUES
       (0),(1),(2),(3),(4),(5),(6),(7),(8),(9)) d(Digit))
 SELECT TOP (10002) a.Digit + 10 * b.Digit + 100 * c.Digit +
@@ -141,19 +121,13 @@ SELECT TOP (10002) a.Digit + 10 * b.Digit + 100 * c.Digit +
 FROM Digits a CROSS JOIN Digits b CROSS JOIN Digits c
 CROSS JOIN Digits d CROSS JOIN Digits e ORDER BY PartNo`;
 
-    const preview = await previewSqlQuery({
+    const [first, second] = await executeSqlQuery({
       ...base,
-      query,
+      query: query + '; SELECT 42 AS Answer;',
+      queryTimeoutMs: 0,
     });
-    const loaded = await loadSqlRows({
-      ...base,
-      query,
-    });
-
-    expect(preview.rows).toHaveLength(50);
-    expect(preview.totalRowCount).toBe(10002);
-    expect(loaded.rows).toHaveLength(10000);
-    expect(loaded.rows.slice(0, 50)).toEqual(preview.rows);
-    expect(loaded.rows[9999]).toEqual({ PartNo: '9999' });
+    expect(first.rows).toHaveLength(10002);
+    expect(first.rows[10001]).toEqual({ PartNo: '10001' });
+    expect(second).toEqual({ columns: ['Answer'], rows: [{ Answer: '42' }] });
   });
 });

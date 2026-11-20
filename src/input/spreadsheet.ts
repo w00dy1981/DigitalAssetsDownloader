@@ -1,9 +1,7 @@
 import { Workbook, CellValue, Worksheet, Cell, ValueType } from 'exceljs';
 import { parse } from 'fast-csv';
 import { createReadStream } from 'node:fs';
-import { stat } from 'node:fs/promises';
 import { pipeline } from 'node:stream/promises';
-import { sanitizePath } from '../files/pathSecurity';
 
 export interface SheetData {
   columns: string[];
@@ -13,48 +11,9 @@ export interface SheetData {
 const isCsvFile = (filename: string): boolean =>
   filename.toLowerCase().endsWith('.csv');
 
-async function within<T>(operation: Promise<T>, ms: number): Promise<T> {
-  let timer: ReturnType<typeof setTimeout> | undefined;
-  try {
-    return await Promise.race([
-      operation,
-      new Promise<never>((_, reject) => {
-        timer = setTimeout(
-          () =>
-            reject(
-              new Error(
-                'File reading timed out. Check the file location and try again.'
-              )
-            ),
-          ms
-        );
-      }),
-    ]);
-  } finally {
-    clearTimeout(timer);
-  }
-}
-
-async function inputPath(filePath: string) {
-  const safePath = sanitizePath(filePath);
-  const info = await within(
-    stat(safePath).catch(() => null),
-    5000
-  );
-  if (!info?.isFile()) {
-    throw new Error('File does not exist or is not accessible');
-  }
-  return safePath;
-}
-
-async function readWorkbook(filePath: string) {
-  return within(new Workbook().xlsx.readFile(filePath), 30_000);
-}
-
 export async function getSheetNames(filePath: string): Promise<string[]> {
-  const safePath = await inputPath(filePath);
-  if (isCsvFile(safePath)) return ['Sheet1'];
-  const workbook = await readWorkbook(safePath);
+  if (isCsvFile(filePath)) return ['Sheet1'];
+  const workbook = await new Workbook().xlsx.read(createReadStream(filePath));
   const names = workbook.worksheets.map(sheet => sheet.name);
   if (!names.length) throw new Error('No worksheets found in the Excel file');
   return names;
@@ -104,8 +63,7 @@ export async function loadSheetData(
   filePath: string,
   sheetName: string
 ): Promise<SheetData> {
-  const safePath = await inputPath(filePath);
-  if (isCsvFile(safePath)) {
+  if (isCsvFile(filePath)) {
     const data: SheetData = { columns: [], rows: [] };
     const parser = parse({
       headers: headers => headers.map(header => header?.trim() || undefined),
@@ -116,10 +74,10 @@ export async function loadSheetData(
       data.columns = headers.filter(Boolean);
     });
     parser.on('data', row => data.rows.push(row));
-    await pipeline(createReadStream(safePath), parser);
+    await pipeline(createReadStream(filePath), parser);
     return data;
   }
-  const workbook = await readWorkbook(safePath);
+  const workbook = await new Workbook().xlsx.read(createReadStream(filePath));
   const sheet = workbook.getWorksheet(sheetName);
   if (!sheet) throw new Error(`Sheet "${sheetName}" not found in the workbook`);
   return readSheet(sheet);

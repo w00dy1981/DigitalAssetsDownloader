@@ -1,6 +1,6 @@
-import type { SqlQueryResult } from '@/sql/contracts';
+import type { SqlResultPreview } from '@/sql/contracts';
 
-export function SqlPreview({ preview }: { preview: SqlQueryResult }) {
+export function SqlPreview({ preview }: { preview: SqlResultPreview }) {
   return (
     <div className="data-summary mt-4">
       <h3>
