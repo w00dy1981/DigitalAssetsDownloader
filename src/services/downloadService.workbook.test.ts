@@ -81,6 +81,39 @@ describe('saved downloads and workbook', () => {
     );
   });
 
+  test('the configured attempt limit stops retries and records the HTTP failure', async () => {
+    let requests = 0;
+    const server = createServer((_, response) => {
+      requests++;
+      response.writeHead(503);
+      response.end();
+    });
+    await new Promise<void>(resolve => server.listen(0, '127.0.0.1', resolve));
+    try {
+      const address = server.address();
+      if (!address || typeof address === 'string')
+        throw new Error('No HTTP port');
+      const service = new DownloadService();
+      const complete = new Promise<DownloadCompletionEvent>(resolve =>
+        service.once('complete', resolve)
+      );
+      await service.startDownloads(
+        config,
+        [{ Code: 'ERR', PDF: `http://127.0.0.1:${address.port}/pdf` }],
+        { retryAttempts: 1, connectionTimeout: 1, readTimeout: 1 }
+      );
+      expect(requests).toBe(1);
+      const workbook = new ExcelJS.Workbook();
+      await workbook.xlsx.readFile((await complete).logFile!);
+      expect(workbook.getWorksheet('Download Log')!.getCell('E2').value).toBe(
+        503
+      );
+    } finally {
+      server.closeAllConnections();
+      await new Promise<void>(resolve => server.close(() => resolve()));
+    }
+  });
+
   test('a successful first image source is the only source requested', async () => {
     const red = await fs.readFile(await makeImage('red', 0xff0000ff));
     const requests: string[] = [];

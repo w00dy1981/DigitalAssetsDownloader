@@ -79,10 +79,10 @@ export function SqlInput({
     async function loadDefaults() {
       const [appConfig, settings] = await Promise.all([
         window.electronAPI.loadConfig().catch(() => null),
-        window.electronAPI.loadSettings(),
+        window.electronAPI.loadSettings().catch(() => null),
       ]);
       const saved = appConfig?.sqlConnectionDetails;
-      const defaults = settings.sqlSettings;
+      const defaults = settings?.sqlSettings;
       setConnection({
         server: saved?.server || defaults?.defaultServer || '',
         database:

@@ -11,7 +11,8 @@ import {
   type PlannedAsset,
 } from './downloadPlan';
 import { writeDownloadWorkbook } from './downloadWorkbook';
-import { saveAsset, type AssetResult } from './saveAsset';
+import { saveAsset, type AssetResult, type HttpSettings } from './saveAsset';
+import { defaultUserSettings } from '../shared/userSettings';
 import { safeJoin } from './pathSecurity';
 
 export type DownloadOptions = DownloadPlanConfig &
@@ -25,13 +26,22 @@ export class DownloadService extends EventEmitter {
 
   async startDownloads(
     config: DownloadOptions,
-    data: readonly Record<string, unknown>[]
+    data: readonly Record<string, unknown>[],
+    http: HttpSettings = defaultUserSettings.downloadBehavior
   ): Promise<void> {
     if (this.activeRun) throw new Error('Downloads already in progress');
     if (!Number.isInteger(config.maxWorkers) || config.maxWorkers < 1) {
       throw new Error('Maximum workers must be a positive integer');
     }
 
+    if (
+      ![http.connectionTimeout, http.readTimeout, http.retryAttempts].every(
+        value => Number.isInteger(value) && value > 0
+      ) ||
+      http.retryAttempts > 10
+    ) {
+      throw new Error('Invalid HTTP timeout or retry settings');
+    }
     const run = new AbortController();
     this.activeRun = run;
     let completion: DownloadCompletionEvent;
@@ -67,6 +77,7 @@ export class DownloadService extends EventEmitter {
       const options = {
         sourceFolder: config.sourceImageFolder,
         processing: config.backgroundProcessing,
+        http,
         signal: run.signal,
       };
 

@@ -1,10 +1,7 @@
 import React from 'react';
 import { SpreadsheetData, DownloadConfig } from '@/shared/types';
 import { logger } from '@/services/LoggingService';
-import {
-  useColumnSelectionState,
-  useNetworkPathDefaults,
-} from '@/renderer/hooks';
+import { useColumnSelectionState } from '@/renderer/hooks';
 import {
   ColumnMappingPanel,
   FolderConfigurationPanel,
@@ -22,24 +19,11 @@ const ColumnSelectionTab: React.FC<ColumnSelectionTabProps> = ({
   onConfigurationComplete,
   initialConfig,
 }) => {
-  const {
-    config,
-    error,
-    setError,
-    update,
-    handleNext,
-    setImageFilePath,
-    setPdfFilePath,
-  } = useColumnSelectionState({ data, initialConfig, onConfigurationComplete });
+  const { config, error, setError, update, handleNext, changeNetworkPath } =
+    useColumnSelectionState({ data, initialConfig, onConfigurationComplete });
+  if (!config) return <p>Loading column settings...</p>;
   const { imageFilePath, pdfFilePath } = config;
   const columnOptions = data.columns.map(value => ({ value, label: value }));
-
-  useNetworkPathDefaults({
-    imageFilePath,
-    pdfFilePath,
-    setImageFilePath,
-    setPdfFilePath,
-  });
 
   return (
     <div className="tab-panel">
@@ -82,9 +66,11 @@ const ColumnSelectionTab: React.FC<ColumnSelectionTabProps> = ({
 
         <NetworkPathsPanel
           imageFilePath={imageFilePath}
-          onImageFilePathChange={setImageFilePath}
+          onImageFilePathChange={value =>
+            changeNetworkPath('imageFilePath', value)
+          }
           pdfFilePath={pdfFilePath}
-          onPdfFilePathChange={setPdfFilePath}
+          onPdfFilePathChange={value => changeNetworkPath('pdfFilePath', value)}
           onError={setError}
         />
       </div>

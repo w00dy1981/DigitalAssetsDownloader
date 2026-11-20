@@ -14,7 +14,6 @@ import { logger } from '@/services/LoggingService';
 
 const SettingsTab: React.FC = () => {
   const [settings, setSettings] = useState<UserSettings | null>(null);
-  const [hasChanges, setHasChanges] = useState(false);
   const [loadFailed, setLoadFailed] = useState(false);
   const [saveStatus, showSaveStatus] = useStatusMessage();
 
@@ -40,37 +39,21 @@ const SettingsTab: React.FC = () => {
     };
   }, []);
 
-  useEffect(() => {
-    if (!settings || !hasChanges) return;
-
-    let active = true;
-    const timeout = setTimeout(async () => {
-      try {
-        await window.electronAPI.saveSettings(settings);
-        if (active) {
-          setHasChanges(false);
-          showSaveStatus('Settings saved successfully', 2000);
-        }
-      } catch (error) {
-        const message = error instanceof Error ? error.message : String(error);
-        logger.error(
-          'Error saving settings',
-          new Error(message),
-          'SettingsTab'
-        );
-        if (active) showSaveStatus(`Error saving settings: ${message}`, 2000);
-      }
-    }, 1000);
-
-    return () => {
-      active = false;
-      clearTimeout(timeout);
-    };
-  }, [settings, hasChanges, showSaveStatus]);
+  async function save(next: UserSettings) {
+    setSettings(next);
+    try {
+      await window.electronAPI.saveSettings(next);
+      showSaveStatus('Settings saved successfully', 2000);
+    } catch (error) {
+      showSaveStatus(
+        `Error saving settings: ${error instanceof Error ? error.message : String(error)}`,
+        2000
+      );
+    }
+  }
 
   const resetToDefaults = () => {
-    setSettings({ ...defaultUserSettings });
-    setHasChanges(true);
+    void save(defaultUserSettings);
   };
 
   const updateSetting = <Section extends keyof UserSettings>(
@@ -78,11 +61,10 @@ const SettingsTab: React.FC = () => {
     changes: Partial<NonNullable<UserSettings[Section]>>
   ) => {
     if (!settings) return;
-    setSettings({
+    void save({
       ...settings,
       [section]: { ...settings[section], ...changes },
     });
-    setHasChanges(true);
   };
 
   if (!settings) {

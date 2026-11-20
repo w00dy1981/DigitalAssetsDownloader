@@ -1,6 +1,6 @@
-import { useCallback, useState } from 'react';
+import { useEffect, useState } from 'react';
 import { SpreadsheetData, DownloadConfig } from '@/shared/types';
-import { CONSTANTS } from '@/shared/constants';
+import { defaultUserSettings } from '@/shared/userSettings';
 import { ValidationService } from '@/services/ValidationService';
 
 interface ColumnSelectionProps {
@@ -15,46 +15,69 @@ export function useColumnSelectionState({
   onConfigurationComplete,
 }: ColumnSelectionProps) {
   const [error, setError] = useState('');
-  const [config, setConfig] = useState<DownloadConfig>(() => ({
-    partNoColumn: '',
-    imageColumns: [],
-    pdfColumn: '',
-    filenameColumn: '',
-    imageFolder: '',
-    pdfFolder: '',
-    sourceImageFolder: '',
-    imageFilePath: '',
-    pdfFilePath: '',
-    maxWorkers: CONSTANTS.DOWNLOAD.DEFAULT_WORKERS,
-    ...initialConfig,
-    backgroundProcessing: {
-      enabled: true,
-      method: 'smart_detect',
-      quality: CONSTANTS.IMAGE.DEFAULT_QUALITY,
-      edgeThreshold: CONSTANTS.IMAGE.DEFAULT_EDGE_THRESHOLD,
-      ...initialConfig?.backgroundProcessing,
-    },
-    excelFile: data.filePath,
-    sheetName: data.sheetName,
-    sourceType: data.sourceType ?? 'file',
-    sourceLabel: data.sourceLabel ?? data.filePath,
-  }));
-  const update = useCallback(
-    <K extends keyof DownloadConfig>(key: K, value: DownloadConfig[K]) => {
-      setConfig(previous => ({ ...previous, [key]: value }));
-    },
-    []
-  );
-  const setImageFilePath = useCallback(
-    (value: string) => update('imageFilePath', value),
-    [update]
-  );
-  const setPdfFilePath = useCallback(
-    (value: string) => update('pdfFilePath', value),
-    [update]
-  );
+  const [config, setConfig] = useState<DownloadConfig | null>(null);
+  useEffect(() => {
+    let active = true;
+    async function load() {
+      const settings = await window.electronAPI
+        .loadSettings()
+        .catch(() => defaultUserSettings);
+      if (!active) return;
+      const paths = settings.defaultPaths;
+      setConfig({
+        partNoColumn: '',
+        imageColumns: [],
+        pdfColumn: '',
+        filenameColumn: '',
+        imageFolder: paths.imageDownloadFolder,
+        pdfFolder: paths.pdfDownloadFolder,
+        sourceImageFolder: paths.sourceImageFolder,
+        imageFilePath: paths.imageNetworkPath,
+        pdfFilePath: paths.pdfNetworkPath,
+        maxWorkers: settings.downloadBehavior.defaultConcurrentDownloads,
+        ...initialConfig,
+        backgroundProcessing: {
+          enabled: settings.imageProcessing.enabledByDefault,
+          method: settings.imageProcessing.defaultMethod,
+          quality: settings.imageProcessing.defaultQuality,
+          edgeThreshold: settings.imageProcessing.defaultEdgeThreshold,
+          ...initialConfig?.backgroundProcessing,
+        },
+        excelFile: data.filePath,
+        sheetName: data.sheetName,
+        sourceType: data.sourceType ?? 'file',
+        sourceLabel: data.sourceLabel ?? data.filePath,
+      });
+    }
+    void load();
+    return () => {
+      active = false;
+    };
+  }, [data, initialConfig]);
+
+  function update<K extends keyof DownloadConfig>(
+    key: K,
+    value: DownloadConfig[K]
+  ) {
+    setConfig(previous => previous && { ...previous, [key]: value });
+  }
+  function changeNetworkPath(
+    key: 'imageFilePath' | 'pdfFilePath',
+    value: string
+  ) {
+    if (!config) return;
+    update(key, value);
+    void window.electronAPI
+      .saveNetworkPaths({
+        imageNetworkPath:
+          key === 'imageFilePath' ? value : config.imageFilePath,
+        pdfNetworkPath: key === 'pdfFilePath' ? value : config.pdfFilePath,
+      })
+      .catch(error => setError(String(error)));
+  }
 
   function handleNext() {
+    if (!config) return;
     const { errors } = ValidationService.validateDownloadConfig(config);
     setError(errors.join(' '));
     if (!errors.length) onConfigurationComplete(config);
@@ -65,7 +88,6 @@ export function useColumnSelectionState({
     error,
     update,
     handleNext,
-    setImageFilePath,
-    setPdfFilePath,
+    changeNetworkPath,
   };
 }

@@ -120,6 +120,7 @@ const App: React.FC = () => {
   }, [downloadConfig, showStatusMessage]);
 
   const handleDataLoaded = (data: SpreadsheetData) => {
+    setDownloadConfig(null);
     setSpreadsheetData(data);
     setActiveTab(1); // Move to column selection tab
   };

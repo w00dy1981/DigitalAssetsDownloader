@@ -422,10 +422,10 @@ class DigitalAssetDownloaderApp {
         // Start downloads
         await this.downloadService.startDownloads(
           config,
-          this.currentSpreadsheetData
+          this.currentSpreadsheetData,
+          mergeUserSettings(this.store.get('userSettings') ?? undefined)
+            .downloadBehavior
         );
-
-        return;
       }
     );
 
