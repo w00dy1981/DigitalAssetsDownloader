@@ -1,3 +1,4 @@
+import { limits } from '@/shared/downloadSettings';
 import React from 'react';
 import { UserSettings } from '@/shared/types';
 
@@ -52,8 +53,7 @@ export const ImageProcessingSection: React.FC<ImageProcessingSectionProps> = ({
           <input
             id="jpeg-quality"
             type="number"
-            min="60"
-            max="100"
+            {...limits.quality}
             value={settings.imageProcessing.defaultQuality}
             onChange={e =>
               onSettingUpdate({ defaultQuality: parseInt(e.target.value) })
@@ -70,8 +70,7 @@ export const ImageProcessingSection: React.FC<ImageProcessingSectionProps> = ({
           <input
             id="edge-threshold"
             type="number"
-            min="10"
-            max="100"
+            {...limits.edgeThreshold}
             value={settings.imageProcessing.defaultEdgeThreshold}
             onChange={e =>
               onSettingUpdate({

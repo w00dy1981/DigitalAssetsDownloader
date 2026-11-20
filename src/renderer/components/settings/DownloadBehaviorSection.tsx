@@ -1,3 +1,4 @@
+import { limits } from '@/shared/downloadSettings';
 import React from 'react';
 import { UserSettings } from '@/shared/types';
 import { NumberInput, FormGroup } from '@/renderer/components/ui';
@@ -24,8 +25,7 @@ export const DownloadBehaviorSection: React.FC<
           onChange={value =>
             onSettingUpdate({ defaultConcurrentDownloads: value })
           }
-          min={1}
-          max={20}
+          {...limits.workers}
           suffix="workers"
         />
       </FormGroup>
@@ -34,8 +34,7 @@ export const DownloadBehaviorSection: React.FC<
         <NumberInput
           value={settings.downloadBehavior.connectionTimeout}
           onChange={value => onSettingUpdate({ connectionTimeout: value })}
-          min={1}
-          max={60}
+          {...limits.connectionTimeout}
           suffix="seconds"
         />
       </FormGroup>
@@ -44,8 +43,7 @@ export const DownloadBehaviorSection: React.FC<
         <NumberInput
           value={settings.downloadBehavior.readTimeout}
           onChange={value => onSettingUpdate({ readTimeout: value })}
-          min={10}
-          max={300}
+          {...limits.readTimeout}
           suffix="seconds"
         />
       </FormGroup>
@@ -54,8 +52,7 @@ export const DownloadBehaviorSection: React.FC<
         <NumberInput
           value={settings.downloadBehavior.retryAttempts}
           onChange={value => onSettingUpdate({ retryAttempts: value })}
-          min={1}
-          max={10}
+          {...limits.retryAttempts}
           suffix="attempts"
         />
       </FormGroup>

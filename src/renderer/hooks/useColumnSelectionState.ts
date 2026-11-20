@@ -1,7 +1,7 @@
+import { downloadConfigErrors } from '@/shared/downloadSettings';
 import { useEffect, useState } from 'react';
 import { SpreadsheetData, DownloadConfig } from '@/shared/types';
 import { defaultUserSettings } from '@/shared/userSettings';
-import { ValidationService } from '@/services/ValidationService';
 
 interface ColumnSelectionProps {
   data: SpreadsheetData;
@@ -78,7 +78,7 @@ export function useColumnSelectionState({
 
   function handleNext() {
     if (!config) return;
-    const { errors } = ValidationService.validateDownloadConfig(config);
+    const errors = downloadConfigErrors(config);
     setError(errors.join(' '));
     if (!errors.length) onConfigurationComplete(config);
   }

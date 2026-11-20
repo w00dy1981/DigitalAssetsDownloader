@@ -1,4 +1,4 @@
-import { ValidationService } from '@/services/ValidationService';
+import { downloadConfigErrors, limits } from '@/shared/downloadSettings';
 import React, { useCallback } from 'react';
 import { DownloadConfig } from '@/shared/types';
 import { NumberInput } from '@/renderer/components/ui';
@@ -33,8 +33,7 @@ const ProcessControls: React.FC<ProcessControlsProps> = ({
     [config, onConfigurationChange]
   );
 
-  const validationErrors =
-    ValidationService.validateDownloadConfig(config).errors;
+  const validationErrors = downloadConfigErrors(config);
   const isConfigValid = validationErrors.length === 0;
 
   return (
@@ -116,8 +115,7 @@ const ProcessControls: React.FC<ProcessControlsProps> = ({
             <NumberInput
               value={config.maxWorkers}
               onChange={value => updateConfig({ maxWorkers: value })}
-              min={1}
-              max={20}
+              {...limits.workers}
               style={{ maxWidth: '120px' }}
             />
             <small className="form-text">
@@ -189,8 +187,7 @@ const ProcessControls: React.FC<ProcessControlsProps> = ({
                         },
                       })
                     }
-                    min={60}
-                    max={100}
+                    {...limits.quality}
                     suffix="%"
                     style={{ maxWidth: '120px' }}
                   />

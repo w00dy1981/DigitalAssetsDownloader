@@ -1,3 +1,7 @@
+import {
+  downloadConfigErrors,
+  userSettingsErrors,
+} from '@/shared/downloadSettings';
 import { app, BrowserWindow, ipcMain, dialog, Menu, MenuItem } from 'electron';
 import { registerUpdates } from './updates';
 import log from 'electron-log';
@@ -21,7 +25,6 @@ import { DownloadService } from '@/services/downloadService';
 import { CONSTANTS } from '@/shared/constants';
 import { SqlServerService } from '@/services/SqlServerService';
 import { SqlCredentialService } from '@/services/SqlCredentialService';
-import { ValidationService } from '@/services/ValidationService';
 import { mergeUserSettings } from '@/shared/userSettings';
 
 // Global error handlers to catch crashes
@@ -295,7 +298,7 @@ class DigitalAssetDownloaderApp {
     });
 
     ipcMain.handle(IPC_CHANNELS.SAVE_CONFIG, (_, config: DownloadConfig) => {
-      const { errors } = ValidationService.validateDownloadConfig(config);
+      const errors = downloadConfigErrors(config);
       if (errors.length)
         throw new Error(`Invalid configuration: ${errors.join(', ')}`);
       this.store.set('lastConfiguration', config);
@@ -426,7 +429,7 @@ class DigitalAssetDownloaderApp {
           );
         }
 
-        const { errors } = ValidationService.validateDownloadConfig(config);
+        const errors = downloadConfigErrors(config);
         if (errors.length) throw new Error(errors.join(', '));
 
         // Start downloads
@@ -444,7 +447,7 @@ class DigitalAssetDownloaderApp {
     );
 
     ipcMain.handle(IPC_CHANNELS.SAVE_SETTINGS, (_, settings: UserSettings) => {
-      const { errors } = ValidationService.validateUserSettings(settings);
+      const errors = userSettingsErrors(settings);
       if (errors.length)
         throw new Error(`Invalid settings: ${errors.join(', ')}`);
       this.store.set('userSettings', mergeUserSettings(settings));
