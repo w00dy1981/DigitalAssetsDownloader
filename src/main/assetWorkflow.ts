@@ -103,7 +103,8 @@ export function registerAssetWorkflow(
     (_, request: SqlQueryRequest) =>
       loadInput(
         async () => {
-          const { columns, rows, sourceLabel } = await loadSqlRows(request);
+          const { columns, rows } = await loadSqlRows(request);
+          const sourceLabel = `${request.server.trim()} / ${request.database.trim()}`;
           if (!columns.length) {
             throw new Error('The SQL query returned no columns.');
           }

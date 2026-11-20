@@ -87,9 +87,7 @@ test('requires a fresh SQL preview and confirmation before loading rows', async 
   const result = {
     columns,
     rows,
-    rowCount: 1,
     totalRowCount: 250,
-    sourceLabel: 'Assets query',
   };
   api.loadSavedSqlPassword.mockResolvedValue('fixture-password');
   api.previewSqlQuery.mockResolvedValue(result);
@@ -98,9 +96,9 @@ test('requires a fresh SQL preview and confirmation before loading rows', async 
     columns,
     rowCount: 1,
     sheetName: 'SQL Query',
-    filePath: result.sourceLabel,
+    filePath: 'Assets query',
     sourceType: 'sql',
-    sourceLabel: result.sourceLabel,
+    sourceLabel: 'Assets query',
   };
   api.loadSqlQueryData.mockResolvedValue(summary);
   api.saveSqlPassword.mockResolvedValue({ success: true });

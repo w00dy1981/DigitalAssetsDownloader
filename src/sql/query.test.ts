@@ -34,15 +34,15 @@ test('preview runs the original query once and counts only its first result set'
   });
   mockConnect.mockResolvedValue({ request: () => sql, close: mockClose });
 
-  const result = await previewSqlQuery({ ...request, rowLimit: 10000 });
+  const result = await previewSqlQuery(request);
 
   expect(sql.query).toHaveBeenCalledTimes(1);
   expect(sql.query).toHaveBeenCalledWith(request.query);
   expect(result).toMatchObject({
-    rowCount: 50,
     totalRowCount: 52,
     columns: ['Note'],
   });
+  expect(result.rows).toHaveLength(50);
   expect(result.rows[0]).toEqual({ Note: 'update; --' });
 });
 

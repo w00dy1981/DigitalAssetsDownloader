@@ -27,14 +27,11 @@ const sqlRequest = {
   username: 'reader',
   password: 'test-password',
   query: 'SELECT Code, Image FROM Products',
-  rowLimit: 1,
 };
 const sqlResult: SqlQueryResult = {
   columns: ['Code', 'Image'],
   rows: [{ Code: 'SQL', Image: 'sql.png' }],
-  rowCount: 1,
   totalRowCount: 2,
-  sourceLabel: 'localhost / Assets',
 };
 
 afterEach(() => {
@@ -94,9 +91,9 @@ test('returns summaries, preserves SQL preview rows, and starts only with the ma
       columns: sqlResult.columns,
       rowCount: 1,
       sheetName: 'SQL Query',
-      filePath: sqlResult.sourceLabel,
+      filePath: 'localhost / Assets',
       sourceType: 'sql',
-      sourceLabel: sqlResult.sourceLabel,
+      sourceLabel: 'localhost / Assets',
     });
     const olderLoad = invoke(IPC_CHANNELS.LOAD_SQL_QUERY_DATA, sqlRequest);
     const fileInput = await invoke(

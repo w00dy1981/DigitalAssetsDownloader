@@ -5,7 +5,6 @@ import type { SqlConnectionRequest } from './contracts';
 export async function testSqlConnection(
   request: SqlConnectionRequest
 ): Promise<{ success: true }> {
-  validateSqlConnection(request);
   const pool = await connectSql(request);
   try {
     await pool.request().query('SELECT 1 AS connection_test');
@@ -15,7 +14,9 @@ export async function testSqlConnection(
   }
 }
 
-export function validateSqlConnection(request: SqlConnectionRequest): void {
+export async function connectSql(
+  request: SqlConnectionRequest
+): Promise<sql.ConnectionPool> {
   if (!request.server?.trim()) {
     throw new Error('SQL Server name is required');
   }
@@ -31,11 +32,7 @@ export function validateSqlConnection(request: SqlConnectionRequest): void {
   if (!request.password) {
     throw new Error('SQL password is required');
   }
-}
 
-export async function connectSql(
-  request: SqlConnectionRequest
-): Promise<sql.ConnectionPool> {
   const config: sql.config = {
     server: request.server.trim(),
     database: request.database.trim(),

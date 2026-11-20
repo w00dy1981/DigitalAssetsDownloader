@@ -23,13 +23,10 @@ export interface SqlConnectionRequest extends SqlConnectionDetails {
 
 export interface SqlQueryRequest extends SqlConnectionRequest {
   query: string;
-  rowLimit?: number;
 }
 
 export interface SqlQueryResult {
   columns: string[];
   rows: Record<string, string>[];
-  rowCount: number;
   totalRowCount: number;
-  sourceLabel: string;
 }

@@ -44,22 +44,17 @@ describeIf('SQL Server integration (requires live SQL Server)', () => {
     const result = await previewSqlQuery({
       ...base,
       query: SQL_QUERY,
-      rowLimit: 50,
     });
     expect(result.columns.length).toBeGreaterThan(0);
-    expect(result.rowCount).toBe(result.rows.length);
-    expect(result.totalRowCount).toBeGreaterThanOrEqual(result.rowCount);
-    expect(result.sourceLabel).toContain(SQL_SERVER);
+    expect(result.totalRowCount).toBeGreaterThanOrEqual(result.rows.length);
   }, 30000);
 
   it('loads rows from the configured query', async () => {
     const result = await loadSqlRows({
       ...base,
       query: SQL_QUERY,
-      rowLimit: 10000,
     });
     expect(result.columns.length).toBeGreaterThan(0);
-    expect(result.sourceLabel).toBe(`${SQL_SERVER} / ${SQL_DATABASE}`);
     expect(result.rows.length).toBeLessThanOrEqual(10000);
   }, 60000);
 
@@ -71,44 +66,38 @@ INSERT INTO @items VALUES (1), (2), (3);
 -- SELECT 'this is a comment;'
 SELECT id AS PartNo, 'update; -- /*still text*/' AS [drop]
 FROM @items /* delete */ ORDER BY id DESC; SELECT 99 AS Ignored;`,
-      ['3', '2'],
-      3,
+      ['3', '2', '1'],
     ],
     [
       'a CTE with DISTINCT and a nested SELECT',
       `WITH Products AS (SELECT PartNo FROM (VALUES (1), (2), (2), (3)) p(PartNo))
 SELECT DISTINCT PartNo, (SELECT ' SELECT ' AS label) AS Label
 FROM Products ORDER BY PartNo DESC`,
-      ['3', '2'],
-      3,
+      ['3', '2', '1'],
     ],
     [
       'a set operation',
       'SELECT 1 AS PartNo UNION ALL SELECT 3 UNION ALL SELECT 2 ORDER BY PartNo DESC',
-      ['3', '2'],
-      3,
+      ['3', '2', '1'],
     ],
     [
       'a query with OFFSET and FETCH',
       `SELECT PartNo FROM (VALUES (1), (2), (3), (4), (5)) p(PartNo)
 ORDER BY PartNo OFFSET 1 ROWS FETCH NEXT 3 ROWS ONLY`,
-      ['2', '3'],
-      3,
+      ['2', '3', '4'],
     ],
     [
       'a query with TOP WITH TIES',
       `SELECT TOP (2) WITH TIES PartNo FROM (VALUES (1), (2), (2), (3)) p(PartNo)
 ORDER BY PartNo`,
-      ['1', '2'],
-      3,
+      ['1', '2', '2'],
     ],
-  ])('limits and counts %s', async (_, query, partNumbers, total) => {
-    const result = await previewSqlQuery({ ...base, query, rowLimit: 2 });
+  ])('reads and counts %s', async (_, query, partNumbers) => {
+    const result = await previewSqlQuery({ ...base, query });
 
     expect(result.rows.map(row => row.PartNo)).toEqual(partNumbers);
-    expect(result.rowCount).toBe(2);
-    expect(result.totalRowCount).toBe(total);
-    const loaded = await loadSqlRows({ ...base, query, rowLimit: 2 });
+    expect(result.totalRowCount).toBe(partNumbers.length);
+    const loaded = await loadSqlRows({ ...base, query });
     expect(loaded.rows).toEqual(result.rows);
   });
 
@@ -135,13 +124,11 @@ ORDER BY PartNo`,
     const result = await previewSqlQuery({
       ...base,
       query: 'SELECT 1 AS PartNo WHERE 1 = 0',
-      rowLimit: 2,
     });
 
     expect(result).toMatchObject({
       columns: ['PartNo'],
       rows: [],
-      rowCount: 0,
       totalRowCount: 0,
     });
   });
@@ -157,15 +144,14 @@ CROSS JOIN Digits d CROSS JOIN Digits e ORDER BY PartNo`;
     const preview = await previewSqlQuery({
       ...base,
       query,
-      rowLimit: 50,
     });
     const loaded = await loadSqlRows({
       ...base,
       query,
-      rowLimit: 20000,
     });
 
-    expect(preview).toMatchObject({ rowCount: 50, totalRowCount: 10002 });
+    expect(preview.rows).toHaveLength(50);
+    expect(preview.totalRowCount).toBe(10002);
     expect(loaded.rows).toHaveLength(10000);
     expect(loaded.rows.slice(0, 50)).toEqual(preview.rows);
     expect(loaded.rows[9999]).toEqual({ PartNo: '9999' });

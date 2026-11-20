@@ -1,10 +1,6 @@
 import type { IColumnMetadata } from 'mssql';
 import { SQL_CONSTANTS } from './constants';
-import {
-  connectSql,
-  safeSqlErrorMessage,
-  validateSqlConnection,
-} from './connection';
+import { connectSql, safeSqlErrorMessage } from './connection';
 import type { SqlQueryRequest, SqlQueryResult } from './contracts';
 
 export async function previewSqlQuery(
@@ -18,7 +14,6 @@ export async function previewSqlQuery(
   );
   return {
     ...data,
-    rowCount: data.rows.length,
     totalRowCount: data.rows.length + extraRows,
   };
 }
@@ -29,19 +24,12 @@ export function loadSqlRows(request: SqlQueryRequest) {
 
 async function readSqlRows(
   request: SqlQueryRequest,
-  maxRows: number,
+  limit: number,
   countExtraRow?: () => void
 ) {
-  validateSqlConnection(request);
   if (typeof request.query !== 'string' || !request.query.trim()) {
     throw new Error('SQL query is required');
   }
-  const rowLimit = request.rowLimit;
-  const limit =
-    typeof rowLimit === 'number' && Number.isFinite(rowLimit) && rowLimit !== 0
-      ? Math.min(maxRows, Math.max(1, Math.floor(rowLimit)))
-      : maxRows;
-
   const pool = await connectSql(request);
   try {
     const sql = pool.request();
@@ -81,7 +69,6 @@ async function readSqlRows(
     return {
       columns: columns ?? [],
       rows,
-      sourceLabel: `${request.server.trim()} / ${request.database.trim()}`,
     };
   } catch (error) {
     const safeMessage = safeSqlErrorMessage(error);
