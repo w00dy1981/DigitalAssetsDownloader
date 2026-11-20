@@ -1,5 +1,6 @@
 import type { UserSettings } from './userSettings';
 import type { DownloadOptions } from '../download/downloadRun';
+import type { SqlConnectionDetails } from '@/sql/contracts';
 import type { UpdateInfo } from 'electron-updater';
 
 export interface SpreadsheetData {
@@ -35,51 +36,6 @@ export type UpdateCheckResult =
   | { type: 'available' | 'not-available'; data: UpdateInfo }
   | { type: 'error'; data: string }
   | { type: 'auto-update-disabled' };
-
-export interface SqlConnectionDetails {
-  server: string;
-  database: string;
-  username: string;
-}
-
-export type SqlCredentialIdentity = SqlConnectionDetails;
-
-export interface SqlPasswordSaveRequest {
-  identity: SqlCredentialIdentity;
-  password: string;
-}
-
-export interface SqlPasswordDeleteRequest {
-  identity: SqlCredentialIdentity;
-}
-
-export interface SqlConnectionTestRequest extends SqlConnectionDetails {
-  password: string;
-  queryTimeoutMs?: number;
-  connectionTimeoutMs?: number;
-}
-
-export interface SqlQueryRequest extends SqlConnectionTestRequest {
-  query: string;
-  rowLimit?: number;
-  allowedCrossDatabases?: string[];
-}
-
-export interface SqlPreviewRequest extends SqlQueryRequest {
-  rowLimit: number;
-}
-
-export interface SqlLoadRequest extends SqlQueryRequest {
-  rowLimit: number;
-}
-
-export interface SqlQueryResult {
-  columns: string[];
-  rows: Record<string, any>[];
-  rowCount: number;
-  totalRowCount?: number;
-  sourceLabel: string;
-}
 
 export interface AppConfig {
   windowState: WindowState;

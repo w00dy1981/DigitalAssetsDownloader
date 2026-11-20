@@ -1,8 +1,9 @@
 import * as fs from 'fs';
 import * as path from 'path';
-import { SqlServerService } from './SqlServerService';
+import { testSqlConnection } from './connection';
+import { runSqlQuery } from './query';
 
-jest.mock('./LoggingService', () => ({
+jest.mock('@/services/LoggingService', () => ({
   logger: {
     error: jest.fn(),
     info: jest.fn(),
@@ -52,13 +53,7 @@ const hasCreds = !!(
 
 const describeIf = hasCreds ? describe : describe.skip;
 
-describeIf('SqlServerService integration (requires live SQL Server)', () => {
-  let service: SqlServerService;
-
-  beforeEach(() => {
-    service = new SqlServerService();
-  });
-
+describeIf('SQL Server integration (requires live SQL Server)', () => {
   const base = {
     server: SQL_SERVER,
     database: SQL_DATABASE,
@@ -69,16 +64,16 @@ describeIf('SqlServerService integration (requires live SQL Server)', () => {
   };
 
   it('testConnection succeeds with valid credentials', async () => {
-    const result = await service.testConnection(base);
+    const result = await testSqlConnection(base);
     expect(result).toEqual({ success: true });
   }, 30000);
 
   it('testConnection gives clean error on wrong password', async () => {
     const badCreds = { ...base, password: 'wrong-password-intentional-test' };
-    await expect(service.testConnection(badCreds)).rejects.toThrow();
+    await expect(testSqlConnection(badCreds)).rejects.toThrow();
 
     try {
-      await service.testConnection(badCreds);
+      await testSqlConnection(badCreds);
     } catch (err) {
       const message = err instanceof Error ? err.message : String(err);
       expect(message).not.toContain('wrong-password-intentional-test');
@@ -87,11 +82,14 @@ describeIf('SqlServerService integration (requires live SQL Server)', () => {
   }, 30000);
 
   it('previewQuery returns columns and rows', async () => {
-    const result = await service.previewQuery({
-      ...base,
-      query: SQL_QUERY,
-      rowLimit: 50,
-    });
+    const result = await runSqlQuery(
+      {
+        ...base,
+        query: SQL_QUERY,
+        rowLimit: 50,
+      },
+      'preview'
+    );
     expect(result.columns.length).toBeGreaterThan(0);
     expect(Array.isArray(result.rows)).toBe(true);
     expect(result.rowCount).toBeGreaterThanOrEqual(0);
@@ -99,11 +97,14 @@ describeIf('SqlServerService integration (requires live SQL Server)', () => {
   }, 30000);
 
   it('loadQueryData returns sourceLabel and row count', async () => {
-    const result = await service.loadQueryData({
-      ...base,
-      query: SQL_QUERY,
-      rowLimit: 10000,
-    });
+    const result = await runSqlQuery(
+      {
+        ...base,
+        query: SQL_QUERY,
+        rowLimit: 10000,
+      },
+      'load'
+    );
     expect(result.columns.length).toBeGreaterThan(0);
     expect(result.sourceLabel).toBe(`${SQL_SERVER} / ${SQL_DATABASE}`);
     expect(result.rowCount).toBeGreaterThanOrEqual(0);
@@ -139,7 +140,10 @@ ORDER BY PartNo`,
       3,
     ],
   ])('limits and counts %s', async (_, query, partNumbers, total) => {
-    const result = await service.previewQuery({ ...base, query, rowLimit: 2 });
+    const result = await runSqlQuery(
+      { ...base, query, rowLimit: 2 },
+      'preview'
+    );
 
     expect(result.rows.map(row => row.PartNo)).toEqual(partNumbers);
     expect(result.rowCount).toBe(2);
@@ -147,11 +151,14 @@ ORDER BY PartNo`,
   });
 
   it('preserves columns for empty results', async () => {
-    const result = await service.previewQuery({
-      ...base,
-      query: 'SELECT 1 AS PartNo WHERE 1 = 0',
-      rowLimit: 2,
-    });
+    const result = await runSqlQuery(
+      {
+        ...base,
+        query: 'SELECT 1 AS PartNo WHERE 1 = 0',
+        rowLimit: 2,
+      },
+      'preview'
+    );
 
     expect(result).toMatchObject({
       columns: ['PartNo'],
@@ -169,16 +176,22 @@ SELECT TOP (10002) a.Digit + 10 * b.Digit + 100 * c.Digit +
 FROM Digits a CROSS JOIN Digits b CROSS JOIN Digits c
 CROSS JOIN Digits d CROSS JOIN Digits e ORDER BY PartNo`;
 
-    const preview = await service.previewQuery({
-      ...base,
-      query,
-      rowLimit: 50,
-    });
-    const loaded = await service.loadQueryData({
-      ...base,
-      query,
-      rowLimit: 10000,
-    });
+    const preview = await runSqlQuery(
+      {
+        ...base,
+        query,
+        rowLimit: 50,
+      },
+      'preview'
+    );
+    const loaded = await runSqlQuery(
+      {
+        ...base,
+        query,
+        rowLimit: 10000,
+      },
+      'load'
+    );
 
     expect(preview).toMatchObject({ rowCount: 50, totalRowCount: 10002 });
     expect(loaded).toMatchObject({ rowCount: 10000, totalRowCount: 10002 });

@@ -1,15 +1,11 @@
 import { ipcMain } from 'electron';
 import { DownloadService } from '@/download/downloadRun';
 import { getSheetNames, loadSheetData } from '@/input/spreadsheet';
-import { SqlServerService } from '@/services/SqlServerService';
+import { testSqlConnection } from '@/sql/connection';
+import type { SqlConnectionRequest, SqlQueryRequest } from '@/sql/contracts';
+import { runSqlQuery } from '@/sql/query';
 import { downloadConfigErrors } from '@/shared/downloadSettings';
-import {
-  IPC_CHANNELS,
-  type DownloadConfig,
-  type SqlConnectionTestRequest,
-  type SqlLoadRequest,
-  type SqlPreviewRequest,
-} from '@/shared/types';
+import { IPC_CHANNELS, type DownloadConfig } from '@/shared/types';
 import type {
   DownloadCompletionEvent,
   DownloadProgress,
@@ -27,7 +23,6 @@ export function registerAssetWorkflow(
   ) => void
 ) {
   const downloads = new DownloadService();
-  const sql = new SqlServerService();
   let loadedRows: readonly Record<string, unknown>[] | undefined;
 
   ipcMain.handle(IPC_CHANNELS.GET_SHEET_NAMES, (_, filePath: string) =>
@@ -43,41 +38,38 @@ export function registerAssetWorkflow(
   );
 
   async function withSavedConnection<T>(
-    request: SqlConnectionTestRequest,
+    request: SqlConnectionRequest,
     execute: () => Promise<T>
   ): Promise<T> {
     const result = await execute();
-    configuration.rememberSqlConnection(sql.getSafeConnectionDetails(request));
+    configuration.rememberSqlConnection(request);
     return result;
   }
 
   ipcMain.handle(
     IPC_CHANNELS.TEST_SQL_CONNECTION,
-    (_, request: SqlConnectionTestRequest) =>
-      withSavedConnection(request, () => sql.testConnection(request))
+    (_, request: SqlConnectionRequest) =>
+      withSavedConnection(request, () => testSqlConnection(request))
   );
 
-  function queryRequest(request: SqlPreviewRequest | SqlLoadRequest) {
-    return {
-      ...request,
-      allowedCrossDatabases:
-        configuration.getSettings().sqlSettings.allowedCrossDatabases,
-    };
+  function query(request: SqlQueryRequest, mode: 'preview' | 'load') {
+    return withSavedConnection(request, () =>
+      runSqlQuery(
+        request,
+        mode,
+        configuration.getSettings().sqlSettings.allowedCrossDatabases
+      )
+    );
   }
 
   ipcMain.handle(
     IPC_CHANNELS.PREVIEW_SQL_QUERY,
-    (_, request: SqlPreviewRequest) =>
-      withSavedConnection(request, () =>
-        sql.previewQuery(queryRequest(request))
-      )
+    (_, request: SqlQueryRequest) => query(request, 'preview')
   );
   ipcMain.handle(
     IPC_CHANNELS.LOAD_SQL_QUERY_DATA,
-    async (_, request: SqlLoadRequest) => {
-      const result = await withSavedConnection(request, () =>
-        sql.loadQueryData(queryRequest(request))
-      );
+    async (_, request: SqlQueryRequest) => {
+      const result = await query(request, 'load');
       loadedRows = result.rows;
       return result;
     }

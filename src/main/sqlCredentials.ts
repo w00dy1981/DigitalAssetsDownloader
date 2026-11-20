@@ -2,12 +2,12 @@ import { createHash } from 'crypto';
 import * as fs from 'fs';
 import * as path from 'path';
 import { app, ipcMain, safeStorage } from 'electron';
-import {
-  IPC_CHANNELS,
+import { IPC_CHANNELS } from '@/shared/types';
+import type {
   SqlCredentialIdentity,
   SqlPasswordDeleteRequest,
   SqlPasswordSaveRequest,
-} from '@/shared/types';
+} from '@/sql/contracts';
 
 interface SecureStringStorage {
   isEncryptionAvailable(): boolean;

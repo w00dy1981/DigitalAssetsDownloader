@@ -1,5 +1,6 @@
 /** @jest-environment jsdom */
 
+import { SQL_CONSTANTS } from '@/sql/constants';
 import { createElement } from 'react';
 import '@testing-library/jest-dom';
 import {
@@ -9,7 +10,6 @@ import {
   screen,
   waitFor,
 } from '@testing-library/react';
-import { SQL_CONSTANTS } from '@/shared/constants';
 import InputSelectionTab from './InputSelectionTab';
 
 const api = {

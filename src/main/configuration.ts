@@ -1,3 +1,4 @@
+import type { SqlConnectionDetails } from '@/sql/contracts';
 import { ipcMain } from 'electron';
 import Store from 'electron-store';
 import {
@@ -8,7 +9,6 @@ import {
   IPC_CHANNELS,
   type AppConfig,
   type DownloadConfig,
-  type SqlConnectionDetails,
   type WindowState,
 } from '@/shared/types';
 import type { NetworkPathDefaults, UserSettings } from '@/shared/userSettings';
@@ -75,7 +75,11 @@ export function registerConfiguration() {
     getWindowState: () => store.get('windowState'),
     saveWindowState: (state: WindowState) => store.set('windowState', state),
     rememberSqlConnection(details: SqlConnectionDetails) {
-      store.set('sqlConnectionDetails', details);
+      store.set('sqlConnectionDetails', {
+        server: details.server.trim(),
+        database: details.database.trim(),
+        username: details.username.trim(),
+      });
     },
   };
 }

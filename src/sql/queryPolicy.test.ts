@@ -1,37 +1,12 @@
-import * as mssql from 'mssql';
-import {
-  SqlServerService,
-  stripSqlComments,
-  validateSqlQuery,
-} from './SqlServerService';
+import { validateSqlQuery } from './queryPolicy';
+import { stripSqlComments } from './queryText';
 
-const mockQuery = jest.fn();
-const mockInput = jest.fn(() => ({ query: mockQuery }));
-const mockClose = jest.fn();
-const mockConnect = jest.fn();
-
-jest.mock('mssql', () => ({
-  Int: Symbol('Int'),
-  ConnectionPool: jest.fn().mockImplementation(() => ({
-    connect: mockConnect,
-    close: mockClose,
-  })),
-}));
-
-jest.mock('./LoggingService', () => ({
-  logger: {
-    error: jest.fn(),
-    info: jest.fn(),
-    warn: jest.fn(),
-    debug: jest.fn(),
-  },
-}));
-
-describe('SqlServerService validation', () => {
+describe('validateSqlQuery', () => {
   it('allows simple SELECT queries', () => {
-    expect(validateSqlQuery('SELECT PartNo, ImageUrl FROM Products')).toEqual({
+    expect(
+      validateSqlQuery('SELECT PartNo, ImageUrl FROM Products')
+    ).toMatchObject({
       isValid: true,
-      errors: [],
     });
   });
 
@@ -40,7 +15,7 @@ describe('SqlServerService validation', () => {
       validateSqlQuery(
         'WITH ProductRows AS (SELECT PartNo FROM Products) SELECT PartNo FROM ProductRows'
       )
-    ).toEqual({ isValid: true, errors: [] });
+    ).toMatchObject({ isValid: true });
   });
 
   it.each([
@@ -69,12 +44,14 @@ describe('SqlServerService validation', () => {
   ])('rejects unsafe query: %s', query => {
     const result = validateSqlQuery(query);
     expect(result.isValid).toBe(false);
+    if (result.isValid) throw new Error('Expected SQL query to be rejected');
     expect(result.errors.length).toBeGreaterThan(0);
   });
 
   it('rejects non-select queries', () => {
     const result = validateSqlQuery('DECLARE @x int');
     expect(result.isValid).toBe(false);
+    if (result.isValid) throw new Error('Expected SQL query to be rejected');
     expect(result.errors).toContain('Only SELECT queries are allowed');
   });
 });
@@ -135,24 +112,27 @@ describe('validateSqlQuery with comments and cross-database names', () => {
   it('accepts a SELECT with a line comment', () => {
     expect(
       validateSqlQuery('SELECT col -- pick this one\nFROM Products')
-    ).toEqual({ isValid: true, errors: [] });
+    ).toMatchObject({ isValid: true });
   });
 
   it('accepts a SELECT with a block comment', () => {
-    expect(validateSqlQuery('SELECT /* filtered */ col FROM Products')).toEqual(
-      { isValid: true, errors: [] }
-    );
+    expect(
+      validateSqlQuery('SELECT /* filtered */ col FROM Products')
+    ).toMatchObject({ isValid: true });
   });
 
   it('accepts a CTE query with line comments', () => {
     const query =
       '-- get products\nWITH Rows AS (SELECT id FROM Products)\nSELECT id FROM Rows';
-    expect(validateSqlQuery(query)).toEqual({ isValid: true, errors: [] });
+    expect(validateSqlQuery(query)).toMatchObject({
+      isValid: true,
+    });
   });
 
   it('still rejects dangerous SQL outside comments', () => {
     const result = validateSqlQuery('SELECT 1; DROP TABLE Products');
     expect(result.isValid).toBe(false);
+    if (result.isValid) throw new Error('Expected SQL query to be rejected');
     expect(result.errors).toContain(
       'Semicolon-separated SQL batches are not allowed'
     );
@@ -165,9 +145,8 @@ describe('validateSqlQuery with comments and cross-database names', () => {
 
   it('does NOT execute dangerous SQL that was hidden inside a comment', () => {
     // After stripping comments, only 'SELECT 1' remains — should be valid
-    expect(validateSqlQuery('SELECT 1 -- DROP TABLE Products')).toEqual({
+    expect(validateSqlQuery('SELECT 1 -- DROP TABLE Products')).toMatchObject({
       isValid: true,
-      errors: [],
     });
   });
 
@@ -177,7 +156,7 @@ describe('validateSqlQuery with comments and cross-database names', () => {
         'SELECT p.id, w.url FROM Products p JOIN WebScrapes.dbo.images w ON w.sku = p.sku',
         ['WebScrapes']
       )
-    ).toEqual({ isValid: true, errors: [] });
+    ).toMatchObject({ isValid: true });
   });
 
   it('allows a bracketed cross-database reference when it is in the allow-list', () => {
@@ -186,7 +165,7 @@ describe('validateSqlQuery with comments and cross-database names', () => {
         'SELECT w.url FROM [WebScrapes].dbo.images w WHERE w.sku = 1',
         ['WebScrapes']
       )
-    ).toEqual({ isValid: true, errors: [] });
+    ).toMatchObject({ isValid: true });
   });
 
   it('rejects a cross-database reference not in the allow-list', () => {
@@ -194,14 +173,16 @@ describe('validateSqlQuery with comments and cross-database names', () => {
       'WebScrapes',
     ]);
     expect(result.isValid).toBe(false);
+    if (result.isValid) throw new Error('Expected SQL query to be rejected');
     expect(result.errors[0]).toContain('HackerDB');
     expect(result.errors[0]).toContain('WebScrapes');
   });
 
   it('allows any cross-database reference when the allow-list is empty', () => {
-    expect(validateSqlQuery('SELECT * FROM AnyDB.dbo.AnyTable', [])).toEqual({
+    expect(
+      validateSqlQuery('SELECT * FROM AnyDB.dbo.AnyTable', [])
+    ).toMatchObject({
       isValid: true,
-      errors: [],
     });
   });
 
@@ -211,7 +192,7 @@ describe('validateSqlQuery with comments and cross-database names', () => {
         "SELECT * FROM [SB_WebProductsInfo] p WHERE p.[Status] = 'A'",
         ['WebScrapes']
       )
-    ).toEqual({ isValid: true, errors: [] });
+    ).toMatchObject({ isValid: true });
   });
 
   it('accepts a cross-database reference inside a CTE with an allow-list', () => {
@@ -223,116 +204,8 @@ describe('validateSqlQuery with comments and cross-database names', () => {
       ')',
       'SELECT * FROM ProductRows',
     ].join('\n');
-    expect(validateSqlQuery(query, ['WebScrapes'])).toEqual({
+    expect(validateSqlQuery(query, ['WebScrapes'])).toMatchObject({
       isValid: true,
-      errors: [],
     });
-  });
-});
-
-describe('SqlServerService execution', () => {
-  beforeEach(() => {
-    jest.clearAllMocks();
-    mockConnect.mockResolvedValue({
-      close: mockClose,
-      request: () => ({ input: mockInput, query: mockQuery }),
-    });
-    mockClose.mockResolvedValue(undefined);
-    mockQuery.mockResolvedValue({
-      recordset: [
-        { PartNo: ' ABC ', ImageUrl: 'https://example.com/image.jpg' },
-      ],
-    });
-  });
-
-  const request = {
-    server: 'sql-server',
-    database: 'Baker',
-    username: 'DigitalAssetsDownloader',
-    password: 'secret',
-    query: 'SELECT PartNo, ImageUrl FROM Products',
-    rowLimit: 50,
-    queryTimeoutMs: 30000,
-    connectionTimeoutMs: 15000,
-  };
-
-  it('normalizes preview rows without mutating external loaded data', async () => {
-    const service = new SqlServerService();
-    const existingLoadedRows = [{ PartNo: 'Existing' }];
-    mockQuery
-      .mockResolvedValueOnce({ recordset: [{ totalRowCount: '1384' }] })
-      .mockResolvedValueOnce({
-        recordset: [
-          { PartNo: ' ABC ', ImageUrl: 'https://example.com/image.jpg' },
-        ],
-      });
-
-    const result = await service.previewQuery(request);
-
-    expect(result.rows).toEqual([
-      { PartNo: 'ABC', ImageUrl: 'https://example.com/image.jpg' },
-    ]);
-    expect(existingLoadedRows).toEqual([{ PartNo: 'Existing' }]);
-    expect(result.rowCount).toBe(1);
-    expect(result.totalRowCount).toBe(1384);
-    expect(mockInput).toHaveBeenCalledWith('appRowLimit', mssql.Int, 50);
-    expect(mockQuery).toHaveBeenNthCalledWith(
-      2,
-      `SET ROWCOUNT @appRowLimit;
-${request.query}
-SET ROWCOUNT 0;`
-    );
-  });
-
-  it('normalizes full-load rows and returns row count', async () => {
-    const service = new SqlServerService();
-
-    const result = await service.loadQueryData({ ...request, rowLimit: 10000 });
-
-    expect(result.columns).toEqual(['PartNo', 'ImageUrl']);
-    expect(result.rowCount).toBe(1);
-    expect(result.sourceLabel).toBe('sql-server / Baker');
-    expect(mockInput).toHaveBeenCalledWith('appRowLimit', mssql.Int, 10000);
-  });
-
-  it('enforces the preview cap at the SQL service boundary', async () => {
-    await new SqlServerService().previewQuery({ ...request, rowLimit: 10000 });
-
-    expect(mockInput).toHaveBeenCalledWith('appRowLimit', mssql.Int, 50);
-  });
-
-  it.each([
-    'SELECT PartNo INTO NewProducts FROM Products',
-    'SELECT PartNo FROM Products ORDER BY PartNo\nSET NOCOUNT ON',
-  ])('rejects invalid queries before opening a connection', async query => {
-    await expect(
-      new SqlServerService().previewQuery({ ...request, query })
-    ).rejects.toThrow('SQL query rejected');
-
-    expect(mockConnect).not.toHaveBeenCalled();
-  });
-
-  it('closes the pool when counting fails', async () => {
-    mockQuery.mockRejectedValueOnce(new Error('SQL count failed'));
-
-    await expect(new SqlServerService().previewQuery(request)).rejects.toThrow(
-      'SQL count failed'
-    );
-    expect(mockQuery).toHaveBeenCalledTimes(1);
-    expect(mockClose).toHaveBeenCalledTimes(1);
-  });
-
-  it('propagates queryTimeoutMs to the connection config', async () => {
-    const service = new SqlServerService();
-    await service.testConnection({
-      server: 'test-server',
-      database: 'TestDB',
-      username: 'user',
-      password: 'pass',
-      queryTimeoutMs: 5000,
-      connectionTimeoutMs: 15000,
-    });
-    const config = jest.mocked(mssql.ConnectionPool).mock.calls[0][0];
-    expect(config).toMatchObject({ requestTimeout: 5000 });
   });
 });

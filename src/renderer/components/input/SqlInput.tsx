@@ -1,7 +1,7 @@
 import { defaultUserSettings } from '@/shared/userSettings';
+import { SQL_CONSTANTS } from '@/sql/constants';
 import { useEffect, useState } from 'react';
-import { SQL_CONSTANTS } from '@/shared/constants';
-import type { SqlConnectionDetails, SqlQueryResult } from '@/shared/types';
+import type { SqlConnectionDetails, SqlQueryResult } from '@/sql/contracts';
 import type { InputWorkflowProps } from '../InputSelectionTab';
 import { SqlPreview } from './SqlPreview';
 import { SqlPasswordField, useSqlPassword } from './SqlPasswordField';

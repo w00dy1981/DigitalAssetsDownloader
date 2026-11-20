@@ -1,4 +1,4 @@
-import { SqlQueryResult } from '@/shared/types';
+import type { SqlQueryResult } from '@/sql/contracts';
 
 export function SqlPreview({ preview }: { preview: SqlQueryResult }) {
   return (
