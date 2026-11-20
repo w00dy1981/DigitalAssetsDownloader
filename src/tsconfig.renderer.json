@@ -6,14 +6,7 @@
     "lib": ["ES2020", "DOM", "DOM.Iterable"],
     "jsx": "react-jsx",
     "outDir": "../dist/renderer",
-    "rootDir": ".",
-    "baseUrl": ".",
-    "paths": {
-      "@/*": ["./*"],
-      "@/renderer/*": ["./renderer/*"],
-      "@/shared/*": ["./shared/*"],
-      "@/services/*": ["./services/*"]
-    }
+    "rootDir": "."
   },
   "include": ["./renderer/**/*", "./shared/**/*", "./renderer/types.d.ts"],
   "exclude": ["./main/**/*"]
