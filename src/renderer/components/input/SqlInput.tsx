@@ -58,9 +58,9 @@ export function SqlInput({
   setError,
   onDataLoaded,
 }: InputWorkflowProps & { active: boolean }) {
-  const [connection, setConnection] = useState<
-    (SqlConnectionDetails & { allowedCrossDatabases?: string[] }) | null
-  >(null);
+  const [connection, setConnection] = useState<SqlConnectionDetails | null>(
+    null
+  );
   const [query, setQuery] = useState('');
   const [preview, setPreview] = useState<SqlQueryResult | null>(null);
   const [notice, setNotice] = useState('');
@@ -93,7 +93,6 @@ export function SqlInput({
           saved?.username ||
           defaults?.defaultUsername ||
           CONSTANTS.SQL.DEFAULT_USERNAME,
-        allowedCrossDatabases: defaults?.allowedCrossDatabases,
       });
     }
     void loadDefaults();
@@ -168,7 +167,6 @@ export function SqlInput({
       const sql = {
         ...request,
         query: query.trim(),
-        allowedCrossDatabases: connection.allowedCrossDatabases,
       };
       const isPreview = action === 'preview';
       if (isPreview) setPreview(null);

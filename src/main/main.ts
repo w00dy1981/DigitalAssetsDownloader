@@ -350,10 +350,17 @@ class DigitalAssetDownloaderApp {
       }
     );
 
+    // Enforce the current saved database list when each query runs.
+    const querySettings = () =>
+      mergeUserSettings(this.store.get('userSettings') ?? undefined)
+        .sqlSettings;
     ipcMain.handle(
       IPC_CHANNELS.PREVIEW_SQL_QUERY,
       async (_, request: SqlPreviewRequest) => {
-        const result = await this.sqlServerService.previewQuery(request);
+        const result = await this.sqlServerService.previewQuery({
+          ...request,
+          allowedCrossDatabases: querySettings()?.allowedCrossDatabases,
+        });
         this.store.set(
           'sqlConnectionDetails',
           this.sqlServerService.getSafeConnectionDetails(request)
@@ -365,7 +372,10 @@ class DigitalAssetDownloaderApp {
     ipcMain.handle(
       IPC_CHANNELS.LOAD_SQL_QUERY_DATA,
       async (_, request: SqlLoadRequest) => {
-        const result = await this.sqlServerService.loadQueryData(request);
+        const result = await this.sqlServerService.loadQueryData({
+          ...request,
+          allowedCrossDatabases: querySettings()?.allowedCrossDatabases,
+        });
         this.currentSpreadsheetData = result.rows;
         this.store.set(
           'sqlConnectionDetails',
