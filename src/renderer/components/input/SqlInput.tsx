@@ -169,37 +169,22 @@ export function SqlInput({
         ...request,
         query: query.trim(),
       };
-      const isPreview = action === 'preview';
-      if (isPreview) setPreview(null);
-      const result = isPreview
-        ? await window.electronAPI.previewSqlQuery({
-            ...sql,
-            rowLimit: PREVIEW_ROW_LIMIT,
-          })
-        : await window.electronAPI.loadSqlQueryData({
-            ...sql,
-            rowLimit: FULL_LOAD_ROW_LIMIT,
-          });
-
-      if (!isPreview && !result.columns.length) {
-        setError('The SQL query returned no columns.');
-        return;
-      }
-
-      await credentials.savePassword();
-      if (isPreview) {
+      if (action === 'preview') {
+        setPreview(null);
+        const result = await window.electronAPI.previewSqlQuery({
+          ...sql,
+          rowLimit: PREVIEW_ROW_LIMIT,
+        });
         setPreview(result);
       } else {
-        setNotice(`Loaded ${result.rowCount.toLocaleString()} SQL rows.`);
-        onDataLoaded({
-          columns: result.columns,
-          rows: result.rows,
-          sheetName: 'SQL Query',
-          filePath: result.sourceLabel,
-          sourceType: 'sql',
-          sourceLabel: result.sourceLabel,
+        const result = await window.electronAPI.loadSqlQueryData({
+          ...sql,
+          rowLimit: FULL_LOAD_ROW_LIMIT,
         });
+        setNotice(`Loaded ${result.rowCount.toLocaleString()} SQL rows.`);
+        onDataLoaded(result);
       }
+      await credentials.savePassword();
     } catch (error) {
       setError(
         error instanceof Error ? error.message : sqlActions[action].error

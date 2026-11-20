@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { SpreadsheetData, DownloadConfig } from '@/shared/types';
+import type { LoadedInput, DownloadConfig } from '@/shared/types';
 import InputSelectionTab from './components/InputSelectionTab';
 import ColumnSelectionTab from './components/ColumnSelectionTab';
 import ProcessTab from './components/ProcessTab';
@@ -17,7 +17,7 @@ const App: React.FC = () => {
     'input' | 'columns' | 'process' | 'settings'
   >('input');
   const [workflow, setWorkflow] = useState<{
-    data: SpreadsheetData;
+    data: LoadedInput;
     config: DownloadConfig | null;
   } | null>(null);
   const downloadConfig = workflow?.config;
@@ -51,13 +51,19 @@ const App: React.FC = () => {
     });
   }, [downloadConfig, showStatusMessage]);
 
-  function loadInput(data: SpreadsheetData) {
-    setWorkflow({ data, config: null });
+  function loadInput(data: LoadedInput) {
+    setWorkflow(current =>
+      current && current.data.loadId >= data.loadId
+        ? current
+        : { data, config: null }
+    );
     setActiveTab('columns');
   }
 
-  function updateConfig(config: DownloadConfig) {
-    setWorkflow(current => current && { ...current, config });
+  function updateConfig(loadId: LoadedInput['loadId'], config: DownloadConfig) {
+    setWorkflow(current =>
+      current?.data.loadId === loadId ? { ...current, config } : current
+    );
   }
 
   return (
@@ -132,19 +138,24 @@ const App: React.FC = () => {
         </div>
         {activeTab === 'columns' && workflow && (
           <ColumnSelectionTab
+            key={workflow.data.loadId}
             data={workflow.data}
             initialConfig={workflow.config}
             onConfigurationComplete={config => {
-              updateConfig(config);
+              updateConfig(workflow.data.loadId, config);
               setActiveTab('process');
             }}
           />
         )}
-        {downloadConfig && (
+        {workflow && downloadConfig && (
           <div hidden={activeTab !== 'process'}>
             <ProcessTab
+              key={workflow.data.loadId}
               config={downloadConfig}
-              onConfigurationChange={updateConfig}
+              loadId={workflow.data.loadId}
+              onConfigurationChange={config =>
+                updateConfig(workflow.data.loadId, config)
+              }
             />
           </div>
         )}

@@ -1,15 +1,15 @@
 import { useState } from 'react';
-import { SpreadsheetData } from '@/shared/types';
+import type { LoadedInput } from '@/shared/types';
 import { FileInput } from './input/FileInput';
 import { SqlInput } from './input/SqlInput';
 
 interface InputSelectionTabProps {
-  onDataLoaded: (data: SpreadsheetData) => void;
-  currentData: SpreadsheetData | null;
+  onDataLoaded: (data: LoadedInput) => void;
+  currentData: LoadedInput | null;
 }
 
 export interface InputWorkflowProps {
-  onDataLoaded: (data: SpreadsheetData) => void;
+  onDataLoaded: (data: LoadedInput) => void;
   loading: boolean;
   setLoading: (loading: boolean) => void;
   setError: (message: string) => void;
@@ -65,8 +65,7 @@ const InputSelectionTab: React.FC<InputSelectionTabProps> = ({
           <h3>Loaded Data Summary</h3>
           <div className="summary-card">
             <p>
-              <strong>Input Source:</strong>{' '}
-              {currentData.sourceLabel || currentData.filePath}
+              <strong>Input Source:</strong> {currentData.sourceLabel}
             </p>
             <p>
               <strong>Dataset:</strong> {currentData.sheetName}
@@ -77,7 +76,7 @@ const InputSelectionTab: React.FC<InputSelectionTabProps> = ({
               {currentData.columns.length > 3 ? '...' : ''})
             </p>
             <p>
-              <strong>Rows:</strong> {currentData.rows.length} data rows
+              <strong>Rows:</strong> {currentData.rowCount} data rows
             </p>
             <p className="text-success">
               <strong>Status:</strong> Ready for column mapping

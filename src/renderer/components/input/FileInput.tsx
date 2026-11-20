@@ -86,7 +86,7 @@ export function FileInput({
   }
 
   async function loadSheet() {
-    if (!file?.sheet) return;
+    if (loading || !file?.sheet) return;
 
     setLoading(true);
     setError('');
@@ -95,14 +95,7 @@ export function FileInput({
         file.path,
         file.sheet
       );
-      onDataLoaded({
-        columns: data.columns,
-        rows: data.rows,
-        sheetName: file.sheet,
-        filePath: file.path,
-        sourceType: 'file',
-        sourceLabel: file.path,
-      });
+      onDataLoaded(data);
     } catch {
       setError(
         'Failed to load sheet data. Please check the file format and try again.'

@@ -5,7 +5,11 @@ import { testSqlConnection } from '@/sql/connection';
 import type { SqlConnectionRequest, SqlQueryRequest } from '@/sql/contracts';
 import { runSqlQuery } from '@/sql/query';
 import { downloadConfigErrors } from '@/shared/downloadSettings';
-import { IPC_CHANNELS, type DownloadConfig } from '@/shared/types';
+import {
+  IPC_CHANNELS,
+  type LoadedInput,
+  type DownloadConfig,
+} from '@/shared/types';
 import type {
   DownloadCompletionEvent,
   DownloadProgress,
@@ -23,18 +27,46 @@ export function registerAssetWorkflow(
   ) => void
 ) {
   const downloads = new DownloadService();
-  let loadedRows: readonly Record<string, unknown>[] | undefined;
+  type Rows = readonly Record<string, unknown>[];
+  let latestLoadId = 0;
+  let loadedInput: { loadId: number; rows: Rows } | undefined;
+
+  async function loadInput(
+    read: () => Promise<{
+      rows: Rows;
+      summary: Omit<LoadedInput, 'loadId' | 'rowCount'>;
+    }>,
+    rememberConnection?: () => void
+  ): Promise<LoadedInput> {
+    const loadId = ++latestLoadId;
+    const { rows, summary } = await read();
+    if (loadId !== latestLoadId) {
+      throw new Error('A newer input load replaced this request.');
+    }
+    rememberConnection?.();
+    loadedInput = { loadId, rows };
+    return { ...summary, loadId, rowCount: rows.length };
+  }
 
   ipcMain.handle(IPC_CHANNELS.GET_SHEET_NAMES, (_, filePath: string) =>
     getSheetNames(filePath)
   );
   ipcMain.handle(
     IPC_CHANNELS.LOAD_SHEET_DATA,
-    async (_, filePath: string, sheetName: string) => {
-      const data = await loadSheetData(filePath, sheetName);
-      loadedRows = data.rows;
-      return data;
-    }
+    (_, filePath: string, sheetName: string) =>
+      loadInput(async () => {
+        const { columns, rows } = await loadSheetData(filePath, sheetName);
+        return {
+          rows,
+          summary: {
+            columns,
+            sheetName,
+            filePath,
+            sourceType: 'file',
+            sourceLabel: filePath,
+          },
+        };
+      })
   );
 
   async function withSavedConnection<T>(
@@ -53,26 +85,40 @@ export function registerAssetWorkflow(
   );
 
   function query(request: SqlQueryRequest, mode: 'preview' | 'load') {
-    return withSavedConnection(request, () =>
-      runSqlQuery(
-        request,
-        mode,
-        configuration.getSettings().sqlSettings.allowedCrossDatabases
-      )
+    return runSqlQuery(
+      request,
+      mode,
+      configuration.getSettings().sqlSettings.allowedCrossDatabases
     );
   }
 
   ipcMain.handle(
     IPC_CHANNELS.PREVIEW_SQL_QUERY,
-    (_, request: SqlQueryRequest) => query(request, 'preview')
+    (_, request: SqlQueryRequest) =>
+      withSavedConnection(request, () => query(request, 'preview'))
   );
   ipcMain.handle(
     IPC_CHANNELS.LOAD_SQL_QUERY_DATA,
-    async (_, request: SqlQueryRequest) => {
-      const result = await query(request, 'load');
-      loadedRows = result.rows;
-      return result;
-    }
+    (_, request: SqlQueryRequest) =>
+      loadInput(
+        async () => {
+          const { columns, rows, sourceLabel } = await query(request, 'load');
+          if (!columns.length) {
+            throw new Error('The SQL query returned no columns.');
+          }
+          return {
+            rows,
+            summary: {
+              columns,
+              sheetName: 'SQL Query',
+              filePath: sourceLabel,
+              sourceType: 'sql',
+              sourceLabel,
+            },
+          };
+        },
+        () => configuration.rememberSqlConnection(request)
+      )
   );
 
   downloads.on('progress', (progress: DownloadProgress) =>
@@ -83,18 +129,19 @@ export function registerAssetWorkflow(
   );
   ipcMain.handle(
     IPC_CHANNELS.START_DOWNLOADS,
-    async (_, config: DownloadConfig) => {
-      if (!loadedRows) {
-        throw new Error(
-          'No spreadsheet data loaded. Please load a file first.'
-        );
+    async (_, config: DownloadConfig, loadId: number) => {
+      if (!loadedInput) {
+        throw new Error('No input data loaded. Please load input data first.');
+      }
+      if (loadId !== loadedInput.loadId) {
+        throw new Error('Input data changed. Please map the columns again.');
       }
       const errors = downloadConfigErrors(config);
       if (errors.length) throw new Error(errors.join(', '));
 
       await downloads.startDownloads(
         config,
-        loadedRows,
+        loadedInput.rows,
         configuration.getSettings().downloadBehavior
       );
     }

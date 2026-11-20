@@ -10,6 +10,7 @@ import {
   screen,
   waitFor,
 } from '@testing-library/react';
+import type { LoadedInput } from '@/shared/types';
 import InputSelectionTab from './InputSelectionTab';
 
 const api = {
@@ -56,8 +57,19 @@ test.each([
   api.getSheetNames.mockResolvedValue(
     filePath.endsWith('.csv') ? ['Sheet1'] : ['Overview', 'Downloads']
   );
-  api.loadSheetData.mockResolvedValue({ rows, columns });
-  render(createElement(InputSelectionTab, { currentData: null, onDataLoaded }));
+  const summary: LoadedInput = {
+    loadId: 1,
+    columns,
+    rowCount: 1,
+    sheetName,
+    filePath,
+    sourceType: 'file',
+    sourceLabel: filePath,
+  };
+  api.loadSheetData.mockResolvedValue(summary);
+  const { rerender } = render(
+    createElement(InputSelectionTab, { currentData: null, onDataLoaded })
+  );
 
   fireEvent.click(screen.getByRole('button', { name: 'Browse...' }));
   const sheet = await screen.findByLabelText('Select Sheet');
@@ -67,16 +79,11 @@ test.each([
   expect(sheet).toHaveValue(sheetName);
   fireEvent.click(screen.getByRole('button', { name: 'Load Sheet' }));
 
-  await waitFor(() =>
-    expect(onDataLoaded).toHaveBeenCalledWith({
-      columns,
-      rows,
-      sheetName,
-      filePath,
-      sourceType: 'file',
-      sourceLabel: filePath,
-    })
+  await waitFor(() => expect(onDataLoaded).toHaveBeenCalledWith(summary));
+  rerender(
+    createElement(InputSelectionTab, { currentData: summary, onDataLoaded })
   );
+  expect(screen.getByText('1 data rows')).toBeInTheDocument();
 });
 
 test('requires a fresh SQL preview and confirmation before loading rows', async () => {
@@ -89,7 +96,16 @@ test('requires a fresh SQL preview and confirmation before loading rows', async 
   };
   api.loadSavedSqlPassword.mockResolvedValue('fixture-password');
   api.previewSqlQuery.mockResolvedValue(result);
-  api.loadSqlQueryData.mockResolvedValue(result);
+  const summary: LoadedInput = {
+    loadId: 1,
+    columns,
+    rowCount: 1,
+    sheetName: 'SQL Query',
+    filePath: result.sourceLabel,
+    sourceType: 'sql',
+    sourceLabel: result.sourceLabel,
+  };
+  api.loadSqlQueryData.mockResolvedValue(summary);
   api.saveSqlPassword.mockResolvedValue({ success: true });
   const confirm = jest.spyOn(window, 'confirm').mockReturnValue(false);
   const onDataLoaded = jest.fn();
@@ -128,16 +144,7 @@ test('requires a fresh SQL preview and confirmation before loading rows', async 
     await screen.findByRole('cell', { name: 'ABC' });
     confirm.mockReturnValue(true);
     fireEvent.click(load);
-    await waitFor(() =>
-      expect(onDataLoaded).toHaveBeenCalledWith({
-        columns,
-        rows,
-        sheetName: 'SQL Query',
-        filePath: result.sourceLabel,
-        sourceType: 'sql',
-        sourceLabel: result.sourceLabel,
-      })
-    );
+    await waitFor(() => expect(onDataLoaded).toHaveBeenCalledWith(summary));
     expect(api.loadSqlQueryData).toHaveBeenCalledWith(
       expect.objectContaining({
         ...identity,

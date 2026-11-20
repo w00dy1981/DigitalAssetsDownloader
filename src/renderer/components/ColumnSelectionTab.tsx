@@ -1,5 +1,5 @@
 import React from 'react';
-import { SpreadsheetData, DownloadConfig } from '@/shared/types';
+import type { LoadedInput, DownloadConfig } from '@/shared/types';
 import { useColumnSelectionState } from './column-selection/useColumnSelectionState';
 import {
   ColumnMappingPanel,
@@ -8,7 +8,7 @@ import {
 } from './column-selection';
 
 interface ColumnSelectionTabProps {
-  data: SpreadsheetData;
+  data: LoadedInput;
   onConfigurationComplete: (config: DownloadConfig) => void;
   initialConfig: DownloadConfig | null;
 }
@@ -31,7 +31,7 @@ const ColumnSelectionTab: React.FC<ColumnSelectionTabProps> = ({
         download settings.
       </p>
       <p className="data-info">
-        <strong>Loaded Data:</strong> {data.sheetName} ({data.rows.length} rows,{' '}
+        <strong>Loaded Data:</strong> {data.sheetName} ({data.rowCount} rows,{' '}
         {data.columns.length} columns)
       </p>
 

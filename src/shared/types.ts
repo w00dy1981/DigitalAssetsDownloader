@@ -3,13 +3,14 @@ import type { DownloadOptions } from '../download/downloadRun';
 import type { SqlConnectionDetails } from '@/sql/contracts';
 import type { UpdateInfo } from 'electron-updater';
 
-export interface SpreadsheetData {
+export interface LoadedInput {
+  loadId: number;
   columns: string[];
-  rows: Record<string, any>[];
+  rowCount: number;
   sheetName: string;
   filePath: string;
-  sourceType?: 'file' | 'sql';
-  sourceLabel?: string;
+  sourceType: 'file' | 'sql';
+  sourceLabel: string;
 }
 
 export interface DownloadConfig extends DownloadOptions {

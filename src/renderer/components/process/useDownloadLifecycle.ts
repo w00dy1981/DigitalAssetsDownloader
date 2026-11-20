@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import type { DownloadConfig } from '@/shared/types';
+import type { DownloadConfig, LoadedInput } from '@/shared/types';
 import type { DownloadProgress } from '@/download/downloadRun';
 
 const initialProgress: DownloadProgress = {
@@ -13,7 +13,10 @@ const initialProgress: DownloadProgress = {
   backgroundProcessed: 0,
 };
 
-export function useDownloadLifecycle(config: DownloadConfig) {
+export function useDownloadLifecycle(
+  config: DownloadConfig,
+  loadId: LoadedInput['loadId']
+) {
   const [phase, setPhase] = useState<'idle' | 'running' | 'cancelling'>('idle');
   const [progress, setProgress] = useState(initialProgress);
   const [logs, setLogs] = useState<string[]>([]);
@@ -51,7 +54,7 @@ export function useDownloadLifecycle(config: DownloadConfig) {
     setProgress(initialProgress);
     setLogs(['Starting downloads...']);
     try {
-      await window.electronAPI.startDownloads(config);
+      await window.electronAPI.startDownloads(config, loadId);
     } catch (error) {
       setPhase('idle');
       setLogs(previous => [

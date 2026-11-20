@@ -1,10 +1,10 @@
 import { downloadConfigErrors } from '@/shared/downloadSettings';
 import { useEffect, useState } from 'react';
-import { SpreadsheetData, DownloadConfig } from '@/shared/types';
+import type { LoadedInput, DownloadConfig } from '@/shared/types';
 import { defaultUserSettings } from '@/shared/userSettings';
 
 interface ColumnSelectionProps {
-  data: SpreadsheetData;
+  data: LoadedInput;
   initialConfig: DownloadConfig | null;
   onConfigurationComplete: (config: DownloadConfig) => void;
 }
@@ -45,8 +45,8 @@ export function useColumnSelectionState({
         },
         excelFile: data.filePath,
         sheetName: data.sheetName,
-        sourceType: data.sourceType ?? 'file',
-        sourceLabel: data.sourceLabel ?? data.filePath,
+        sourceType: data.sourceType,
+        sourceLabel: data.sourceLabel,
       });
     }
     void load();

@@ -5,7 +5,6 @@ import type {
   OpenDialogReturnValue,
 } from 'electron';
 import type { ProgressInfo, UpdateInfo } from 'electron-updater';
-import type { SheetData } from '@/input/spreadsheet';
 import type {
   SqlConnectionRequest,
   SqlCredentialIdentity,
@@ -18,6 +17,7 @@ import {
   IPC_CHANNELS as channels,
   type AppConfig,
   type DownloadConfig,
+  type LoadedInput,
   type UpdateCheckResult,
 } from '@/shared/types';
 import type { NetworkPathDefaults, UserSettings } from '@/shared/userSettings';
@@ -58,14 +58,14 @@ const electronAPI = {
   getSheetNames: (filePath: string) =>
     invoke<string[]>(channels.GET_SHEET_NAMES, filePath),
   loadSheetData: (filePath: string, sheetName: string) =>
-    invoke<SheetData>(channels.LOAD_SHEET_DATA, filePath, sheetName),
+    invoke<LoadedInput>(channels.LOAD_SHEET_DATA, filePath, sheetName),
 
   testSqlConnection: (request: SqlConnectionRequest) =>
     invoke<Success>(channels.TEST_SQL_CONNECTION, request),
   previewSqlQuery: (request: SqlQueryRequest) =>
     invoke<SqlQueryResult>(channels.PREVIEW_SQL_QUERY, request),
   loadSqlQueryData: (request: SqlQueryRequest) =>
-    invoke<SqlQueryResult>(channels.LOAD_SQL_QUERY_DATA, request),
+    invoke<LoadedInput>(channels.LOAD_SQL_QUERY_DATA, request),
   loadSavedSqlPassword: (identity: SqlCredentialIdentity) =>
     invoke<string | null>(channels.LOAD_SAVED_SQL_PASSWORD, identity),
   saveSqlPassword: (request: SqlPasswordSaveRequest) =>
@@ -91,8 +91,8 @@ const electronAPI = {
   downloadUpdate: () =>
     invoke<string[] | { skipped: true }>(channels.DOWNLOAD_UPDATE),
 
-  startDownloads: (config: DownloadConfig) =>
-    invoke<void>(channels.START_DOWNLOADS, config),
+  startDownloads: (config: DownloadConfig, loadId: LoadedInput['loadId']) =>
+    invoke<void>(channels.START_DOWNLOADS, config, loadId),
   cancelDownloads: () => invoke<void>(channels.CANCEL_DOWNLOADS),
 
   onDownloadProgress: (callback: (data: DownloadProgress) => void) =>
