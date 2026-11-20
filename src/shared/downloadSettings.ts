@@ -4,6 +4,7 @@ import type { DownloadOptions } from '@/download/downloadRun';
 import type { UserSettings } from '@/shared/userSettings';
 
 export const limits = {
+  previewRows: { min: 0, step: 1 },
   count: { min: 1, step: 1 },
   // Node timers above 2^31 - 1 milliseconds expire after just one millisecond.
   httpTimeout: { min: 0, max: 0x7fffffff / 1000, step: 0.001 },
@@ -101,8 +102,17 @@ export function httpSettingsErrors(settings: HttpSettings): string[] {
 export function userSettingsErrors({
   downloadBehavior,
   imageProcessing,
+  sqlSettings,
 }: UserSettings): string[] {
   const errors: string[] = [];
+  checkRange(
+    errors,
+    'SQL preview rows',
+    sqlSettings.previewRows,
+    limits.previewRows
+  );
+  if (!Number.isFinite(sqlSettings.queryTimeoutMs))
+    errors.push('SQL request timeout must be a valid number');
   checkRange(
     errors,
     'Concurrent Downloads',

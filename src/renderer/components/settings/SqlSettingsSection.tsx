@@ -1,3 +1,4 @@
+import { limits } from '@/shared/downloadSettings';
 import React from 'react';
 import type { UserSettings } from '@/shared/userSettings';
 import { FormGroup, NumberInput } from '@/renderer/components/ui';
@@ -61,7 +62,7 @@ export const SqlSettingsSection: React.FC<SqlSettingsSectionProps> = ({
         <NumberInput
           id="sql-request-timeout"
           value={sql.queryTimeoutMs}
-          min={0}
+          step="any"
           suffix="ms"
           onChange={queryTimeoutMs => onSettingUpdate({ queryTimeoutMs })}
         />
@@ -75,7 +76,7 @@ export const SqlSettingsSection: React.FC<SqlSettingsSectionProps> = ({
         <NumberInput
           id="sql-preview-rows"
           value={sql.previewRows}
-          min={0}
+          {...limits.previewRows}
           onChange={previewRows => onSettingUpdate({ previewRows })}
         />
       </FormGroup>
