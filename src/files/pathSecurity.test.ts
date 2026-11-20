@@ -1,17 +1,8 @@
 import * as path from 'path';
-import {
-  sanitizePath,
-  joinFilename,
-  validateFileAccess,
-  PathSecurityError,
-} from './pathSecurity';
+import { sanitizePath, joinFilename, PathSecurityError } from './pathSecurity';
 
 describe('pathSecurity', () => {
   const testRoot = '/safe/root';
-
-  beforeEach(() => {
-    jest.clearAllMocks();
-  });
 
   describe('sanitizePath', () => {
     it('should sanitize valid paths', () => {
@@ -110,29 +101,6 @@ describe('pathSecurity', () => {
           PathSecurityError
         );
       }
-    });
-  });
-
-  describe('validateFileAccess', () => {
-    it('should return false for unsafe paths', async () => {
-      const consoleWarnSpy = jest.spyOn(console, 'warn').mockImplementation();
-
-      const result = await validateFileAccess('../etc/passwd', testRoot);
-      expect(result).toBe(false);
-      expect(consoleWarnSpy).toHaveBeenCalledWith(
-        expect.stringContaining('File access denied')
-      );
-
-      consoleWarnSpy.mockRestore();
-    });
-  });
-
-  describe('PathSecurityError', () => {
-    it('should store attempted path', () => {
-      const error = new PathSecurityError('Test error', '/unsafe/path');
-      expect(error.attemptedPath).toBe('/unsafe/path');
-      expect(error.message).toBe('Test error');
-      expect(error.name).toBe('PathSecurityError');
     });
   });
 });

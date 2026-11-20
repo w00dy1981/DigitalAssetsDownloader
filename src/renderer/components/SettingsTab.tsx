@@ -9,7 +9,6 @@ import {
   UpdateSettingsSection,
 } from './settings';
 import { defaultUserSettings } from '@/shared/userSettings';
-import { logger } from '@/services/LoggingService';
 
 const SettingsTab: React.FC = () => {
   const [settings, setSettings] = useState<UserSettings | null>(null);
@@ -24,11 +23,7 @@ const SettingsTab: React.FC = () => {
         if (active) setSettings(saved);
       } catch (error) {
         const message = error instanceof Error ? error.message : String(error);
-        logger.error(
-          'Error loading settings',
-          new Error(message),
-          'SettingsTab'
-        );
+        console.error('Error loading settings', new Error(message));
         if (active) setLoadFailed(true);
       }
     };

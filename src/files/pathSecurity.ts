@@ -1,5 +1,4 @@
 import * as pathModule from 'node:path';
-import { stat } from 'node:fs/promises';
 
 export class PathSecurityError extends Error {
   constructor(
@@ -37,36 +36,6 @@ export function joinFilename(folder: unknown, filename: unknown): string {
     throw new PathSecurityError('Invalid filename', filename);
   }
   return sanitizePath(filename, sanitizePath(folder));
-}
-
-/**
- * Validates that a file exists and is accessible within security constraints
- * @param filePath Path to file
- * @param allowedRoot Optional root directory restriction
- * @returns Promise resolving to true if file is safe and accessible
- */
-export async function validateFileAccess(
-  filePath: string,
-  allowedRoot?: string
-): Promise<boolean> {
-  try {
-    const safePath = sanitizePath(filePath, allowedRoot);
-
-    const stats = await stat(safePath);
-
-    if (!stats.isFile()) {
-      console.warn(`Path is not a file: ${safePath}`);
-      return false;
-    }
-
-    return true;
-  } catch (error) {
-    if (error instanceof PathSecurityError) {
-      console.warn(`File access denied: ${error.message}`);
-      return false;
-    }
-    return false;
-  }
 }
 
 function isWithinRoot(candidate: string, root: string): boolean {

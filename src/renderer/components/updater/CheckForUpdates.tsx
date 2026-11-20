@@ -1,6 +1,5 @@
 import { useState } from 'react';
 import { useStatusMessage } from '@/renderer/hooks/useStatusMessage';
-import { logger } from '@/services/LoggingService';
 
 export function CheckForUpdates() {
   const [isCheckingForUpdates, setIsCheckingForUpdates] = useState(false);
@@ -33,7 +32,7 @@ export function CheckForUpdates() {
     } catch (error) {
       const message = error instanceof Error ? error.message : String(error);
       showUpdateStatus(`Update check failed: ${message}`, duration);
-      logger.error('Update check failed', new Error(message), 'UpdateSettings');
+      console.error('Update check failed', new Error(message));
     } finally {
       setIsCheckingForUpdates(false);
     }

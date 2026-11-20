@@ -1,6 +1,5 @@
 import React from 'react';
 import type { DownloadProgress } from '@/download/downloadRun';
-import { logger } from '@/services/LoggingService';
 
 interface ProgressDisplayProps {
   progress: DownloadProgress;
@@ -43,13 +42,6 @@ const ProgressDisplay: React.FC<ProgressDisplayProps> = ({
   ) {
     return null;
   }
-
-  logger.debug('ProgressDisplay: Rendering progress', 'ProgressDisplay', {
-    percentage: progress.percentage,
-    successful: progress.successful,
-    failed: progress.failed,
-    total: progress.total,
-  });
 
   return (
     <div className="progress-section">

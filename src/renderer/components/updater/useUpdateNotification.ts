@@ -1,5 +1,4 @@
 import { useEffect, useState } from 'react';
-import { logger } from '@/services/LoggingService';
 
 export type UpdateNotice = { version: string; message: string } & (
   | { phase: 'available' | 'downloaded' }
@@ -61,7 +60,7 @@ export function useUpdateNotification() {
               message: `Update error: ${message}`,
             }
         );
-        logger.error('Auto-update error', new Error(message), 'Updates');
+        console.error('Auto-update error', new Error(message));
       }),
     ];
 
@@ -90,7 +89,7 @@ export function useUpdateNotification() {
             }
           : current
       );
-      logger.error('Update download failed', failure, 'Updates');
+      console.error('Update download failed', failure);
     }
   }
 
@@ -109,7 +108,7 @@ export function useUpdateNotification() {
             message: `Install failed: ${failure.message}`,
           }
       );
-      logger.error('Update install failed', failure, 'Updates');
+      console.error('Update install failed', failure);
     }
   }
 

@@ -4,7 +4,6 @@ import InputSelectionTab from './components/InputSelectionTab';
 import ColumnSelectionTab from './components/ColumnSelectionTab';
 import ProcessTab from './components/ProcessTab';
 import SettingsTab from './components/SettingsTab';
-import { logger } from '@/services/LoggingService';
 import { useStatusMessage } from './hooks/useStatusMessage';
 import { UpdateNotificationBanner } from './components/updater/UpdateNotificationBanner';
 import { useUpdateNotification } from './components/updater/useUpdateNotification';
@@ -47,11 +46,7 @@ const App: React.FC = () => {
       } catch (error) {
         const message = error instanceof Error ? error.message : String(error);
         showStatusMessage(`Error saving configuration: ${message}`, 3000);
-        logger.error(
-          'App: Error saving configuration',
-          new Error(message),
-          'App'
-        );
+        console.error('App: Error saving configuration', new Error(message));
       }
     });
   }, [downloadConfig, showStatusMessage]);

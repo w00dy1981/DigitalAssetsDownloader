@@ -1,5 +1,4 @@
 import React from 'react';
-import { logger } from '@/services/LoggingService';
 
 interface FolderSelectorProps {
   value: string;
@@ -37,10 +36,9 @@ export const FolderSelector: React.FC<FolderSelectorProps> = ({
       if (onError) {
         onError(message);
       } else {
-        logger.error(
+        console.error(
           'FolderSelector: Error opening folder dialog',
-          error instanceof Error ? error : new Error(message),
-          'FolderSelector'
+          error instanceof Error ? error : new Error(message)
         );
       }
     }

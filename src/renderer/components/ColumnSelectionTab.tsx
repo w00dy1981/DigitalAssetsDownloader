@@ -1,6 +1,5 @@
 import React from 'react';
 import { SpreadsheetData, DownloadConfig } from '@/shared/types';
-import { logger } from '@/services/LoggingService';
 import { useColumnSelectionState } from './column-selection/useColumnSelectionState';
 import {
   ColumnMappingPanel,
@@ -85,10 +84,9 @@ const ColumnSelectionTab: React.FC<ColumnSelectionTabProps> = ({
             try {
               await window.electronAPI.saveConfig(config);
             } catch (error) {
-              logger.error(
+              console.error(
                 'ColumnSelectionTab: Error saving configuration',
-                error instanceof Error ? error : new Error(String(error)),
-                'ColumnSelectionTab'
+                error instanceof Error ? error : new Error(String(error))
               );
             }
           }}

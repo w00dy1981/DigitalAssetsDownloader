@@ -1,8 +1,9 @@
 import { Workbook, CellValue, Worksheet, Cell, ValueType } from 'exceljs';
 import { parse } from 'fast-csv';
 import { createReadStream } from 'node:fs';
+import { stat } from 'node:fs/promises';
 import { pipeline } from 'node:stream/promises';
-import { sanitizePath, validateFileAccess } from '../files/pathSecurity';
+import { sanitizePath } from '../files/pathSecurity';
 
 export interface SheetData {
   columns: string[];
@@ -36,7 +37,11 @@ async function within<T>(operation: Promise<T>, ms: number): Promise<T> {
 
 async function inputPath(filePath: string) {
   const safePath = sanitizePath(filePath);
-  if (!(await within(validateFileAccess(safePath), 5000))) {
+  const info = await within(
+    stat(safePath).catch(() => null),
+    5000
+  );
+  if (!info?.isFile()) {
     throw new Error('File does not exist or is not accessible');
   }
   return safePath;
