@@ -1,247 +1,59 @@
 # Digital Asset Downloader
 
-A modern, cross-platform desktop application for bulk downloading and processing digital assets (images, PDFs, etc.) from Excel/CSV data sources. Built with Electron, React, and TypeScript for professional workflows.
+Download product images and PDFs in bulk using an Excel workbook, a CSV file, or the results of a SQL Server query. The desktop app matches each row to a part number and writes an Excel workbook with the results.
 
-![Digital Asset Downloader](https://img.shields.io/badge/platform-Windows%20%7C%20macOS%20%7C%20Linux-blue)
-![License](https://img.shields.io/badge/license-MIT-green)
-![Version](https://img.shields.io/badge/version-1.3.0-orange)
+## Install on Windows
 
----
+Open [GitHub Releases](https://github.com/w00dy1981/DigitalAssetsDownloader/releases) and run the Windows x64 `Digital-Asset-Downloader-Setup-*.exe` installer under **Assets**. The [automated release workflow](.github/workflows/auto-release.yml) builds the Windows installer. The project also has local packaging commands for macOS and Linux.
 
-## ✨ Key Features
+## Download assets
 
-### 📊 **Data Processing**
-- **Excel/CSV Support**: Load .xlsx, .xls, .xlsm, and .csv files
-- **Multi-sheet Support**: Select and preview data from multiple sheets
-- **Smart Column Mapping**: Map part numbers, image URLs, PDF URLs, and custom filenames
+1. In **Input Selection**, choose **Excel / CSV** or **SQL Server**.
+   - For a file, use **Browse** or drag in an `.xlsx` or `.csv` file. For a workbook, choose the worksheet and review the preview. If you have an older `.xls` workbook, save it as `.xlsx` first.
+   - For SQL Server, enter the server, database, username, and password. Use **Test Connection** to check access. Enter a read-only `SELECT` query, click **Preview Query**, then click **Load SQL Data**. The app limits the number of rows it loads and shows the limits below the query box. Query text is kept for the current session.
+2. In **Column Selection**, choose the **Part Number Column** and a column for image URLs, PDF URLs, or both. Pick a download folder for each selected asset type.
+3. To reuse existing images, set **Source Image Folder**. The app searches it by part number or by the **Custom Filename Column** if you select one. Enter network paths if the workbook should reference files on a shared drive. Downloads go to the selected download folders.
+4. In **Process & Download**, review the configuration and click **Start Downloads**. Use **Download Progress** and **Activity Log** to see how the run is going. If you enable background processing, the app can convert transparent PNGs to JPEGs with a white background.
 
-### 🚀 **Download Engine**
-- **Multi-threaded Downloads**: Configurable concurrent downloads (1-20 threads)
-- **Source Folder Search**: Find files by part number or custom filename matching
-- **Advanced Retry Logic**: Exponential backoff with 3 attempts and 30s timeout
-- **Progress Tracking**: Real-time progress with ETAs and success/failure counters
+Look for `DownloadLog_*.xlsx` in the image download folder, or in the PDF download folder if no image folder is configured. Open **Download Log** to see per-file results, paths, and error messages. The **ERP Import** sheet contains rows prepared for import.
 
-### 🎨 **Image Processing**
-- **Pure JavaScript Processing**: Jimp-powered image processing with zero native dependencies
-- **Smart Background Detection**: Automatic transparency detection and removal  
-- **PNG to JPEG Conversion**: Optimized 95% quality JPEG output with white backgrounds
-- **Batch Processing**: Process hundreds of images efficiently
-- **Selective Processing**: Only processes images that actually need background fixes
-- **Electron-Optimized**: Reliable bundling without native module issues
+## Settings and updates
 
-### ⚙️ **Professional Features**
-- **Network Path Logging**: Separate download paths vs. CSV log paths for enterprise workflows
-- **Comprehensive CSV Logging**: Detailed logs matching enterprise reporting standards
-- **Auto-Updates**: Automatic application updates via GitHub Releases
-- **Cross-platform**: Works on Windows, macOS, and Linux
-- **Dark Theme**: Professional UI optimized for extended use
+Use **Settings** to change default folders, download concurrency, timeouts, retries, image processing, and SQL Server defaults. Changes save automatically. **Reset to Defaults** restores the app's defaults.
 
----
+To reuse a SQL login on the same device, select **Remember SQL password on this device** in **Input Selection**. Use **Forget saved password** to remove it.
 
-## 🛠️ Technology Stack
+In a packaged build with update support, the app can check for updates on startup. You can also choose **Settings**, then **Check for Updates Now**. When an update appears in **Input Selection**, click **Download Update**, then **Install & Restart** when you're ready.
 
-- **Frontend**: React 18 + TypeScript
-- **Desktop**: Electron 28
-- **Image Processing**: Jimp (pure JavaScript, zero native dependencies)
-- **Excel Processing**: ExcelJS
-- **HTTP Client**: Axios with retry logic
-- **Configuration**: electron-store
-- **Auto-Updates**: electron-updater
+## Run from source
 
----
+Use npm and Node.js 20.12.2 or later to meet the requirements of the locked dependencies.
 
-## 📦 Installation
-
-### Windows (Recommended)
-1. Go to [Releases](https://github.com/w00dy1981/DigitalAssetsDownloader/releases)
-2. Download the latest `.exe` installer
-3. Run the installer and follow the setup wizard
-4. The app will auto-update when new versions are available
-
-### macOS
-1. Go to [Releases](https://github.com/w00dy1981/DigitalAssetsDownloader/releases)
-2. Download the latest `.dmg` file
-3. Open the DMG and drag the app to Applications
-4. Launch from Applications folder
-
-### Linux
-1. Go to [Releases](https://github.com/w00dy1981/DigitalAssetsDownloader/releases)
-2. Download the `.AppImage` or `.deb` file
-3. Make executable and run: `chmod +x *.AppImage && ./Digital-Asset-Downloader*.AppImage`
-
----
-
-## 🚀 Usage
-
-### 1. **File Selection**
-- Load your Excel/CSV file with drag & drop or file picker
-- Select the appropriate sheet if using Excel
-- Preview your data to ensure proper loading
-
-### 2. **Column Configuration**
-- **Part Number Column**: Required for file identification
-- **Image URL Columns**: Select one or more columns containing image URLs
-- **PDF URL Column**: Optional column for PDF downloads
-- **Filename Column**: Optional for custom filename matching in source folders
-
-### 3. **Download Setup**
-- **Download Folders**: Choose where to save images and PDFs
-- **Source Folders**: Optional local folders to search for existing files
-- **Network Paths**: Enterprise logging paths (separate from download locations)
-- **Processing Options**: Configure background removal and image quality
-
-### 4. **Processing & Download**
-- **Review Settings**: Verify all configuration before starting
-- **Start Downloads**: Begin bulk download with real-time progress
-- **Monitor Progress**: Track success/failure rates and ETAs
-- **Review Results**: Export detailed CSV logs for reporting
-
----
-
-## ⚙️ Configuration
-
-### Settings Tab
-Access via the Settings tab or `Ctrl/Cmd + ,`:
-
-- **Default Paths**: Configure default locations for files and networks
-- **Download Behavior**: Set concurrent downloads, timeouts, and retry logic
-- **Image Processing**: Configure background removal and quality settings
-- **UI Preferences**: Customize interface behavior and startup options
-- **Update Settings**: Control automatic updates and release channels
-
-### Auto-Save
-All settings are automatically saved and restored between sessions.
-
----
-
-## 🔄 Auto-Updates
-
-The application includes a professional auto-update system:
-
-- **Automatic Checking**: Checks for updates on startup (configurable)
-- **Background Downloads**: Downloads updates without interrupting work
-- **User Control**: Choose when to install updates
-- **Release Channels**: Stable (recommended) or Beta (early access)
-- **Manual Checks**: Check for updates anytime via Settings
-
----
-
-## 🏢 Enterprise Features
-
-### Network Path Integration
-- **Separate Logging**: Download to local paths, log network paths to CSV
-- **ERP Compatibility**: Works with existing enterprise file systems
-- **Batch Processing**: Handle thousands of assets efficiently
-
-### Comprehensive Logging
-- **Detailed CSV Reports**: Include status, file sizes, processing info
-- **Error Categorization**: Clear error messages for troubleshooting
-- **Success Metrics**: Track completion rates and performance
-
-### Configuration Management
-- **Persistent Settings**: All preferences saved automatically
-- **Import/Export**: Share configurations between users
-- **Reset Options**: Restore defaults when needed
-
----
-
-## 🔧 Development
-
-### Prerequisites
-- Node.js 18+
-- npm or yarn
-
-### Setup
 ```bash
-# Clone the repository
 git clone https://github.com/w00dy1981/DigitalAssetsDownloader.git
 cd DigitalAssetsDownloader
-
-# Install dependencies
-npm install
-
-# Start development server
+npm ci
 npm run dev
 ```
 
-### Build Commands
-```bash
-# Build for production
-npm run build
+| Command | Purpose |
+| --- | --- |
+| `npm run build` | Build the Electron main process and React interface. |
+| `npm run lint` | Check the source with ESLint. |
+| `npm test` | Run the Jest tests. |
+| `npm run dist` | Build a package for the current platform. |
+| `npm run dist:win` | Build a Windows installer. |
+| `npm run dist:mac` | Build a macOS DMG. |
+| `npm run dist:linux` | Build Linux AppImage and Debian packages. |
 
-# Package for current platform
-npm run dist
+## Troubleshooting
 
-# Package for Windows
-npm run dist:win
+- If a workbook won't open, check that you can open it in Excel and save a fresh `.xlsx` copy.
+- If a SQL query fails, check the connection first. Then check that the query is a read-only `SELECT` and that the account can read the tables it uses.
+- If a download fails, check the URL and the destination folder. Look in **Activity Log** during the run or in the **Download Log** worksheet afterwards.
 
-# Package for macOS
-npm run dist:mac
+If the problem persists, check [GitHub Issues](https://github.com/w00dy1981/DigitalAssetsDownloader/issues) for an existing report. Include your app version, operating system, steps to reproduce the problem, and the error message. Remove credentials and private URLs before sharing logs or screenshots.
 
-# Package for Linux
-npm run dist:linux
-```
+## Licence
 
-### Publishing Releases
-```bash
-# Set GitHub token
-export GH_TOKEN="your_github_token"
-
-# Publish new release
-npm run publish
-```
-
----
-
-## 🐛 Troubleshooting
-
-### Common Issues
-
-**App won't start**
-- Ensure you have the latest version installed
-- Check Windows Defender/antivirus isn't blocking the app
-- Try running as administrator (Windows)
-
-**Downloads failing**
-- Check internet connection
-- Verify URLs are accessible
-- Check firewall/proxy settings
-- Review error messages in the progress log
-
-**Excel files not loading**
-- Ensure file isn't corrupted
-- Try opening in Excel first to verify
-- Check file permissions
-- Supported formats: .xlsx, .xls, .xlsm, .csv
-
-**Background processing not working**
-- Enable background processing in settings
-- Check that images actually have transparency
-- Verify Sharp library is properly installed
-
-### Getting Help
-1. Check the [Issues](https://github.com/w00dy1981/DigitalAssetsDownloader/issues) page
-2. Create a new issue with:
-   - Operating system and version
-   - Application version
-   - Steps to reproduce the problem
-   - Error messages or screenshots
-
----
-
-## 📝 License
-
-MIT License - see [LICENSE](LICENSE) file for details.
-
----
-
-## 🙏 Acknowledgments
-
-- **Sharp**: High-performance image processing
-- **ExcelJS**: Excel file reading and writing
-- **Electron**: Cross-platform desktop framework
-- **React**: Modern UI framework
-
----
-
-**Built for professional workflows. Designed for efficiency. Optimized for results.**
+[MIT](LICENSE)
