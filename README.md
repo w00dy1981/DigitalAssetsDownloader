@@ -1,6 +1,6 @@
 # Digital Asset Downloader
 
-Download product images and PDFs in bulk using an Excel workbook, a CSV file, or the results of a SQL Server query. The desktop app matches each row to a part number and writes an Excel workbook with the results.
+This desktop app is under development. Download product images and PDFs in bulk using an Excel workbook, a CSV file, or the results of a SQL Server query. The desktop app matches each row to a part number and writes an Excel workbook with the results.
 
 ## Install on Windows
 
@@ -16,6 +16,10 @@ Open [GitHub Releases](https://github.com/w00dy1981/DigitalAssetsDownloader/rele
 4. In **Process & Download**, review the configuration and click **Start Downloads**. Use **Download Progress** and **Activity Log** to see how the run is going. If you enable background processing, the app can convert transparent PNGs to JPEGs with a white background.
 
 Look for `DownloadLog_*.xlsx` in the image download folder, or in the PDF download folder if no image folder is configured. Open **Download Log** to see per-file results, paths, and error messages. The **ERP Import** sheet contains rows prepared for import.
+
+Each attempted image or PDF gets a row in **Download Log**. **ERP Import** combines successful references from the same input row. The photo reference uses the configured image network folder. **Product Data Sheet** uses the exact PDF filename on disk.
+
+The downloader assigns filenames before it starts workers. Codes that need escaping or case protection get a stable suffix so running a subset later still updates the same product. Repeated rows for the same code receive numbered filenames within that run. A later run can replace that product’s earlier files. For an existing workbook that points to older filenames, run the input again to generate updated references.
 
 ## Settings and updates
 
