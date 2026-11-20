@@ -57,7 +57,7 @@ export const SqlSettingsSection: React.FC<SqlSettingsSectionProps> = ({
       <FormGroup
         label="SQL request timeout"
         htmlFor="sql-request-timeout"
-        helpText="Time to wait for the first server response. Enter 0 for no request timeout."
+        helpText="Time to wait for the first server response. Enter 0 for no request timeout. Node timers support up to 2,147,483,647 ms."
       >
         <NumberInput
           id="sql-request-timeout"

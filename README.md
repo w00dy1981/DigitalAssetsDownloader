@@ -24,7 +24,7 @@ The downloader assigns filenames before it starts workers. Codes that need escap
 
 ## Settings and updates
 
-Use **Settings** to change default folders, download concurrency, timeouts, retries, image processing, and SQL Server defaults. Set the SQL preview row count to control how many rows appear on screen. The desktop process holds the returned tables in memory, so use your SQL to select the rows you need. The SQL request timeout controls how long the driver waits for the first server response, in milliseconds. Set it to 0 to disable the driver’s request timer.
+Use **Settings** to change default folders, download concurrency, timeouts, retries, image processing, and SQL Server defaults. Set the SQL preview row count to control how many rows appear on screen. The desktop process holds the returned tables in memory, so use your SQL to select the rows you need. The SQL request timeout controls how long the driver waits for the first server response, in milliseconds. Set it to 0 to disable the driver’s request timer. Node timers support up to 2,147,483,647 milliseconds (about 24.9 days). Larger positive values can expire immediately.
 
 HTTP connection and read timeouts are in seconds. Set either to 0 to disable that timer. Download attempts include the first request. Concurrent downloads and attempts take positive whole numbers. JPEG quality accepts 1 to 100.
 

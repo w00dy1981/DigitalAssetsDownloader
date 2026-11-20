@@ -91,7 +91,7 @@ export function SqlInput({
       const request = { ...connection, password: credentials.password.value };
       if (action === 'test') {
         const result = await window.electronAPI.testSqlConnection(request);
-        if (result?.warning) setError(result.warning);
+        if (result.warning) setError(result.warning);
         setNotice(
           `Connected to ${[request.server, request.database].filter(Boolean).join(' / ')}`
         );
