@@ -1,34 +1,20 @@
-import type { UpdateInfo } from 'electron-updater';
+import type { UpdateNotice } from './useUpdateNotification';
 
 interface UpdateNotificationBannerProps {
   currentVersion: string;
-  updateInfo: UpdateInfo;
-  statusMessage?: string | null;
-  isChecking?: boolean;
-  isDownloading?: boolean;
-  isDownloaded?: boolean;
-  downloadProgress?: number | null;
-  onDownload?: () => void | Promise<void>;
-  onInstall?: () => void | Promise<void>;
-  onDismiss?: () => void;
+  notice: UpdateNotice;
+  onDownload: () => Promise<void>;
+  onInstall: () => Promise<void>;
+  onDismiss: () => void;
 }
 
-export const UpdateNotificationBanner: React.FC<
-  UpdateNotificationBannerProps
-> = ({
+export function UpdateNotificationBanner({
   currentVersion,
-  updateInfo,
-  statusMessage,
-  isChecking = false,
-  isDownloading = false,
-  isDownloaded = false,
-  downloadProgress,
+  notice,
   onDownload,
   onInstall,
   onDismiss,
-}) => {
-  const progressValue = Math.max(0, Math.min(100, downloadProgress ?? 0));
-
+}: UpdateNotificationBannerProps) {
   return (
     <div
       style={{
@@ -45,21 +31,21 @@ export const UpdateNotificationBanner: React.FC<
     >
       <div>
         <strong style={{ fontSize: '1.1rem' }}>
-          New version available: v{updateInfo.version}
+          New version available: v{notice.version}
         </strong>
         <div style={{ fontSize: '0.95rem', opacity: 0.9, marginTop: '4px' }}>
           Current version: v{currentVersion}
         </div>
         <div role="status" style={{ fontSize: '0.9rem', marginTop: '8px' }}>
-          {statusMessage || (isChecking ? 'Checking for updates...' : '')}
+          {notice.message}
         </div>
-        {isDownloading && (
+        {notice.phase === 'downloading' && (
           <progress
             aria-label="Update download progress"
             value={
-              downloadProgress === null || downloadProgress === undefined
+              notice.progress === undefined
                 ? undefined
-                : progressValue
+                : Math.max(0, Math.min(100, notice.progress))
             }
             max={100}
             style={{ width: '100%', marginTop: '10px' }}
@@ -68,7 +54,7 @@ export const UpdateNotificationBanner: React.FC<
       </div>
 
       <div style={{ display: 'flex', gap: '10px', flexWrap: 'wrap' }}>
-        {isDownloaded ? (
+        {notice.phase === 'downloaded' ? (
           <button type="button" className="btn btn-success" onClick={onInstall}>
             Install & Restart
           </button>
@@ -77,12 +63,15 @@ export const UpdateNotificationBanner: React.FC<
             type="button"
             className="btn btn-light"
             onClick={onDownload}
-            disabled={isDownloading}
+            disabled={notice.phase === 'downloading'}
           >
-            {isDownloading ? 'Downloading…' : 'Download Update'}
+            {notice.phase === 'downloading'
+              ? 'Downloading…'
+              : 'Download Update'}
           </button>
         )}
         <button
+          type="button"
           className="btn btn-outline-light"
           onClick={onDismiss}
           style={{ minWidth: '140px' }}
@@ -92,4 +81,4 @@ export const UpdateNotificationBanner: React.FC<
       </div>
     </div>
   );
-};
+}

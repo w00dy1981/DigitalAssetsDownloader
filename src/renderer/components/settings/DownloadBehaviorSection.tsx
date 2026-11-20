@@ -4,7 +4,7 @@ import { UserSettings } from '@/shared/types';
 import { NumberInput, FormGroup } from '@/renderer/components/ui';
 
 interface DownloadBehaviorSectionProps {
-  settings: UserSettings;
+  settings: UserSettings['downloadBehavior'];
   onSettingUpdate: (changes: Partial<UserSettings['downloadBehavior']>) => void;
 }
 
@@ -21,7 +21,8 @@ export const DownloadBehaviorSection: React.FC<
         helpText="Number of simultaneous downloads (1-20)"
       >
         <NumberInput
-          value={settings.downloadBehavior.defaultConcurrentDownloads}
+          id="concurrent-downloads"
+          value={settings.defaultConcurrentDownloads}
           onChange={value =>
             onSettingUpdate({ defaultConcurrentDownloads: value })
           }
@@ -32,7 +33,8 @@ export const DownloadBehaviorSection: React.FC<
 
       <FormGroup label="Connection Timeout" htmlFor="connection-timeout">
         <NumberInput
-          value={settings.downloadBehavior.connectionTimeout}
+          id="connection-timeout"
+          value={settings.connectionTimeout}
           onChange={value => onSettingUpdate({ connectionTimeout: value })}
           {...limits.connectionTimeout}
           suffix="seconds"
@@ -41,7 +43,8 @@ export const DownloadBehaviorSection: React.FC<
 
       <FormGroup label="Read Timeout" htmlFor="read-timeout">
         <NumberInput
-          value={settings.downloadBehavior.readTimeout}
+          id="read-timeout"
+          value={settings.readTimeout}
           onChange={value => onSettingUpdate({ readTimeout: value })}
           {...limits.readTimeout}
           suffix="seconds"
@@ -50,7 +53,8 @@ export const DownloadBehaviorSection: React.FC<
 
       <FormGroup label="Retry Attempts" htmlFor="retry-attempts">
         <NumberInput
-          value={settings.downloadBehavior.retryAttempts}
+          id="retry-attempts"
+          value={settings.retryAttempts}
           onChange={value => onSettingUpdate({ retryAttempts: value })}
           {...limits.retryAttempts}
           suffix="attempts"

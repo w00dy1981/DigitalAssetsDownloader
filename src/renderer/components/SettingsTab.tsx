@@ -6,7 +6,6 @@ import {
   DownloadBehaviorSection,
   ImageProcessingSection,
   SqlSettingsSection,
-  UIPreferencesSection,
   UpdateSettingsSection,
 } from './settings';
 import { defaultUserSettings } from '@/shared/userSettings';
@@ -94,44 +93,37 @@ const SettingsTab: React.FC = () => {
       </div>
 
       <div className="configuration-sections">
-        {/* First column - Default Paths, UI Preferences, and Update Settings */}
         <div className="default-paths">
           <DefaultPathsSection
-            settings={settings}
+            settings={settings.defaultPaths}
             onSettingUpdate={changes => updateSetting('defaultPaths', changes)}
           />
 
-          <UIPreferencesSection
-            settings={settings}
-            onSettingUpdate={changes => updateSetting('uiPreferences', changes)}
-          />
-
           <UpdateSettingsSection
-            settings={settings}
+            settings={settings.updateSettings}
             onSettingUpdate={changes =>
               updateSetting('updateSettings', changes)
             }
           />
         </div>
 
-        {/* Second column - Download Behavior, Image Processing, and SQL Server Defaults */}
         <div className="other-settings">
           <DownloadBehaviorSection
-            settings={settings}
+            settings={settings.downloadBehavior}
             onSettingUpdate={changes =>
               updateSetting('downloadBehavior', changes)
             }
           />
 
           <ImageProcessingSection
-            settings={settings}
+            settings={settings.imageProcessing}
             onSettingUpdate={changes =>
               updateSetting('imageProcessing', changes)
             }
           />
 
           <SqlSettingsSection
-            settings={settings}
+            settings={settings.sqlSettings}
             onSettingUpdate={changes => updateSetting('sqlSettings', changes)}
           />
         </div>

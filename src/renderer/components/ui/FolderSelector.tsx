@@ -5,12 +5,8 @@ interface FolderSelectorProps {
   value: string;
   onChange: (path: string) => void;
   placeholder?: string;
-  disabled?: boolean;
   onError?: (error: string) => void;
-  buttonText?: string;
-  buttonClassName?: string;
-  // New props for enhanced functionality
-  id?: string;
+  id: string;
   dialogTitle?: string;
   editable?: boolean;
 }
@@ -19,10 +15,7 @@ export const FolderSelector: React.FC<FolderSelectorProps> = ({
   value,
   onChange,
   placeholder = 'Select folder...',
-  disabled = false,
   onError,
-  buttonText = 'Browse',
-  buttonClassName = 'btn btn-outline-secondary',
   id,
   dialogTitle,
   editable = false,
@@ -53,12 +46,6 @@ export const FolderSelector: React.FC<FolderSelectorProps> = ({
     }
   };
 
-  const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    if (editable) {
-      onChange(e.target.value);
-    }
-  };
-
   return (
     <div className={editable ? 'folder-input-group' : 'folder-selector'}>
       <input
@@ -66,18 +53,16 @@ export const FolderSelector: React.FC<FolderSelectorProps> = ({
         type="text"
         value={value}
         readOnly={!editable}
-        onChange={handleInputChange}
+        onChange={editable ? e => onChange(e.target.value) : undefined}
         placeholder={placeholder}
         className="form-control"
-        disabled={disabled}
       />
       <button
         type="button"
         onClick={handleBrowse}
-        disabled={disabled}
-        className={editable ? 'btn btn-primary' : buttonClassName}
+        className={editable ? 'btn btn-primary' : 'btn btn-outline-secondary'}
       >
-        {buttonText}
+        Browse
       </button>
     </div>
   );

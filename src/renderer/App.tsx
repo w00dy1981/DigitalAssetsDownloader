@@ -1,104 +1,41 @@
-import React, { useState, useCallback, useEffect } from 'react';
-import type { UpdateInfo } from 'electron-updater';
+import React, { useState, useEffect } from 'react';
 import { SpreadsheetData, DownloadConfig } from '@/shared/types';
-import FileSelectionTab from './components/FileSelectionTab';
+import InputSelectionTab from './components/InputSelectionTab';
 import ColumnSelectionTab from './components/ColumnSelectionTab';
 import ProcessTab from './components/ProcessTab';
 import SettingsTab from './components/SettingsTab';
 import { logger } from '@/services/LoggingService';
 import { useStatusMessage } from './hooks/useStatusMessage';
+import { UpdateNotificationBanner } from './components/updater/UpdateNotificationBanner';
+import { useUpdateNotification } from './components/updater/useUpdateNotification';
 import './App.css';
 
 // Version injected by webpack at build time (KISS - single source of truth)
 const APP_VERSION = process.env.APP_VERSION || 'development';
 
 const App: React.FC = () => {
-  const [activeTab, setActiveTab] = useState<number>(0);
-  const [spreadsheetData, setSpreadsheetData] =
-    useState<SpreadsheetData | null>(null);
-  const [downloadConfig, setDownloadConfig] = useState<DownloadConfig | null>(
-    null
-  );
-  // Simple update notification state - Issue #14
-  const [hasUpdateAvailable, setHasUpdateAvailable] = useState<boolean>(false);
-  const [updateInfo, setUpdateInfo] = useState<UpdateInfo | null>(null);
-  const [updateStatus, setUpdateStatus] = useState<string | null>(null);
-  const [isCheckingForUpdate, setIsCheckingForUpdate] =
-    useState<boolean>(false);
-  const [isDownloadingUpdate, setIsDownloadingUpdate] =
-    useState<boolean>(false);
-  const [updateDownloadProgress, setUpdateDownloadProgress] = useState<
-    number | null
-  >(null);
-  const [isUpdateDownloaded, setIsUpdateDownloaded] = useState<boolean>(false);
+  const [activeTab, setActiveTab] = useState<
+    'input' | 'columns' | 'process' | 'settings'
+  >('input');
+  const [workflow, setWorkflow] = useState<{
+    data: SpreadsheetData;
+    config: DownloadConfig | null;
+  } | null>(null);
+  const downloadConfig = workflow?.config;
+  const update = useUpdateNotification();
   const [statusMessage, showStatusMessage] = useStatusMessage();
-
-  const clearUpdateNotification = useCallback(() => {
-    setHasUpdateAvailable(false);
-    setUpdateInfo(null);
-    setUpdateStatus(null);
-    setIsCheckingForUpdate(false);
-    setIsDownloadingUpdate(false);
-    setUpdateDownloadProgress(null);
-    setIsUpdateDownloaded(false);
-  }, []);
 
   useEffect(() => {
     const api = window.electronAPI;
     if (!api) return;
 
-    const unsubscribe = [
-      api.onMenuOpenFile(() => setActiveTab(0)),
-      api.onMenuOpenSettings(() => setActiveTab(3)),
-      api.onUpdateChecking(() => {
-        setIsCheckingForUpdate(true);
-        setUpdateStatus('Checking for updates...');
-        setIsDownloadingUpdate(false);
-        setUpdateDownloadProgress(null);
-      }),
-      api.onUpdateAvailable(info => {
-        setHasUpdateAvailable(true);
-        setUpdateInfo(info);
-        setIsCheckingForUpdate(false);
-        setIsDownloadingUpdate(false);
-        setUpdateDownloadProgress(null);
-        setIsUpdateDownloaded(false);
-        setUpdateStatus('Update available. Ready to download.');
-      }),
-      api.onUpdateNotAvailable(info => {
-        clearUpdateNotification();
-        setUpdateStatus(
-          'reason' in info
-            ? 'Updates are unavailable in this build.'
-            : 'You are running the latest version.'
-        );
-      }),
-      api.onUpdateDownloadProgress(({ percent }) => {
-        setIsDownloadingUpdate(true);
-        setIsCheckingForUpdate(false);
-        setUpdateDownloadProgress(percent);
-        setUpdateStatus(`Downloading update... ${Math.round(percent)}%`);
-      }),
-      api.onUpdateDownloaded(info => {
-        setIsDownloadingUpdate(false);
-        setIsCheckingForUpdate(false);
-        setUpdateDownloadProgress(100);
-        setIsUpdateDownloaded(true);
-        setUpdateInfo(info);
-        setHasUpdateAvailable(true);
-        setUpdateStatus('Update downloaded. Ready to install.');
-      }),
-      api.onUpdateError(message => {
-        setUpdateStatus(`Update error: ${message}`);
-        setIsCheckingForUpdate(false);
-        setIsDownloadingUpdate(false);
-        setUpdateDownloadProgress(null);
-        logger.error('App: Auto-update error', new Error(message), 'App');
-      }),
-    ];
-
-    return () => unsubscribe.forEach(off => off());
-  }, [clearUpdateNotification]);
+    const offOpen = api.onMenuOpenFile(() => setActiveTab('input'));
+    const offSettings = api.onMenuOpenSettings(() => setActiveTab('settings'));
+    return () => {
+      offOpen();
+      offSettings();
+    };
+  }, []);
 
   useEffect(() => {
     if (!downloadConfig) return;
@@ -119,63 +56,14 @@ const App: React.FC = () => {
     });
   }, [downloadConfig, showStatusMessage]);
 
-  const handleDataLoaded = (data: SpreadsheetData) => {
-    setDownloadConfig(null);
-    setSpreadsheetData(data);
-    setActiveTab(1); // Move to column selection tab
-  };
+  function loadInput(data: SpreadsheetData) {
+    setWorkflow({ data, config: null });
+    setActiveTab('columns');
+  }
 
-  const handleConfigurationComplete = (config: DownloadConfig) => {
-    setDownloadConfig(config);
-    setActiveTab(2); // Move to process tab
-  };
-
-  const handleTabChange = (tabIndex: number) => {
-    // Validate before allowing tab change (Settings tab is always accessible)
-    if (tabIndex === 1 && !spreadsheetData) {
-      showStatusMessage('Please load input data first.', 3000);
-      return;
-    }
-    if (tabIndex === 2 && !downloadConfig) {
-      showStatusMessage('Please complete column selection first.', 3000);
-      return;
-    }
-    // Settings tab (index 3) is always accessible
-    setActiveTab(tabIndex);
-  };
-
-  const handleDownloadUpdate = useCallback(async () => {
-    try {
-      setUpdateStatus('Starting update download...');
-      setIsCheckingForUpdate(false);
-      setIsDownloadingUpdate(true);
-      await window.electronAPI.downloadUpdate();
-    } catch (error) {
-      const message = error instanceof Error ? error.message : String(error);
-      setUpdateStatus(`Download failed: ${message}`);
-      setIsDownloadingUpdate(false);
-      logger.error(
-        'App: Update download failed',
-        error instanceof Error ? error : new Error(message),
-        'App'
-      );
-    }
-  }, []);
-
-  const handleInstallUpdate = useCallback(async () => {
-    try {
-      setUpdateStatus('Installing update...');
-      await window.electronAPI.installUpdate();
-    } catch (error) {
-      const message = error instanceof Error ? error.message : String(error);
-      setUpdateStatus(`Install failed: ${message}`);
-      logger.error(
-        'App: Update install failed',
-        error instanceof Error ? error : new Error(message),
-        'App'
-      );
-    }
-  }, []);
+  function updateConfig(config: DownloadConfig) {
+    setWorkflow(current => current && { ...current, config });
+  }
 
   return (
     <div className="app">
@@ -183,7 +71,7 @@ const App: React.FC = () => {
         <h1>Digital Asset Downloader</h1>
         <div className="version-info">
           v{APP_VERSION}
-          {hasUpdateAvailable && (
+          {update.notice && (
             <span className="update-badge">Update Available</span>
           )}
         </div>
@@ -204,66 +92,68 @@ const App: React.FC = () => {
 
       <nav className="tab-navigation">
         <button
-          className={`tab-button ${activeTab === 0 ? 'active' : ''}`}
-          onClick={() => handleTabChange(0)}
+          className={`tab-button ${activeTab === 'input' ? 'active' : ''}`}
+          onClick={() => setActiveTab('input')}
         >
           1. Input Selection
         </button>
         <button
-          className={`tab-button ${activeTab === 1 ? 'active' : ''}`}
-          onClick={() => handleTabChange(1)}
-          disabled={!spreadsheetData}
+          className={`tab-button ${activeTab === 'columns' ? 'active' : ''}`}
+          onClick={() => setActiveTab('columns')}
+          disabled={!workflow}
         >
           2. Column Selection
         </button>
         <button
-          className={`tab-button ${activeTab === 2 ? 'active' : ''}`}
-          onClick={() => handleTabChange(2)}
+          className={`tab-button ${activeTab === 'process' ? 'active' : ''}`}
+          onClick={() => setActiveTab('process')}
           disabled={!downloadConfig}
         >
           3. Process & Download
         </button>
         <button
-          className={`tab-button ${activeTab === 3 ? 'active' : ''}`}
-          onClick={() => handleTabChange(3)}
+          className={`tab-button ${activeTab === 'settings' ? 'active' : ''}`}
+          onClick={() => setActiveTab('settings')}
         >
           4. Settings
         </button>
       </nav>
 
       <main className="tab-content">
-        <div style={{ display: activeTab === 0 ? '' : 'none' }}>
-          <FileSelectionTab
-            onDataLoaded={handleDataLoaded}
-            currentData={spreadsheetData}
-            hasUpdateAvailable={hasUpdateAvailable}
-            updateInfo={updateInfo}
-            updateStatus={updateStatus}
-            isCheckingForUpdate={isCheckingForUpdate}
-            isDownloadingUpdate={isDownloadingUpdate}
-            updateDownloadProgress={updateDownloadProgress}
-            isUpdateDownloaded={isUpdateDownloaded}
-            onDownloadUpdate={handleDownloadUpdate}
-            onInstallUpdate={handleInstallUpdate}
-            onUpdateHandled={clearUpdateNotification}
+        <div hidden={activeTab !== 'input'}>
+          {update.notice && (
+            <UpdateNotificationBanner
+              currentVersion={APP_VERSION}
+              notice={update.notice}
+              onDownload={update.download}
+              onInstall={update.install}
+              onDismiss={update.dismiss}
+            />
+          )}
+          <InputSelectionTab
+            onDataLoaded={loadInput}
+            currentData={workflow?.data ?? null}
           />
         </div>
-        {activeTab === 1 && spreadsheetData && (
+        {activeTab === 'columns' && workflow && (
           <ColumnSelectionTab
-            data={spreadsheetData}
-            onConfigurationComplete={handleConfigurationComplete}
-            initialConfig={downloadConfig}
+            data={workflow.data}
+            initialConfig={workflow.config}
+            onConfigurationComplete={config => {
+              updateConfig(config);
+              setActiveTab('process');
+            }}
           />
         )}
         {downloadConfig && (
-          <div hidden={activeTab !== 2}>
+          <div hidden={activeTab !== 'process'}>
             <ProcessTab
               config={downloadConfig}
-              onConfigurationChange={setDownloadConfig}
+              onConfigurationChange={updateConfig}
             />
           </div>
         )}
-        {activeTab === 3 && <SettingsTab />}
+        {activeTab === 'settings' && <SettingsTab />}
       </main>
     </div>
   );

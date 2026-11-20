@@ -1,7 +1,7 @@
 import React from 'react';
 import { DownloadConfig } from '@/shared/types';
 import { ProcessControls, ProgressDisplay, ActivityLog } from './process';
-import { useDownloadLifecycle } from '@/renderer/hooks';
+import { useDownloadLifecycle } from './process/useDownloadLifecycle';
 
 interface ProcessTabProps {
   config: DownloadConfig;

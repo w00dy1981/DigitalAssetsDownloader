@@ -1,4 +1,4 @@
-import React, { useCallback } from 'react';
+import React from 'react';
 import { FolderSelector } from '@/renderer/components/ui';
 
 interface NetworkPathsPanelProps {
@@ -16,50 +16,20 @@ const NetworkPathsPanel: React.FC<NetworkPathsPanelProps> = ({
   onPdfFilePathChange,
   onError,
 }) => {
-  // Simple browser-safe network path validation
-  const validateNetworkPath = useCallback(
-    (path: string): boolean => {
-      if (!path || path.trim() === '') return true; // Allow empty paths
-
-      // Basic browser-safe validation
-      const trimmedPath = path.trim();
-      if (trimmedPath.includes('\0') || trimmedPath.length > 260) {
-        onError('Invalid network path format');
-        return false;
-      }
-
-      // UNC path validation (Windows network paths)
-      if (trimmedPath.length > 0 && !trimmedPath.startsWith('\\\\')) {
-        onError(
-          'Network paths should use UNC format (\\\\server\\share) for network accessibility'
-        );
-        return false;
-      }
-
-      return true;
-    },
-    [onError]
-  );
-
-  const handleImagePathChange = useCallback(
-    (value: string) => {
-      if (!validateNetworkPath(value)) {
-        return; // Validation failed, don't update
-      }
-      onImageFilePathChange(value);
-    },
-    [onImageFilePathChange, validateNetworkPath]
-  );
-
-  const handlePdfPathChange = useCallback(
-    (value: string) => {
-      if (!validateNetworkPath(value)) {
-        return; // Validation failed, don't update
-      }
-      onPdfFilePathChange(value);
-    },
-    [onPdfFilePathChange, validateNetworkPath]
-  );
+  function changePath(value: string, onChange: (value: string) => void) {
+    const path = value.trim();
+    if (path.includes('\\0') || path.length > 260) {
+      onError('Invalid network path format');
+      return;
+    }
+    if (path && !path.startsWith('\\\\')) {
+      onError(
+        'Network paths should use UNC format (\\\\server\\share) for network accessibility'
+      );
+      return;
+    }
+    onChange(value);
+  }
 
   return (
     <div className="config-section">
@@ -76,8 +46,9 @@ const NetworkPathsPanel: React.FC<NetworkPathsPanelProps> = ({
           Image Network Path (for CSV logging)
         </label>
         <FolderSelector
+          id="image-network-path"
           value={imageFilePath}
-          onChange={handleImagePathChange}
+          onChange={value => changePath(value, onImageFilePathChange)}
           placeholder="Network path for image files in CSV log (e.g., \\\\server\\images\\)"
           onError={onError}
         />
@@ -93,8 +64,9 @@ const NetworkPathsPanel: React.FC<NetworkPathsPanelProps> = ({
           PDF Network Path (for CSV logging)
         </label>
         <FolderSelector
+          id="pdf-network-path"
           value={pdfFilePath}
-          onChange={handlePdfPathChange}
+          onChange={value => changePath(value, onPdfFilePathChange)}
           placeholder="Network path for PDF files in CSV log (e.g., \\\\server\\pdfs\\)"
           onError={onError}
         />

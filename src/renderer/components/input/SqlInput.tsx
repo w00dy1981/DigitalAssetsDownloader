@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react';
 import { CONSTANTS } from '@/shared/constants';
 import type { SqlConnectionDetails, SqlQueryResult } from '@/shared/types';
-import type { InputWorkflowProps } from '../FileSelectionTab';
+import type { InputWorkflowProps } from '../InputSelectionTab';
 import { SqlPreview } from './SqlPreview';
 import { SqlPasswordField, useSqlPassword } from './SqlPasswordField';
 

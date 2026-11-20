@@ -1,7 +1,7 @@
 import React from 'react';
 import { SpreadsheetData, DownloadConfig } from '@/shared/types';
 import { logger } from '@/services/LoggingService';
-import { useColumnSelectionState } from '@/renderer/hooks';
+import { useColumnSelectionState } from './column-selection/useColumnSelectionState';
 import {
   ColumnMappingPanel,
   FolderConfigurationPanel,
@@ -23,7 +23,6 @@ const ColumnSelectionTab: React.FC<ColumnSelectionTabProps> = ({
     useColumnSelectionState({ data, initialConfig, onConfigurationComplete });
   if (!config) return <p>Loading column settings...</p>;
   const { imageFilePath, pdfFilePath } = config;
-  const columnOptions = data.columns.map(value => ({ value, label: value }));
 
   return (
     <div className="column-selection-tab">
@@ -49,7 +48,7 @@ const ColumnSelectionTab: React.FC<ColumnSelectionTabProps> = ({
           onPdfColumnChange={value => update('pdfColumn', value)}
           filenameColumn={config.filenameColumn}
           onFilenameColumnChange={value => update('filenameColumn', value)}
-          columnOptions={columnOptions}
+          columns={data.columns}
         />
 
         <FolderConfigurationPanel

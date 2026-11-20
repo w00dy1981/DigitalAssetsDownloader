@@ -1,8 +1,7 @@
 import { downloadConfigErrors, limits } from '@/shared/downloadSettings';
-import React, { useCallback } from 'react';
+import React from 'react';
 import { DownloadConfig } from '@/shared/types';
 import { NumberInput } from '@/renderer/components/ui';
-import { logger } from '@/services/LoggingService';
 
 interface ProcessControlsProps {
   config: DownloadConfig;
@@ -21,17 +20,9 @@ const ProcessControls: React.FC<ProcessControlsProps> = ({
   onStartDownloads,
   onCancelDownloads,
 }) => {
-  const updateConfig = useCallback(
-    (updates: Partial<DownloadConfig>) => {
-      logger.info(
-        'ProcessControls: Configuration updated',
-        'ProcessControls',
-        updates
-      );
-      onConfigurationChange({ ...config, ...updates });
-    },
-    [config, onConfigurationChange]
-  );
+  function updateConfig(updates: Partial<DownloadConfig>) {
+    onConfigurationChange({ ...config, ...updates });
+  }
 
   const validationErrors = downloadConfigErrors(config);
   const isConfigValid = validationErrors.length === 0;
@@ -113,6 +104,7 @@ const ProcessControls: React.FC<ProcessControlsProps> = ({
           <div className="form-group">
             <label htmlFor="workers-quick">Concurrent Downloads</label>
             <NumberInput
+              id="workers-quick"
               value={config.maxWorkers}
               onChange={value => updateConfig({ maxWorkers: value })}
               {...limits.workers}
@@ -151,22 +143,6 @@ const ProcessControls: React.FC<ProcessControlsProps> = ({
             <div className="bg-processing-options">
               <div className="form-group-inline">
                 <div className="form-group">
-                  <label htmlFor="bg-method">Processing Method</label>
-                  <select
-                    id="bg-method"
-                    value={config.backgroundProcessing.method}
-                    onChange={e =>
-                      updateConfig({
-                        backgroundProcessing: {
-                          ...config.backgroundProcessing,
-                          method: e.target.value as any,
-                        },
-                      })
-                    }
-                    className="form-control"
-                  >
-                    <option value="smart_detect">Smart Detection</option>
-                  </select>
                   <small className="text-muted method-explanation">
                     Detects PNG images with transparency and converts them to
                     JPG with white background
@@ -176,6 +152,7 @@ const ProcessControls: React.FC<ProcessControlsProps> = ({
                 <div className="form-group">
                   <label htmlFor="quality">JPEG Quality (%)</label>
                   <NumberInput
+                    id="quality"
                     value={config.backgroundProcessing.quality}
                     onChange={value =>
                       updateConfig({

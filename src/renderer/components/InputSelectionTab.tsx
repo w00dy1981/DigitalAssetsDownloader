@@ -1,23 +1,11 @@
 import { useState } from 'react';
-import type { UpdateInfo } from 'electron-updater';
 import { SpreadsheetData } from '@/shared/types';
 import { FileInput } from './input/FileInput';
 import { SqlInput } from './input/SqlInput';
-import { UpdateNotificationBanner } from './input/UpdateNotificationBanner';
 
-interface FileSelectionTabProps {
+interface InputSelectionTabProps {
   onDataLoaded: (data: SpreadsheetData) => void;
   currentData: SpreadsheetData | null;
-  hasUpdateAvailable?: boolean;
-  updateInfo?: UpdateInfo | null;
-  updateStatus?: string | null;
-  isCheckingForUpdate?: boolean;
-  isDownloadingUpdate?: boolean;
-  updateDownloadProgress?: number | null;
-  isUpdateDownloaded?: boolean;
-  onDownloadUpdate?: () => Promise<void> | void;
-  onInstallUpdate?: () => Promise<void> | void;
-  onUpdateHandled?: () => void;
 }
 
 export interface InputWorkflowProps {
@@ -27,19 +15,9 @@ export interface InputWorkflowProps {
   setError: (message: string) => void;
 }
 
-const FileSelectionTab: React.FC<FileSelectionTabProps> = ({
+const InputSelectionTab: React.FC<InputSelectionTabProps> = ({
   onDataLoaded,
   currentData,
-  hasUpdateAvailable,
-  updateInfo,
-  updateStatus,
-  isCheckingForUpdate,
-  isDownloadingUpdate,
-  updateDownloadProgress,
-  isUpdateDownloaded,
-  onDownloadUpdate,
-  onInstallUpdate,
-  onUpdateHandled,
 }) => {
   const [mode, setMode] = useState<'file' | 'sql'>('file');
   const [loading, setLoading] = useState(false);
@@ -48,21 +26,6 @@ const FileSelectionTab: React.FC<FileSelectionTabProps> = ({
 
   return (
     <div className="input-tab">
-      {hasUpdateAvailable && updateInfo && (
-        <UpdateNotificationBanner
-          currentVersion={process.env.APP_VERSION || 'development'}
-          updateInfo={updateInfo}
-          statusMessage={updateStatus}
-          isChecking={isCheckingForUpdate}
-          isDownloading={isDownloadingUpdate}
-          isDownloaded={isUpdateDownloaded}
-          downloadProgress={updateDownloadProgress}
-          onDownload={onDownloadUpdate}
-          onInstall={onInstallUpdate}
-          onDismiss={onUpdateHandled}
-        />
-      )}
-
       <h2 className="screen-title">Input Selection</h2>
       {error && (
         <div role="alert" className="alert alert-danger mb-3">
@@ -132,4 +95,4 @@ const FileSelectionTab: React.FC<FileSelectionTabProps> = ({
   );
 };
 
-export default FileSelectionTab;
+export default InputSelectionTab;

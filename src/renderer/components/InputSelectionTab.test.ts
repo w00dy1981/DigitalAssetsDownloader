@@ -10,7 +10,7 @@ import {
   waitFor,
 } from '@testing-library/react';
 import { CONSTANTS } from '@/shared/constants';
-import FileSelectionTab from './FileSelectionTab';
+import InputSelectionTab from './InputSelectionTab';
 
 const api = {
   loadConfig: jest.fn(),
@@ -57,7 +57,7 @@ test.each([
     filePath.endsWith('.csv') ? ['Sheet1'] : ['Overview', 'Downloads']
   );
   api.loadSheetData.mockResolvedValue({ rows, columns });
-  render(createElement(FileSelectionTab, { currentData: null, onDataLoaded }));
+  render(createElement(InputSelectionTab, { currentData: null, onDataLoaded }));
 
   fireEvent.click(screen.getByRole('button', { name: 'Browse...' }));
   const sheet = await screen.findByLabelText('Select Sheet');
@@ -96,7 +96,7 @@ test('requires a fresh SQL preview and confirmation before loading rows', async 
 
   try {
     render(
-      createElement(FileSelectionTab, { currentData: null, onDataLoaded })
+      createElement(InputSelectionTab, { currentData: null, onDataLoaded })
     );
     fireEvent.click(screen.getByRole('button', { name: 'SQL Server' }));
     await waitFor(() =>
@@ -161,7 +161,7 @@ test('clears the previous sheet when a replacement file cannot be read', async (
     .mockResolvedValueOnce(['Assets'])
     .mockRejectedValueOnce(new Error('Unreadable spreadsheet'));
   render(
-    createElement(FileSelectionTab, {
+    createElement(InputSelectionTab, {
       currentData: null,
       onDataLoaded: jest.fn(),
     })
@@ -190,7 +190,7 @@ test('ignores a saved password returned after changing the connection', async ()
       })
   );
   render(
-    createElement(FileSelectionTab, {
+    createElement(InputSelectionTab, {
       currentData: null,
       onDataLoaded: jest.fn(),
     })
@@ -218,7 +218,7 @@ test('forgets the saved password and clears the session password when switching 
   api.deleteSavedSqlPassword.mockResolvedValue({ success: true });
   api.testSqlConnection.mockResolvedValue({ success: true });
   render(
-    createElement(FileSelectionTab, {
+    createElement(InputSelectionTab, {
       currentData: null,
       onDataLoaded: jest.fn(),
     })
@@ -253,46 +253,4 @@ test('forgets the saved password and clears the session password when switching 
       name: 'Remember SQL password on this device',
     })
   ).not.toBeChecked();
-});
-
-test('offers download progress, installation and dismissal for an update', async () => {
-  const props = {
-    currentData: null,
-    onDataLoaded: jest.fn(),
-    hasUpdateAvailable: true,
-    updateInfo: {
-      version: '2.0.0',
-      path: 'installer',
-      files: [],
-      sha512: '',
-      releaseDate: '2026-11-20',
-    },
-    onDownloadUpdate: jest.fn(),
-    onInstallUpdate: jest.fn(),
-    onUpdateHandled: jest.fn(),
-  };
-  const { rerender } = render(createElement(FileSelectionTab, props));
-  await act(async () => {
-    fireEvent.click(screen.getByRole('button', { name: 'Download Update' }));
-  });
-  expect(props.onDownloadUpdate).toHaveBeenCalledTimes(1);
-
-  rerender(
-    createElement(FileSelectionTab, {
-      ...props,
-      isDownloadingUpdate: true,
-      updateDownloadProgress: 33,
-    })
-  );
-  expect(
-    screen.getByRole('progressbar', { name: 'Update download progress' })
-  ).toHaveValue(33);
-
-  rerender(
-    createElement(FileSelectionTab, { ...props, isUpdateDownloaded: true })
-  );
-  fireEvent.click(screen.getByRole('button', { name: 'Install & Restart' }));
-  fireEvent.click(screen.getByRole('button', { name: 'Remind Me Later' }));
-  expect(props.onInstallUpdate).toHaveBeenCalledTimes(1);
-  expect(props.onUpdateHandled).toHaveBeenCalledTimes(1);
 });

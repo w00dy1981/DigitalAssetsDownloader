@@ -1,5 +1,5 @@
 import React from 'react';
-import { Select } from '@/renderer/components/ui';
+import { FormGroup } from '@/renderer/components/ui';
 
 interface ColumnMappingPanelProps {
   partNoColumn: string;
@@ -10,7 +10,7 @@ interface ColumnMappingPanelProps {
   onPdfColumnChange: (value: string) => void;
   filenameColumn: string;
   onFilenameColumnChange: (value: string) => void;
-  columnOptions: Array<{ value: string; label: string }>;
+  columns: string[];
 }
 
 const ColumnMappingPanel: React.FC<ColumnMappingPanelProps> = ({
@@ -22,72 +22,80 @@ const ColumnMappingPanel: React.FC<ColumnMappingPanelProps> = ({
   onPdfColumnChange,
   filenameColumn,
   onFilenameColumnChange,
-  columnOptions,
+  columns,
 }) => {
   return (
     <div className="config-section">
       <h3>Column Mapping</h3>
 
-      {/* Part Number Column (Required) */}
-      <div className="form-group">
-        <label htmlFor="part-column">Part Number Column *</label>
-        <Select
-          value={partNoColumn}
-          onChange={onPartNoColumnChange}
-          options={columnOptions}
-          placeholder="Choose a column..."
-        />
-        <small className="text-muted">
-          Required: Column containing unique part numbers for each item
-        </small>
-      </div>
-
-      {/* Image URL Columns */}
-      <div className="form-group">
-        <label htmlFor="image-column">Image URL Column</label>
-        <Select
-          value={imageColumns[0] || ''}
-          onChange={value => onImageColumnsChange(value ? [value] : [])}
-          options={columnOptions}
-          placeholder="Choose a column..."
-        />
-        <small className="text-muted">
-          Select the column containing image URLs for download
-        </small>
-      </div>
-
-      {/* PDF Column */}
-      <div className="form-group">
-        <label htmlFor="pdf-column">PDF URL Column</label>
-        <Select
-          value={pdfColumn}
-          onChange={onPdfColumnChange}
-          options={columnOptions}
-          placeholder="Choose a column..."
-        />
-        <small className="text-muted">
-          Select the column containing PDF URLs for download
-        </small>
-      </div>
-
-      {/* Filename Column */}
-      <div className="form-group">
-        <label htmlFor="filename-column">
-          Custom Filename Column (Optional)
-        </label>
-        <Select
-          value={filenameColumn}
-          onChange={onFilenameColumnChange}
-          options={columnOptions}
-          placeholder="Choose a column..."
-        />
-        <small className="text-muted">
-          Used for filename matching when searching source folders. If not
-          specified, part numbers will be used.
-        </small>
-      </div>
+      <ColumnField
+        id="part-column"
+        label="Part Number Column *"
+        helpText="Required: Column containing unique part numbers for each item"
+        value={partNoColumn}
+        onChange={onPartNoColumnChange}
+        columns={columns}
+      />
+      <ColumnField
+        id="image-column"
+        label="Image URL Column"
+        helpText="Select the column containing image URLs for download"
+        value={imageColumns[0] || ''}
+        onChange={value => onImageColumnsChange(value ? [value] : [])}
+        columns={columns}
+      />
+      <ColumnField
+        id="pdf-column"
+        label="PDF URL Column"
+        helpText="Select the column containing PDF URLs for download"
+        value={pdfColumn}
+        onChange={onPdfColumnChange}
+        columns={columns}
+      />
+      <ColumnField
+        id="filename-column"
+        label="Custom Filename Column (Optional)"
+        helpText="Used for filename matching when searching source folders. If not specified, part numbers will be used."
+        value={filenameColumn}
+        onChange={onFilenameColumnChange}
+        columns={columns}
+      />
     </div>
   );
 };
+
+function ColumnField({
+  id,
+  label,
+  helpText,
+  value,
+  onChange,
+  columns,
+}: {
+  id: string;
+  label: string;
+  helpText: string;
+  value: string;
+  onChange: (value: string) => void;
+  columns: string[];
+}) {
+  return (
+    <FormGroup label={label} htmlFor={id} helpText={helpText}>
+      <select
+        id={id}
+        className="form-control"
+        value={value}
+        onChange={e => onChange(e.target.value)}
+      >
+        <option value="">Choose a column...</option>
+        {columns.map(column => (
+          <option key={column} value={column}>
+            {column}
+          </option>
+        ))}
+      </select>
+    </FormGroup>
+  );
+}
 
 export default ColumnMappingPanel;

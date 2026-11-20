@@ -5,7 +5,7 @@ import { CONSTANTS } from '@/shared/constants';
 import { defaultUserSettings } from '@/shared/userSettings';
 
 interface SqlSettingsSectionProps {
-  settings: UserSettings;
+  settings: UserSettings['sqlSettings'];
   onSettingUpdate: (
     changes: Partial<NonNullable<UserSettings['sqlSettings']>>
   ) => void;
@@ -15,7 +15,7 @@ export const SqlSettingsSection: React.FC<SqlSettingsSectionProps> = ({
   settings,
   onSettingUpdate,
 }) => {
-  const sql = settings.sqlSettings ?? defaultUserSettings.sqlSettings;
+  const sql = settings ?? defaultUserSettings.sqlSettings;
 
   const handleCrossDatabaseChange = (value: string) => {
     const parsed = value

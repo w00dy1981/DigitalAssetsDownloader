@@ -1,5 +1,5 @@
 import { useState, type DragEvent } from 'react';
-import type { InputWorkflowProps } from '../FileSelectionTab';
+import type { InputWorkflowProps } from '../InputSelectionTab';
 
 const fileExtensions = ['xlsx', 'xls', 'xlsm', 'csv'];
 

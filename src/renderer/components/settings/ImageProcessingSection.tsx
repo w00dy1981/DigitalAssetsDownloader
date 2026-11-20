@@ -3,7 +3,7 @@ import React from 'react';
 import { UserSettings } from '@/shared/types';
 
 interface ImageProcessingSectionProps {
-  settings: UserSettings;
+  settings: UserSettings['imageProcessing'];
   onSettingUpdate: (changes: Partial<UserSettings['imageProcessing']>) => void;
 }
 
@@ -19,7 +19,7 @@ export const ImageProcessingSection: React.FC<ImageProcessingSectionProps> = ({
         <label>
           <input
             type="checkbox"
-            checked={settings.imageProcessing.enabledByDefault}
+            checked={settings.enabledByDefault}
             onChange={e =>
               onSettingUpdate({ enabledByDefault: e.target.checked })
             }
@@ -32,15 +32,6 @@ export const ImageProcessingSection: React.FC<ImageProcessingSectionProps> = ({
       </div>
 
       <div className="form-group">
-        <label htmlFor="processing-method">Default Processing Method</label>
-        <select
-          id="processing-method"
-          value={settings.imageProcessing.defaultMethod}
-          onChange={() => onSettingUpdate({ defaultMethod: 'smart_detect' })}
-          className="form-control"
-        >
-          <option value="smart_detect">Smart Detection</option>
-        </select>
         <small className="text-muted">
           Detects PNG images with transparency and converts them to JPG with
           white background
@@ -54,7 +45,7 @@ export const ImageProcessingSection: React.FC<ImageProcessingSectionProps> = ({
             id="jpeg-quality"
             type="number"
             {...limits.quality}
-            value={settings.imageProcessing.defaultQuality}
+            value={settings.defaultQuality}
             onChange={e =>
               onSettingUpdate({ defaultQuality: parseInt(e.target.value) })
             }
@@ -71,7 +62,7 @@ export const ImageProcessingSection: React.FC<ImageProcessingSectionProps> = ({
             id="edge-threshold"
             type="number"
             {...limits.edgeThreshold}
-            value={settings.imageProcessing.defaultEdgeThreshold}
+            value={settings.defaultEdgeThreshold}
             onChange={e =>
               onSettingUpdate({
                 defaultEdgeThreshold: parseInt(e.target.value),

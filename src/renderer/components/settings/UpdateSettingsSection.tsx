@@ -1,11 +1,9 @@
-import React, { useState } from 'react';
-import { UserSettings } from '@/shared/types';
-import { useStatusMessage } from '@/renderer/hooks';
-import { UI_CONSTANTS } from '@/shared/constants';
-import { logger } from '@/services/LoggingService';
+import React from 'react';
+import type { UserSettings } from '@/shared/types';
+import { CheckForUpdates } from '../updater/CheckForUpdates';
 
 interface UpdateSettingsSectionProps {
-  settings: UserSettings;
+  settings: UserSettings['updateSettings'];
   onSettingUpdate: (changes: Partial<UserSettings['updateSettings']>) => void;
 }
 
@@ -13,42 +11,6 @@ export const UpdateSettingsSection: React.FC<UpdateSettingsSectionProps> = ({
   settings,
   onSettingUpdate,
 }) => {
-  const [isCheckingForUpdates, setIsCheckingForUpdates] = useState(false);
-  const [updateStatus, showUpdateStatus] = useStatusMessage();
-
-  const checkForUpdatesManually = async () => {
-    setIsCheckingForUpdates(true);
-    showUpdateStatus('Checking for updates...');
-    const duration = UI_CONSTANTS.STATUS_MESSAGE_DURATION;
-
-    try {
-      const result = await window.electronAPI.checkForUpdates();
-      switch (result.type) {
-        case 'available':
-          showUpdateStatus(
-            `Update available: v${result.data.version}`,
-            duration
-          );
-          break;
-        case 'not-available':
-          showUpdateStatus('You are running the latest version', duration);
-          break;
-        case 'auto-update-disabled':
-          showUpdateStatus('Updates are unavailable in this build.', duration);
-          break;
-        case 'error':
-          showUpdateStatus(`Update check failed: ${result.data}`, duration);
-          break;
-      }
-    } catch (error) {
-      const message = error instanceof Error ? error.message : String(error);
-      showUpdateStatus(`Update check failed: ${message}`, duration);
-      logger.error('Update check failed', new Error(message), 'UpdateSettings');
-    } finally {
-      setIsCheckingForUpdates(false);
-    }
-  };
-
   return (
     <div className="config-section">
       <h3>Update Settings</h3>
@@ -57,7 +19,7 @@ export const UpdateSettingsSection: React.FC<UpdateSettingsSectionProps> = ({
         <label>
           <input
             type="checkbox"
-            checked={settings.updateSettings.enableAutoUpdates}
+            checked={settings.enableAutoUpdates}
             onChange={e =>
               onSettingUpdate({ enableAutoUpdates: e.target.checked })
             }
@@ -73,11 +35,11 @@ export const UpdateSettingsSection: React.FC<UpdateSettingsSectionProps> = ({
         <label>
           <input
             type="checkbox"
-            checked={settings.updateSettings.checkForUpdatesOnStartup}
+            checked={settings.checkForUpdatesOnStartup}
             onChange={e =>
               onSettingUpdate({ checkForUpdatesOnStartup: e.target.checked })
             }
-            disabled={!settings.updateSettings.enableAutoUpdates}
+            disabled={!settings.enableAutoUpdates}
           />
           Check for updates on startup
         </label>
@@ -86,46 +48,7 @@ export const UpdateSettingsSection: React.FC<UpdateSettingsSectionProps> = ({
         </small>
       </div>
 
-      <div className="form-group">
-        <label>
-          <input
-            type="checkbox"
-            checked={settings.updateSettings.downloadUpdatesAutomatically}
-            onChange={e =>
-              onSettingUpdate({
-                downloadUpdatesAutomatically: e.target.checked,
-              })
-            }
-            disabled={!settings.updateSettings.enableAutoUpdates}
-          />
-          Download updates automatically
-        </label>
-        <small className="text-muted">
-          Download updates in background vs. prompting user first
-        </small>
-      </div>
-
-      <div className="form-group">
-        <button
-          className={`btn btn-primary ${isCheckingForUpdates ? 'loading' : ''}`}
-          onClick={checkForUpdatesManually}
-          disabled={isCheckingForUpdates}
-          style={{ marginRight: '10px' }}
-        >
-          {isCheckingForUpdates ? 'Checking...' : 'Check for Updates Now'}
-        </button>
-        <small className="text-muted">
-          Manually check for available updates
-        </small>
-        {updateStatus && (
-          <div
-            className={`status-message ${updateStatus.includes('failed') || updateStatus.includes('Error') ? 'error' : 'info'}`}
-            style={{ marginTop: '8px' }}
-          >
-            {updateStatus}
-          </div>
-        )}
-      </div>
+      <CheckForUpdates />
     </div>
   );
 };
