@@ -10,7 +10,7 @@ import {
 } from 'electron';
 import log from 'electron-log';
 import { join } from 'node:path';
-import { IPC_CHANNELS } from '@/shared/types';
+import { IPC_CHANNELS, spreadsheetExtensions } from '@/shared/types';
 import { registerAssetWorkflow } from './assetWorkflow';
 import {
   registerConfiguration,
@@ -119,7 +119,7 @@ function createMenu(): void {
       label: 'File',
       submenu: [
         {
-          label: 'Open Excel File...',
+          label: 'Open Input Selection...',
           accelerator: 'CmdOrCtrl+O',
           click: () => send(IPC_CHANNELS.MENU_OPEN_FILE),
         },
@@ -223,22 +223,15 @@ function showOpenDialog(options: OpenDialogOptions) {
 }
 
 function registerDialogs(): void {
-  ipcMain.handle(
-    IPC_CHANNELS.OPEN_FILE_DIALOG,
-    (_, options?: OpenDialogOptions) =>
-      showOpenDialog({
-        properties: ['openFile'],
-        filters: [
-          {
-            name: 'All Supported Files',
-            extensions: ['xlsx', 'xls', 'xlsm', 'csv'],
-          },
-          { name: 'Excel Files', extensions: ['xlsx', 'xls', 'xlsm'] },
-          { name: 'CSV Files', extensions: ['csv'] },
-          { name: 'All Files', extensions: ['*'] },
-        ],
-        ...options,
-      })
+  ipcMain.handle(IPC_CHANNELS.OPEN_FILE_DIALOG, () =>
+    showOpenDialog({
+      title: 'Select Excel or CSV File',
+      properties: ['openFile'],
+      filters: [
+        { name: 'All Supported Files', extensions: spreadsheetExtensions },
+        { name: 'All Files', extensions: ['*'] },
+      ],
+    })
   );
 
   ipcMain.handle(

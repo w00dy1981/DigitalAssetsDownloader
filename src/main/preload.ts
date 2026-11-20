@@ -51,8 +51,8 @@ function subscribe<T>(channel: string, callback: (data: T) => void) {
 type Success = { success: true };
 
 const electronAPI = {
-  openFileDialog: (options?: OpenDialogOptions) =>
-    invoke<OpenDialogReturnValue>(channels.OPEN_FILE_DIALOG, options),
+  openFileDialog: () =>
+    invoke<OpenDialogReturnValue>(channels.OPEN_FILE_DIALOG),
   openFolderDialog: (options?: OpenDialogOptions) =>
     invoke<OpenDialogReturnValue>(channels.OPEN_FOLDER_DIALOG, options),
   getSheetNames: (filePath: string) =>

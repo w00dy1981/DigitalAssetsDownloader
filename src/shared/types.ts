@@ -3,6 +3,8 @@ import type { DownloadOptions } from '../download/downloadRun';
 import type { SqlConnectionDetails } from '@/sql/contracts';
 import type { UpdateInfo } from 'electron-updater';
 
+export const spreadsheetExtensions = ['xlsx', 'xlsm', 'csv'];
+
 export interface LoadedInput {
   loadId: number;
   columns: string[];
