@@ -2,6 +2,8 @@ import * as fs from 'fs/promises';
 import * as os from 'os';
 import * as path from 'path';
 import { createServer } from 'http';
+import { Readable } from 'node:stream';
+import axios from 'axios';
 import ExcelJS from 'exceljs';
 import { Jimp } from 'jimp';
 import { DownloadService, type DownloadOptions } from './downloadRun';
@@ -320,4 +322,108 @@ test('both workbook sheets use the exact saved PDF filename', async () => {
     'PDF/1',
     path.basename(saved),
   ]);
+});
+
+test('www links use HTTPS for images and PDFs and the workbook references the saved files', async () => {
+  const png = await fs.readFile(await makeImage('red', 0xff0000ff));
+  const pdf = Buffer.from('%PDF-1.4 test');
+  const imageUrl = 'https://www.supplier.test/photo?size=large';
+  const pdfUrl = 'https://www.supplier.test/sheet.pdf';
+  const get = jest.spyOn(axios, 'get').mockImplementation(async url => {
+    if (url !== imageUrl && url !== pdfUrl) throw new Error('Unexpected URL');
+    return {
+      data: Readable.from([url === imageUrl ? png : pdf]),
+      status: 200,
+      headers: {
+        'content-type': url === imageUrl ? 'image/png' : 'application/pdf',
+      },
+      request: { setTimeout() {} },
+    };
+  });
+  try {
+    const { result, workbook } = await download([
+      {
+        Code: 'SUPPLIER',
+        Image: 'www.supplier.test/photo?size=large',
+        PDF: 'www.supplier.test/sheet.pdf',
+      },
+    ]);
+    expect(result).toMatchObject({ successful: 2, failed: 0 });
+    expect(get).toHaveBeenCalledTimes(2);
+    const log = workbook.getWorksheet('Download Log')!;
+    const erp = workbook.getWorksheet('ERP Import')!;
+    expect(log.getCell('C2').text).toBe(imageUrl);
+    expect(log.getCell('C3').text).toBe(pdfUrl);
+    const image = log.getCell('I2').text;
+    const sheet = log.getCell('I3').text;
+    expect((await fs.readFile(image)).subarray(0, 2)).toEqual(
+      Buffer.from([0xff, 0xd8])
+    );
+    expect(await fs.readFile(sheet)).toEqual(pdf);
+    expect(erp.getCell('B2').text).toBe(
+      path.join(config.imageFilePath, path.basename(image))
+    );
+    expect(erp.getCell('C2').text).toBe(path.basename(sheet));
+  } finally {
+    get.mockRestore();
+  }
+});
+
+test('duplicate sources are tried once and a WebP backup can recover from a blocked JPEG filename', async () => {
+  const png = await fs.readFile(await makeImage('red', 0xff0000ff));
+  const webp = Buffer.from(
+    'UklGRhwAAABXRUJQVlA4TA8AAAAvAAAAAAcQ/Y/+ByKi/wEA',
+    'base64'
+  );
+  const requests: string[] = [];
+  const server = createServer((request, response) => {
+    requests.push(request.url ?? '');
+    if (request.url === '/invalid') response.end('Invalid image');
+    else response.end(request.url === '/spare' ? webp : png);
+  });
+  await new Promise<void>(resolve => server.listen(0, '127.0.0.1', resolve));
+  try {
+    const address = server.address();
+    if (!address || typeof address === 'string')
+      throw new Error('No HTTP port');
+    const url = `http://127.0.0.1:${address.port}`;
+    await fs.mkdir(path.join(config.imageFolder, 'BLOCK.jpg'), {
+      recursive: true,
+    });
+    const { result, workbook } = await download([
+      { Code: 'DUP', Image: url + '/invalid', Backup: url + '/invalid' },
+      { Code: 'BLOCK', Image: url + '/first', Backup: url + '/spare' },
+    ]);
+    expect(result).toMatchObject({ successful: 1, failed: 1 });
+    expect(requests.sort()).toEqual(['/first', '/invalid', '/spare']);
+    const log = workbook.getWorksheet('Download Log')!;
+    expect(log.getCell('C3').text).toBe(url + '/spare');
+    expect(await fs.readFile(log.getCell('I3').text)).toEqual(webp);
+    expect(workbook.getWorksheet('ERP Import')!.getCell('B2').text).toBe(
+      path.join(config.imageFilePath, 'BLOCK.webp')
+    );
+  } finally {
+    await new Promise<void>(resolve => server.close(() => resolve()));
+  }
+});
+
+test('an existing relative folder or file beginning with www. stays local', async () => {
+  const folder = await fs.mkdtemp('www.local-assets-');
+  try {
+    const photo = await makeImage('local', 0xff0000ff);
+    await fs.copyFile(photo, path.join(folder, 'photo.png'));
+    const pdf = path.join(folder, 'manual.pdf');
+    const bytes = Buffer.from('%PDF-1.4 local');
+    await fs.writeFile(pdf, bytes);
+    const { result, workbook } = await download([
+      { Code: 'LOCAL', Image: folder, PDF: pdf },
+    ]);
+    expect(result).toMatchObject({ successful: 2, failed: 0 });
+    const log = workbook.getWorksheet('Download Log')!;
+    expect(log.getCell('C2').text).toBe(folder);
+    expect(log.getCell('C3').text).toBe(pdf);
+    expect(await fs.readFile(log.getCell('I3').text)).toEqual(bytes);
+  } finally {
+    await fs.rm(folder, { recursive: true, force: true });
+  }
 });
