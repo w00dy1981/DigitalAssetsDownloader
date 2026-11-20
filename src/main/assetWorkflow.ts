@@ -31,6 +31,13 @@ export function registerAssetWorkflow(
   let latestLoadId = 0;
   let loadedInput: { loadId: number; rows: Rows } | undefined;
 
+  function checkInputCanChange() {
+    if (downloads.running)
+      throw new Error(
+        'Finish or cancel the current download before loading another input.'
+      );
+  }
+
   async function loadInput(
     read: () => Promise<{
       rows: Rows;
@@ -38,11 +45,13 @@ export function registerAssetWorkflow(
     }>,
     rememberConnection?: () => void
   ): Promise<LoadedInput> {
+    checkInputCanChange();
     const loadId = ++latestLoadId;
     const { rows, summary } = await read();
     if (loadId !== latestLoadId) {
       throw new Error('A newer input load replaced this request.');
     }
+    checkInputCanChange();
     rememberConnection?.();
     loadedInput = { loadId, rows };
     return { ...summary, loadId, rowCount: rows.length };

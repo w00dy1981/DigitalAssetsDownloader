@@ -48,6 +48,10 @@ export class DownloadService extends EventEmitter<{
 }> {
   private activeRun?: AbortController;
 
+  get running(): boolean {
+    return this.activeRun !== undefined;
+  }
+
   async startDownloads(
     config: DownloadOptions,
     data: readonly Record<string, unknown>[],

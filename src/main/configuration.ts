@@ -45,11 +45,27 @@ export function registerConfiguration() {
     const errors = userSettingsErrors(settings);
     if (errors.length)
       throw new Error(`Invalid settings: ${errors.join(', ')}`);
-    store.set('userSettings', mergeUserSettings(settings));
+    const previous = store.get('userSettings');
+    const active = mergeUserSettings(settings);
+    store.set('userSettings', {
+      ...previous,
+      ...active,
+      // Older versions stored additional folder and image preferences.
+      defaultPaths: { ...previous?.defaultPaths, ...active.defaultPaths },
+      imageProcessing: {
+        ...previous?.imageProcessing,
+        ...active.imageProcessing,
+      },
+    });
     return { success: true };
   });
 
   ipcMain.handle(IPC_CHANNELS.LOAD_SETTINGS, getSettings);
+  ipcMain.handle(IPC_CHANNELS.SAVE_IMAGE_NETWORK_PATH, (_, path: string) => {
+    if (typeof path !== 'string')
+      throw new Error('Image network path must be text.');
+    store.set('userSettings.defaultPaths.imageNetworkPath', path);
+  });
 
   return {
     getSettings,

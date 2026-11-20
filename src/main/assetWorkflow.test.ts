@@ -113,6 +113,13 @@ test('returns summaries, preserves SQL preview rows, and starts only with the ma
       sourceType: 'file',
       sourceLabel: filePath,
     });
+    const running = jest
+      .spyOn(DownloadService.prototype, 'running', 'get')
+      .mockReturnValue(true);
+    await expect(
+      invoke(IPC_CHANNELS.LOAD_SHEET_DATA, filePath, 'Sheet1')
+    ).rejects.toThrow('Finish or cancel');
+    running.mockRestore();
     finishOlderLoad(sqlResult);
     await expect(olderLoad).rejects.toThrow('A newer input load');
     expect(rememberSqlConnection).toHaveBeenCalledTimes(2);

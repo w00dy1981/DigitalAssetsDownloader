@@ -96,9 +96,11 @@ export function FileInput({
         file.sheet
       );
       onDataLoaded(data);
-    } catch {
+    } catch (error) {
       setError(
-        'Failed to load sheet data. Please check the file format and try again.'
+        error instanceof Error
+          ? error.message
+          : 'Failed to load sheet data. Please check the file format and try again.'
       );
     } finally {
       setLoading(false);

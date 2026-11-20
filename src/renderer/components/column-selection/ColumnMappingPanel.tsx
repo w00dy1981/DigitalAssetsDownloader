@@ -1,29 +1,11 @@
-import React from 'react';
 import { FormGroup } from '@/renderer/components/ui';
 
-interface ColumnMappingPanelProps {
-  partNoColumn: string;
-  onPartNoColumnChange: (value: string) => void;
-  imageColumns: readonly string[];
-  onImageColumnsChange: (value: string[]) => void;
-  pdfColumn: string;
-  onPdfColumnChange: (value: string) => void;
-  filenameColumn: string;
-  onFilenameColumnChange: (value: string) => void;
-  columns: string[];
-}
-
-const ColumnMappingPanel: React.FC<ColumnMappingPanelProps> = ({
-  partNoColumn,
-  onPartNoColumnChange,
-  imageColumns,
-  onImageColumnsChange,
-  pdfColumn,
-  onPdfColumnChange,
-  filenameColumn,
-  onFilenameColumnChange,
+import type { MappingFields } from './useColumnSelectionState';
+const ColumnMappingPanel = ({
+  config,
+  update,
   columns,
-}) => {
+}: MappingFields & { columns: string[] }) => {
   return (
     <div className="config-section">
       <h3>Column Mapping</h3>
@@ -32,32 +14,32 @@ const ColumnMappingPanel: React.FC<ColumnMappingPanelProps> = ({
         id="part-column"
         label="Part Number Column *"
         helpText="Required: Column containing unique part numbers for each item"
-        value={partNoColumn}
-        onChange={onPartNoColumnChange}
+        value={config.partNoColumn}
+        onChange={value => update('partNoColumn', value)}
         columns={columns}
       />
       <ColumnField
         id="image-column"
         label="Image URL Column"
         helpText="Select the column containing image URLs for download"
-        value={imageColumns[0] || ''}
-        onChange={value => onImageColumnsChange(value ? [value] : [])}
+        value={config.imageColumns[0] || ''}
+        onChange={value => update('imageColumns', value ? [value] : [])}
         columns={columns}
       />
       <ColumnField
         id="pdf-column"
         label="PDF URL Column"
         helpText="Select the column containing PDF URLs for download"
-        value={pdfColumn}
-        onChange={onPdfColumnChange}
+        value={config.pdfColumn}
+        onChange={value => update('pdfColumn', value)}
         columns={columns}
       />
       <ColumnField
         id="filename-column"
         label="Custom Filename Column (Optional)"
         helpText="Used for filename matching when searching source folders. If not specified, part numbers will be used."
-        value={filenameColumn}
-        onChange={onFilenameColumnChange}
+        value={config.filenameColumn}
+        onChange={value => update('filenameColumn', value)}
         columns={columns}
       />
     </div>

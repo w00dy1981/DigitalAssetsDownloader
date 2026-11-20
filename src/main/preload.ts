@@ -80,6 +80,8 @@ const electronAPI = {
       AppConfig,
       'lastConfiguration' | 'sqlConnectionDetails'
     > | null>(channels.LOAD_CONFIG),
+  saveImageNetworkPath: (path: string) =>
+    invoke<void>(channels.SAVE_IMAGE_NETWORK_PATH, path),
   saveSettings: (settings: UserSettings) =>
     invoke<Success>(channels.SAVE_SETTINGS, settings),
   loadSettings: () => invoke<UserSettings>(channels.LOAD_SETTINGS),

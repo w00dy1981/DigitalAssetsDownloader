@@ -3,6 +3,14 @@ import { useEffect, useState } from 'react';
 import type { LoadedInput, DownloadConfig } from '@/shared/types';
 import { defaultUserSettings } from '@/shared/userSettings';
 
+export interface MappingFields {
+  config: DownloadConfig;
+  update<K extends keyof DownloadConfig>(
+    key: K,
+    value: DownloadConfig[K]
+  ): void;
+}
+
 interface ColumnSelectionProps {
   data: LoadedInput;
   initialConfig: DownloadConfig | null;

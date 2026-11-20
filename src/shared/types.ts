@@ -73,6 +73,7 @@ export const IPC_CHANNELS = {
   DOWNLOAD_COMPLETE: 'download-complete',
 
   // Settings operations
+  SAVE_IMAGE_NETWORK_PATH: 'save-image-network-path',
   SAVE_SETTINGS: 'save-settings',
   LOAD_SETTINGS: 'load-settings',
 

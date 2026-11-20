@@ -37,26 +37,13 @@ const ColumnSelectionTab: React.FC<ColumnSelectionTabProps> = ({
 
       <div className="configuration-sections">
         <ColumnMappingPanel
-          partNoColumn={config.partNoColumn}
-          onPartNoColumnChange={value => update('partNoColumn', value)}
-          imageColumns={config.imageColumns}
-          onImageColumnsChange={value => update('imageColumns', value)}
-          pdfColumn={config.pdfColumn}
-          onPdfColumnChange={value => update('pdfColumn', value)}
-          filenameColumn={config.filenameColumn}
-          onFilenameColumnChange={value => update('filenameColumn', value)}
+          config={config}
+          update={update}
           columns={data.columns}
         />
-
         <FolderConfigurationPanel
-          imageFolder={config.imageFolder}
-          onImageFolderChange={value => update('imageFolder', value)}
-          pdfFolder={config.pdfFolder}
-          onPdfFolderChange={value => update('pdfFolder', value)}
-          sourceImageFolder={config.sourceImageFolder}
-          onSourceImageFolderChange={value =>
-            update('sourceImageFolder', value)
-          }
+          config={config}
+          update={update}
           onError={setError}
         />
       </div>
