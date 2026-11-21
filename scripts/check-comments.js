@@ -1,46 +1,121 @@
 const { execFileSync } = require('node:child_process');
 const { existsSync, readFileSync, statSync } = require('node:fs');
+const postcss = require('postcss');
 const ts = require('typescript');
 const { Lexer } = require('yaml');
 
-const DIRECTIVE =
-  /^(biome-ignore|@ts-(expect-error|ignore|nocheck|check)\b|eslint-(disable|enable)|@vitest-environment|@jest-environment|(istanbul|c8|v8) ignore|@jsxImportSource|@jsx\b|[#@]__PURE__|webpack[A-Z]|@generated|@license|@preserve|<reference |yaml-language-server:)/;
-const JSDOC_TYPE_TAG =
-  /^@(import\s.+|(type|satisfies|returns?|this|enum)\s+\{.+\}|typedef\s+\{.+\}\s+[\w$]+|template\s+.+|(param|property|prop)\s+\{.+\}\s+\[?[\w$.]+(=[^\]]*)?\]?)$/;
+/** @typedef {{ start: number, text: string }} Comment */
+/** @typedef {"script" | "javascript" | "css" | "yaml"} Language */
 
 const SCRIPT_KINDS = {
   ts: ts.ScriptKind.TS,
+  mts: ts.ScriptKind.TS,
+  cts: ts.ScriptKind.TS,
   tsx: ts.ScriptKind.TSX,
   js: ts.ScriptKind.JS,
-  jsx: ts.ScriptKind.JSX,
   mjs: ts.ScriptKind.JS,
   cjs: ts.ScriptKind.JS,
+  jsx: ts.ScriptKind.JSX,
   json: ts.ScriptKind.JSON,
+  jsonc: ts.ScriptKind.JSON,
 };
+const JAVASCRIPT = new Set(['js', 'mjs', 'cjs', 'jsx']);
+
+const SCRIPT_DIRECTIVES = [
+  /^@ts-(expect-error|ignore)( \S.*)?$/,
+  /^@ts-(check|nocheck)$/,
+  /^eslint-(disable|enable)(-next-line|-line)?( [\w@/,\s-]+)?( -- \S.*)?$/,
+  /^@(vitest|jest)-environment [\w-]+$/,
+  /^(istanbul|c8|v8) ignore (next|else|if|start|stop|file)$/,
+  /^@jsx(ImportSource|Runtime|Frag)? [\w./@-]+$/,
+  /^[#@]__(PURE|NO_SIDE_EFFECTS)__$/,
+  /^[#@] source(Mapping)?URL=\S+$/,
+  /^<reference (path|types|lib)="[^"]+" \/>$/,
+  /^@generated$/,
+];
+const DIRECTIVES = /** @type {Record<Language, RegExp[]>} */ ({
+  script: SCRIPT_DIRECTIVES,
+  javascript: SCRIPT_DIRECTIVES,
+  css: [],
+  yaml: [/^yaml-language-server: \$schema=\S+$/],
+});
+const LEGAL_NOTICE =
+  /^(@license\b|SPDX-License-Identifier:|Copyright\b|\(c\)|©)/i;
+const TYPE_TAGS = new Set([
+  'import',
+  'type',
+  'typedef',
+  'param',
+  'returns',
+  'return',
+  'template',
+  'satisfies',
+  'this',
+  'enum',
+  'property',
+  'prop',
+  'callback',
+  'overload',
+]);
 
 /** @param {string} raw */
-function isAllowed(raw) {
-  if (raw.startsWith('/*!')) return true;
-  const body = raw.startsWith('/*')
-    ? raw
-        .slice(2, -2)
-        .replace(/^\*+/, '')
-        .replace(/^[ \t]*\*[ \t]?/gm, '')
-    : raw.replace(/^(\/\/+|#)/, '');
-  const lines = body
-    .split(/\n|\s(?=@)/)
-    .map(line => line.trim())
-    .filter(Boolean);
-  if (lines.length === 0) return false;
-  if (DIRECTIVE.test(lines[0])) return true;
-  return lines.every(line => JSDOC_TYPE_TAG.test(line));
+function commentBody(raw) {
+  if (raw.startsWith('//')) return raw.replace(/^\/\/\/?/, '').trim();
+  if (raw.startsWith('/*')) {
+    return raw
+      .slice(2, -2)
+      .replace(/^\*+/, '')
+      .split('\n')
+      .map(line => line.replace(/^\s*\*?\s?/, ''))
+      .join('\n')
+      .trim();
+  }
+  return raw.replace(/^#/, '').trim();
+}
+
+/** @param {string} raw */
+function isTypeAnnotation(raw) {
+  if (!raw.startsWith('/**')) return false;
+  const source = ts.createSourceFile(
+    'type.js',
+    `${raw}\nvar typed;`,
+    ts.ScriptTarget.Latest,
+    true
+  );
+  const docs = /** @type {{ jsDoc?: ts.JSDoc[] }} */ (
+    /** @type {unknown} */ (source.statements[0])
+  ).jsDoc;
+  /** @param {ts.JSDoc["comment"]} comment */
+  const hasProse = comment =>
+    /[^\s*]/.test(ts.getTextOfJSDocComment(comment) ?? '');
+  if (docs?.length !== 1 || hasProse(docs[0].comment)) return false;
+  const tags = docs[0].tags ?? [];
+  return (
+    tags.length > 0 &&
+    tags.every(tag => TYPE_TAGS.has(tag.tagName.text) && !hasProse(tag.comment))
+  );
+}
+
+/**
+ * @param {string} raw
+ * @param {Language} language
+ */
+function isAllowed(raw, language) {
+  const body = commentBody(raw);
+  if (LEGAL_NOTICE.test(body)) return true;
+  if (
+    !body.includes('\n') &&
+    DIRECTIVES[language].some(pattern => pattern.test(body))
+  )
+    return true;
+  return language === 'javascript' && isTypeAnnotation(raw);
 }
 
 /**
  * @param {string} text
  * @param {number} start
  * @param {number} end
- * @param {{ start: number, text: string }[]} found
+ * @param {Comment[]} found
  */
 function triviaComments(text, start, end, found) {
   let index = start;
@@ -75,7 +150,7 @@ function scriptComments(file, text, kind) {
     true,
     kind
   );
-  /** @type {{ start: number, text: string }[]} */
+  /** @type {Comment[]} */
   const found = [];
   /** @param {ts.Node} node */
   const visit = node => {
@@ -99,32 +174,25 @@ function scriptComments(file, text, kind) {
 
 /** @param {string} text */
 function cssComments(text) {
-  /** @type {{ start: number, text: string }[]} */
+  /** @type {Comment[]} */
   const found = [];
-  let index = 0;
-  while (index < text.length) {
-    const char = text[index];
-    if (char === "'" || char === '"') {
-      index += 1;
-      while (index < text.length && text[index] !== char)
-        index += text[index] === '\\' ? 2 : 1;
-      index += 1;
-    } else if (text.startsWith('/*', index)) {
-      const close = text.indexOf('*/', index + 2);
-      const stop = close === -1 ? text.length : close + 2;
-      found.push({ start: index, text: text.slice(index, stop) });
-      index = stop;
-    } else index += 1;
-  }
+  postcss.parse(text).walkComments(comment => {
+    const start = comment.source?.start?.offset ?? 0;
+    const end = comment.source?.end?.offset ?? start;
+    found.push({ start, text: text.slice(start, end + 1) });
+  });
   return found;
 }
 
+const YAML_CONTROL_TOKENS = new Set(['\x02', '\x18', '\x1f']);
+
 /** @param {string} text */
 function yamlComments(text) {
-  /** @type {{ start: number, text: string }[]} */
+  /** @type {Comment[]} */
   const found = [];
   let offset = 0;
   for (const token of new Lexer().lex(text)) {
+    if (YAML_CONTROL_TOKENS.has(token)) continue;
     if (token.startsWith('#')) found.push({ start: offset, text: token });
     offset += token.length;
   }
@@ -139,16 +207,22 @@ function findProseComments(file, text) {
   const extension = file.slice(file.lastIndexOf('.') + 1).toLowerCase();
   const kind =
     SCRIPT_KINDS[/** @type {keyof typeof SCRIPT_KINDS} */ (extension)];
-  const comments =
+  /** @type {[Language, Comment[]] | null} */
+  const read =
     kind !== undefined
-      ? scriptComments(file, text, kind)
+      ? [
+          JAVASCRIPT.has(extension) ? 'javascript' : 'script',
+          scriptComments(file, text, kind),
+        ]
       : extension === 'css'
-        ? cssComments(text)
+        ? ['css', cssComments(text)]
         : extension === 'yml' || extension === 'yaml'
-          ? yamlComments(text)
-          : [];
+          ? ['yaml', yamlComments(text)]
+          : null;
+  if (!read) return [];
+  const [language, comments] = read;
   return comments
-    .filter(comment => !isAllowed(comment.text))
+    .filter(comment => !isAllowed(comment.text, language))
     .map(comment => ({
       line: text.slice(0, comment.start).split('\n').length,
       text: comment.text.split('\n')[0].slice(0, 100),
@@ -156,19 +230,21 @@ function findProseComments(file, text) {
 }
 
 /** @param {string[]} args */
-function git(args) {
-  return execFileSync('git', args, { encoding: 'utf8' })
-    .split('\n')
+function gitPaths(args) {
+  return execFileSync('git', [...args, '-z'], { encoding: 'utf8' })
+    .split('\0')
     .filter(Boolean);
 }
 
 function changedFiles() {
   const base =
     process.env.COMMENT_CHECK_BASE ??
-    git(['merge-base', 'origin/main', 'HEAD'])[0];
+    execFileSync('git', ['merge-base', 'origin/main', 'HEAD'], {
+      encoding: 'utf8',
+    }).trim();
   const files = [
-    ...git(['diff', '--name-only', '--diff-filter=ACMR', base]),
-    ...git(['ls-files', '--others', '--exclude-standard']),
+    ...gitPaths(['diff', '--name-only', '--diff-filter=ACMR', base]),
+    ...gitPaths(['ls-files', '--others', '--exclude-standard']),
   ];
   return [...new Set(files)].filter(
     file => existsSync(file) && statSync(file).isFile()
