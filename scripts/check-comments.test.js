@@ -65,6 +65,8 @@ describe('prose comments', () => {
       '// Copyright is why we do this',
       '// @license this is why we do this',
       '// eslint-disable this is why we do this',
+      '// v8 ignore next',
+      '// @vitest-environment node',
       '/* webpackChunkName: this is why we do this */',
       '/* webpackThisIsWhyWeDoThis: true */',
     ]) {
