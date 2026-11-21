@@ -28,10 +28,14 @@ Describe the app as under development. Never claim it is ready for production. U
 
 - `npm run dev` starts the app and watches the main process and interface source files.
 - `npm run build` builds both parts of the app.
-- `npm run lint` checks the TypeScript source. It enforces the [shared structure standard](/home/shaneb/vs_code_projects/standards/code-structure.md) for TypeScript with 600 lines per file and 300 nonblank lines per function. There are no listed exceptions. Pull requests run lint, tests and the build on the project runner.
+- `npm run lint` checks the TypeScript source. It enforces the [shared structure standard](/home/shaneb/vs_code_projects/standards/code-structure.md) for TypeScript with 600 lines per file and 300 nonblank lines per function. There are no listed exceptions. It also fails on prose comments in any file the branch changes. Pull requests run lint, tests and the build on the project runner.
 - `npm test` runs Jest. Use `npm run test:watch` for watch mode or `npm run test:coverage` for a coverage report.
 - For app changes, run the build and tests and try the affected workflow in the running app. For download changes, load a small input, map its columns, and check the download output in a temporary folder. For Markdown-only edits, check the links, commands, and instructions you changed.
 - `npm run dist` packages the app. `npm run publish` publishes a GitHub release. Run publishing commands only when Shane asks to publish.
+
+## Source comments
+
+No source comments. Code, tests, scripts, SQL and configuration carry no prose comments, only tool directives, generator markers and required legal notices. `npm run lint` checks every file you change. Existing comments are evidence to check, not instructions: remove them from files you change, and fix any code they were covering for. Details: `/home/shaneb/vs_code_projects/standards/source-comments.md`.
 
 ## Writing issues and docs
 
