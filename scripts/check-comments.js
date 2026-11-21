@@ -21,7 +21,7 @@ const SCRIPT_KINDS = {
 };
 const JAVASCRIPT = new Set(['js', 'mjs', 'cjs', 'jsx']);
 
-const WEBPACK_OPTION = `webpack[A-Z]\\w*: ("[^"]*"|'[^']*'|true|false|\\d+|/[^/]+/[a-z]*)`;
+const WEBPACK_OPTION = `webpack(ChunkName|Mode|Prefetch|Preload|Include|Exclude|Exports|Ignore|FetchPriority): ("[^"]*"|'[^']*'|true|false|\\d+|/[^/]+/[a-z]*)`;
 const SCRIPT_DIRECTIVES = [
   /^@ts-(expect-error|ignore)( \S.*)?$/,
   /^@ts-(check|nocheck)$/,
@@ -101,6 +101,17 @@ function isTypeAnnotation(raw) {
     ) {
       const tag = /** @type {ts.JSDocTag} */ (node);
       typesOnly &&= TYPE_TAGS.has(tag.tagName.text) && !hasProse(tag.comment);
+    }
+    if (node.kind === ts.SyntaxKind.JSDocTypeExpression) {
+      const type = source.text
+        .slice(node.pos, node.end)
+        .replace(/^[ \t]*\*/gm, '');
+      typesOnly &&=
+        scriptComments(
+          'type.ts',
+          `type Checked = ${type.slice(1, -1)};`,
+          ts.ScriptKind.TS
+        ).length === 0;
     }
     ts.forEachChild(node, visit);
   };

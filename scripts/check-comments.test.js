@@ -66,6 +66,7 @@ describe('prose comments', () => {
       '// @license this is why we do this',
       '// eslint-disable this is why we do this',
       '/* webpackChunkName: this is why we do this */',
+      '/* webpackThisIsWhyWeDoThis: true */',
     ]) {
       expect(found('x.ts', `${comment}\nconst x = 1;`)).toHaveLength(1);
     }
@@ -89,6 +90,7 @@ describe('prose comments', () => {
       '/** @typedef {Object} Foo\n * @property {string} bar This is prose\n */',
       '/** @callback Foo\n * @param {string} x This is prose\n */',
       '/** @overload\n * @param {string} x This is prose\n * @returns {string}\n */',
+      '/** @typedef {{\n * foo: string // This is prose\n * }} Foo\n */',
     ]) {
       expect(found('x.mjs', `${comment}\nconst x = 1;`)).toHaveLength(1);
     }
