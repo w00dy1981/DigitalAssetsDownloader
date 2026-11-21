@@ -49,6 +49,9 @@ describe('prose comments', () => {
       '/// <reference types="vite/client" />',
       'const pure = /*#__PURE__*/ make();',
       '//# sourceMappingURL=x.js.map',
+      '/*! @license MIT */',
+      '// eslint-disable-next-line no-console, no-alert -- staff see it',
+      '/* webpackChunkName: "report" */',
     ].join('\n');
     expect(found('script.ts', code)).toEqual([]);
   });
@@ -59,6 +62,10 @@ describe('prose comments', () => {
       '// @ts-check this is why',
       '/* @generated\nOrdinary prose.\n*/',
       '/*! Ordinary prose. */',
+      '// Copyright is why we do this',
+      '// @license this is why we do this',
+      '// eslint-disable this is why we do this',
+      '/* webpackChunkName: this is why we do this */',
     ]) {
       expect(found('x.ts', `${comment}\nconst x = 1;`)).toHaveLength(1);
     }
@@ -79,6 +86,9 @@ describe('prose comments', () => {
       '/** @param {string} path The folder to read. */',
       '/** @template T This is prose */',
       '/** @import {Foo} from "foo" this is prose */',
+      '/** @typedef {Object} Foo\n * @property {string} bar This is prose\n */',
+      '/** @callback Foo\n * @param {string} x This is prose\n */',
+      '/** @overload\n * @param {string} x This is prose\n * @returns {string}\n */',
     ]) {
       expect(found('x.mjs', `${comment}\nconst x = 1;`)).toHaveLength(1);
     }

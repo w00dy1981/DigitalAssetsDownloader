@@ -21,14 +21,16 @@ const SCRIPT_KINDS = {
 };
 const JAVASCRIPT = new Set(['js', 'mjs', 'cjs', 'jsx']);
 
+const WEBPACK_OPTION = `webpack[A-Z]\\w*: ("[^"]*"|'[^']*'|true|false|\\d+|/[^/]+/[a-z]*)`;
 const SCRIPT_DIRECTIVES = [
   /^@ts-(expect-error|ignore)( \S.*)?$/,
   /^@ts-(check|nocheck)$/,
-  /^eslint-(disable|enable)(-next-line|-line)?( [\w@/,\s-]+)?( -- \S.*)?$/,
+  /^eslint-(disable|enable)(-next-line|-line)?( [\w@/-]+(, ?[\w@/-]+)*)?( -- \S.*)?$/,
   /^@(vitest|jest)-environment [\w-]+$/,
   /^(istanbul|c8|v8) ignore (next|else|if|start|stop|file)$/,
   /^@jsx(ImportSource|Runtime|Frag)? [\w./@-]+$/,
   /^[#@]__(PURE|NO_SIDE_EFFECTS)__$/,
+  new RegExp(`^${WEBPACK_OPTION}(, ${WEBPACK_OPTION})*$`),
   /^[#@] source(Mapping)?URL=\S+$/,
   /^<reference (path|types|lib)="[^"]+" \/>$/,
   /^@generated$/,
@@ -40,7 +42,7 @@ const DIRECTIVES = /** @type {Record<Language, RegExp[]>} */ ({
   yaml: [/^yaml-language-server: \$schema=\S+$/],
 });
 const LEGAL_NOTICE =
-  /^(@license\b|SPDX-License-Identifier:|Copyright\b|\(c\)|©)/i;
+  /^(Copyright (\(c\) |© )?\d{4}\b.*|SPDX-License-Identifier: [\w.+-]+( (AND|OR|WITH) [\w.+-]+)*|@license [\w.+-]+)$/;
 const TYPE_TAGS = new Set([
   'import',
   'type',
@@ -64,7 +66,7 @@ function commentBody(raw) {
   if (raw.startsWith('/*')) {
     return raw
       .slice(2, -2)
-      .replace(/^\*+/, '')
+      .replace(/^[*!]+/, '')
       .split('\n')
       .map(line => line.replace(/^\s*\*?\s?/, ''))
       .join('\n')
@@ -88,12 +90,22 @@ function isTypeAnnotation(raw) {
   /** @param {ts.JSDoc["comment"]} comment */
   const hasProse = comment =>
     /[^\s*]/.test(ts.getTextOfJSDocComment(comment) ?? '');
-  if (docs?.length !== 1 || hasProse(docs[0].comment)) return false;
-  const tags = docs[0].tags ?? [];
-  return (
-    tags.length > 0 &&
-    tags.every(tag => TYPE_TAGS.has(tag.tagName.text) && !hasProse(tag.comment))
-  );
+  if (docs?.length !== 1 || hasProse(docs[0].comment) || !docs[0].tags?.length)
+    return false;
+  let typesOnly = true;
+  /** @param {ts.Node} node */
+  const visit = node => {
+    if (
+      node.kind >= ts.SyntaxKind.FirstJSDocTagNode &&
+      node.kind <= ts.SyntaxKind.LastJSDocTagNode
+    ) {
+      const tag = /** @type {ts.JSDocTag} */ (node);
+      typesOnly &&= TYPE_TAGS.has(tag.tagName.text) && !hasProse(tag.comment);
+    }
+    ts.forEachChild(node, visit);
+  };
+  visit(docs[0]);
+  return typesOnly;
 }
 
 /**
@@ -102,7 +114,7 @@ function isTypeAnnotation(raw) {
  */
 function isAllowed(raw, language) {
   const body = commentBody(raw);
-  if (LEGAL_NOTICE.test(body)) return true;
+  if (LEGAL_NOTICE.test(body.split('\n')[0])) return true;
   if (
     !body.includes('\n') &&
     DIRECTIVES[language].some(pattern => pattern.test(body))
